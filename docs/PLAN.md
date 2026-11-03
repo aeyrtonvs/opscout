@@ -262,7 +262,8 @@ The order matters: commit identity comes before the first commit.
    `.python-version`, and `[tool.uv] required-version`. A clone is set up with `uv sync`
    and `uv run just setup`; nothing else is installed globally. ruff enables `PTH`, and the
    import-linter contracts include ADR-0021's rule that platform adapters are imported only
-   by the composition root.
+   by the composition root. Done 2026-11-03; `just setup` arrives with the git hooks in
+   step 6.
 5. Plugin skeleton: marketplace and plugin manifests, with `userConfig` for the config
    directory; `claude plugin validate --strict` passes.
 6. Gates: pre-commit with gitleaks and actionlint (upstream hooks pinned by `rev`) and the
