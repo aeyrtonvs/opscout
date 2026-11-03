@@ -1,0 +1,18 @@
+# Real configuration never lives in this repo (see CLAUDE.md, rule 1)
+config/
+*.local.*
+.env
+.env.*
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+dist/
+build/
+
+# OS
+.DS_Store
