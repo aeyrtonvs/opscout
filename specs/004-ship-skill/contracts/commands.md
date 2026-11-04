@@ -18,6 +18,6 @@ opscout hook pre-tool-use [--config DIR]     # a PreToolUse event on stdin
 ```json
 {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command",
   "command": "${CLAUDE_PLUGIN_ROOT}/bin/opscout",
-  "args": ["hook", "pre-tool-use", "--config", "${user_config.config_dir}"],
+  "args": ["hook", "pre-tool-use"],
   "onFailure": "block"}]}]}}
 ```

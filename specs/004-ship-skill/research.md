@@ -21,9 +21,12 @@ plugins/manifest-reference, permissions, plugin-evals; CLI 2.1.318).
 - Plugin hooks run in `claude plugin eval` runs, outside the sandbox. In `claude -p`, a
   prompt no one can answer is denied, and Claude reads the reason.
 
-**Decision**: `hooks/hooks.json` runs
-`"${CLAUDE_PLUGIN_ROOT}/bin/opscout" hook pre-tool-use --config "${user_config.config_dir}"`
-in exec form, with `"onFailure": "block"`. The command reads the event on standard input,
+**Decision**: `hooks/hooks.json` runs `"${CLAUDE_PLUGIN_ROOT}/bin/opscout" hook
+pre-tool-use` in exec form, with `"onFailure": "block"`. The configuration directory comes
+from `CLAUDE_PLUGIN_OPTION_CONFIG_DIR`, then `OPSCOUT_CONFIG` and the default. **Corrected
+2026-11-04 (first eval)**: with `${user_config.config_dir}` in the arguments, an unset
+option (a plugin loaded from a clone) made the hook fail, and `onFailure: block` then
+blocked every Bash command, `git status` included. The command reads the event on standard input,
 prints the decision as JSON and exits 0; any error while deciding about a command that
 names `git push` exits 2 with the reason on standard error (FR-013). An unsubstituted
 `${user_config.…}` counts as no directory, as in spec 003.

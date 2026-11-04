@@ -121,7 +121,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "ship":
         return _ship(args)
     if args.command == "hook" and args.hook_command == "pre-tool-use":
-        location = resolve_config_dir(_given_directory(args.config), os.environ, Path.home())
+        # Claude Code gives a plugin's hooks their options as CLAUDE_PLUGIN_OPTION_<KEY>; the
+        # docs do not say whether the key keeps its case, so both spellings are read.
+        lower = "CLAUDE_PLUGIN_OPTION_config_dir"
+        given = args.config or os.environ.get(
+            "CLAUDE_PLUGIN_OPTION_CONFIG_DIR", os.environ.get(lower)
+        )
+        location = resolve_config_dir(_given_directory(given), os.environ, Path.home())
         try:
             sys.stdout.write(pre_tool_use(sys.stdin.read(), location))
         except HookError as error:

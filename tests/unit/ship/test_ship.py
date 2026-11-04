@@ -415,6 +415,31 @@ def test_the_hook_reads_the_protected_patterns_from_the_configuration(
 
 @spec("FR-012")
 @pytest.mark.parametrize(
+    "variable", ["CLAUDE_PLUGIN_OPTION_CONFIG_DIR", "CLAUDE_PLUGIN_OPTION_config_dir"]
+)
+def test_the_hook_reads_the_plugin_option_from_its_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    variable: str,
+) -> None:
+    repository = scratch_repository(tmp_path)
+    config = tmp_path / "config"
+    config.mkdir()
+    (config / "config.yaml").write_text(
+        "schema_version: 1\nship:\n  protected_branches: ['release/*']\n", encoding="utf-8"
+    )
+    monkeypatch.delenv("OPSCOUT_CONFIG", raising=False)
+    monkeypatch.setenv(variable, str(config))
+    event = json.dumps(bash("git push origin release/1.2", repository))
+    monkeypatch.setattr("sys.stdin", io.StringIO(event))
+
+    assert main(["hook", "pre-tool-use"]) == 0
+    assert '"deny"' in capsys.readouterr().out
+
+
+@spec("FR-012")
+@pytest.mark.parametrize(
     "configuration_text",
     [None, "schema_version: 1\nship: {types: []}\n"],
     ids=["missing", "invalid"],
@@ -473,7 +498,9 @@ def test_the_plugin_declares_the_hook_so_that_a_failure_blocks() -> None:
     assert entry["matcher"] == "Bash"
     assert command["type"] == "command"
     assert command["command"] == "${CLAUDE_PLUGIN_ROOT}/bin/opscout"
-    assert command["args"] == ["hook", "pre-tool-use", "--config", "${user_config.config_dir}"]
+    # No ${user_config...} in the arguments: unset (as when the plugin is loaded from a clone),
+    # it would make the hook fail, and onFailure: block would then block every command.
+    assert command["args"] == ["hook", "pre-tool-use"]
     assert command["onFailure"] == "block"
 
 

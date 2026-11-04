@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/bin/opscout",
-            "args": ["hook", "pre-tool-use", "--config", "${user_config.config_dir}"],
+            "args": ["hook", "pre-tool-use"],
             "onFailure": "block"
           }
         ]
