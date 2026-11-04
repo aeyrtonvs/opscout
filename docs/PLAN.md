@@ -258,6 +258,8 @@ The order matters: commit identity comes before the first commit.
 2. Ratify the constitution and accept the ADRs (done 2026-11-03).
 3. Repository skeleton and governance files (ADR-0016); `AGENTS.md` and `CLAUDE.md`. The pull
    request template also asks whether new host-specific code sits behind a port (ADR-0021).
+   Done 2026-11-03: `NOTICE` names "The opscout Authors", and the Code of Conduct is
+   Contributor Covenant 3.0. Its contact address is still open (§9).
 4. Python project: `pyproject.toml` (uv), the package layers of ADR-0011, one smoke test,
    `justfile`. The whole toolchain is pinned through uv (ADR-0020): a `dev` dependency group
    (ruff, mypy, pytest, import-linter, pre-commit, rust-just, zizmor),
@@ -284,7 +286,9 @@ The order matters: commit identity comes before the first commit.
    rules and denies the forms they miss: options before the subcommand, variables or
    wrappers before the program, and nested shells. The Stop hook runs `just fast`.
 8. Create the GitHub remote and push, and register the SSH signing key on GitHub, each
-   confirmed by the maintainer.
+   confirmed by the maintainer. Then turn on what the repository files rely on: private
+   vulnerability reporting (`SECURITY.md`), secret scanning with push protection
+   (ADR-0015) and the ruleset on `main` (ADR-0016).
 
 Exit: `just check` green on a fresh clone set up with only git, uv and Claude Code; CI green
 on the first push; the first commit reviewed for real data.
@@ -459,4 +463,8 @@ genai.owasp.org (Top 10 for Agentic Applications).
       `package.json` and a second lockfile); or the PyPI package `claude-agent-sdk`, whose
       wheels bundle the CLI (about 140–150 MB each), in a dependency group only CI installs,
       locked in `uv.lock`. Decide in step 6.
+- [ ] Code of Conduct contact: the maintainer creates a project alias for reports, and it
+      replaces the placeholder in `CODE_OF_CONDUCT.md` before the repository is public. It
+      is project data, not personal data (Principle I); the leak check's allow-list
+      records that.
 - [ ] Re-verify §8 facts at implementation time; they change.

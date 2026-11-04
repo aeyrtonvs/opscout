@@ -1,0 +1,36 @@
+name: Feature request
+description: Repetitive work that opscout does not cover yet.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This repository is public.** Do not paste real data: company or product names, account IDs, profile names, hostnames, IP addresses, channel or user IDs, ticket keys, alert texts, costs or contact details. Use fake values.
+
+        Accepted features are specified with Spec Kit before any code is written.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The repetitive work
+      description: What do you do by hand today, and how often?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What the agent would do
+      description: What it investigates, what it reports, and where the report goes.
+    validations:
+      required: true
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: What it must never do
+      description: Agents are read-only and never act without a person's approval. List anything else it must not touch.
+  - type: checkboxes
+    id: public
+    attributes:
+      label: Public repository
+      options:
+        - label: I removed every real value from this request.
+          required: true
