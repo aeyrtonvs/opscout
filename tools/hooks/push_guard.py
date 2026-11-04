@@ -8,8 +8,10 @@ denies those forms and names the plain form to use, which the ``ask`` rule then 
 The gated operations are read from the ``ask`` rules themselves, so the two cannot drift
 apart.
 
-It catches the forms an agent writes by habit. It is not a defense against deliberate
-evasion.
+The command is read roughly as a shell reads it: quotes, comments, line continuations and
+here-documents first, then words. A command this reader still cannot split is denied when it
+names a gated command, so a gap in the reader fails closed. The hook catches the forms an
+agent writes by habit; it is not a defense against deliberate evasion.
 """
 
 import json
@@ -25,7 +27,12 @@ from tools.hooks._protocol import Decision, Event, run_hook
 Prefix = tuple[str, ...]
 
 ASK_RULE = re.compile(r"Bash\((?P<prefix>[^*()]+?)(?: \*)?\)")
-HEREDOC = re.compile(r"<<-?\s*(['\"]?)(?P<delimiter>\w+)\1")
+# A here-document operator; not a here-string (<<<) and not a shift such as 1<<4.
+HEREDOC = re.compile(
+    r"(?<![<\w])<<(?!<)(?P<strip>-?)[ \t]*(?P<quote>['\"]?)(?P<delimiter>[A-Za-z_]\w*)(?P=quote)"
+)
+# Command substitutions inside a word, such as "$(git push)" in double quotes.
+SUBSTITUTION = re.compile(r"\$\(([^()]*)\)|`([^`]*)`")
 PUNCTUATION = "();<>|&`\n"
 SEPARATOR_CHARS = frozenset(";|&\n")
 SHELLS = frozenset({"bash", "dash", "fish", "ksh", "sh", "zsh"})
@@ -46,13 +53,21 @@ def ask_prefixes(settings: dict[str, Any]) -> list[Prefix]:
 def find_escape(command: str, prefixes: Sequence[Prefix], *, nested: bool = False) -> Prefix | None:
     """Return the gated prefix that ``command`` runs in a form its ask rule misses, if any.
 
-    Inside a nested script (``eval``, a shell's ``-c``) every gated command escapes, since the
-    ask rules see only the outer command. Raises ``ValueError`` for unbalanced quotes.
+    Inside a nested script (``eval``, a shell's ``-c``, a command substitution in a word, a
+    here-document fed to a shell) every gated command escapes, since the ask rules see only
+    the outer command.
     """
-    for words in _simple_commands(_strip_heredocs(command)):
+    text, scripts = _preprocess(command)
+    for script in scripts:
+        if (found := find_escape(script, prefixes, nested=True)) is not None:
+            return found
+    try:
+        simple_commands = _simple_commands(text)
+    except ValueError:  # quoting this reader cannot follow, such as $'...': fail closed
+        return _named(text, prefixes)
+    for words in simple_commands:
         for script in _nested_scripts(words):
-            found = find_escape(script, prefixes, nested=True)
-            if found is not None:
+            if (found := find_escape(script, prefixes, nested=True)) is not None:
                 return found
         for prefix in prefixes:
             if _invokes(words, prefix) and (nested or tuple(words[: len(prefix)]) != prefix):
@@ -67,8 +82,8 @@ def decide(event: Event, prefixes: Sequence[Prefix]) -> Decision | None:
         return None
     try:
         prefix = find_escape(command, prefixes)
-    except ValueError:  # unbalanced quotes: the shell cannot run it either
-        return None
+    except Exception:  # a bug in the reader must not open the gate
+        prefix = _named(command, prefixes)
     if prefix is None:
         return None
     plain = " ".join(prefix)
@@ -86,18 +101,72 @@ def decide(event: Event, prefixes: Sequence[Prefix]) -> Decision | None:
     }
 
 
-def _strip_heredocs(command: str) -> str:
-    """Drop here-document bodies, which are data, such as a commit message."""
-    kept: list[str] = []
-    pending: list[str] = []
-    for line in command.split("\n"):
-        if pending:
-            if line.strip() == pending[0]:
-                pending.pop(0)
-            continue
-        kept.append(line)
-        pending.extend(match["delimiter"] for match in HEREDOC.finditer(line))
-    return "\n".join(kept)
+def _preprocess(command: str) -> tuple[str, list[str]]:
+    """Return the command without comments, line continuations and here-document bodies.
+
+    Also return the bodies of the here-documents fed to a shell, which are scripts to check.
+    Any other body is data, such as a commit message, and is dropped.
+    """
+    out: list[str] = []
+    scripts: list[str] = []
+    pending: list[tuple[str, bool]] = []
+    line_start = 0
+    quote = ""
+    i, end = 0, len(command)
+    while i < end:
+        char = command[i]
+        if quote == "'":
+            out.append(char)
+            quote = "" if char == "'" else quote
+            i += 1
+        elif char == "\\" and i + 1 < end:
+            if command[i + 1] != "\n":  # a backslash-newline joins the two lines
+                out.append(command[i : i + 2])
+            i += 2
+        elif quote == '"':
+            out.append(char)
+            quote = "" if char == '"' else quote
+            i += 1
+        elif char in "'\"":
+            out.append(char)
+            quote = char
+            i += 1
+        elif char == "#" and (not out or out[-1][-1] in " \t\n;&|()"):
+            newline = command.find("\n", i)
+            i = end if newline == -1 else newline
+        elif (
+            char == "<"
+            and (heredoc := HEREDOC.match(command, i))
+            and "$((" not in "".join(out[line_start:])
+        ):
+            pending.append((heredoc["delimiter"], heredoc["strip"] == "-"))
+            out.append(heredoc.group())
+            i = heredoc.end()
+        elif char == "\n":
+            out.append(char)
+            i += 1
+            if pending:
+                line = "".join(out[line_start:])
+                to_shell = any(
+                    _program(word) in SHELLS for word in re.findall(r"[^\s;&|()<>'\"]+", line)
+                )
+                for delimiter, strip_tabs in pending:
+                    body: list[str] = []
+                    while i < end:
+                        newline = command.find("\n", i)
+                        raw = command[i:] if newline == -1 else command[i:newline]
+                        i = end if newline == -1 else newline + 1
+                        if (raw.lstrip("\t") if strip_tabs else raw) == delimiter:
+                            break
+                        body.append(raw)
+                    if to_shell:
+                        scripts.append("\n".join(body))
+                pending.clear()
+            line_start = len(out)
+        else:
+            out.append(char)
+            i += 1
+    return "".join(out), scripts
 
 
 def _simple_commands(command: str) -> list[list[str]]:
@@ -105,7 +174,7 @@ def _simple_commands(command: str) -> list[list[str]]:
     lexer = shlex.shlex(command, posix=True, punctuation_chars=PUNCTUATION)
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
-    lexer.commenters = ""  # shlex would end a word at "#"; a push after it would be missed
+    lexer.commenters = ""  # comments are already gone; shlex would also end a word at "#"
     commands: list[list[str]] = [[]]
     for token in lexer:
         if set(token) <= set(PUNCTUATION) and set(token) & SEPARATOR_CHARS:
@@ -116,9 +185,13 @@ def _simple_commands(command: str) -> list[list[str]]:
 
 
 def _nested_scripts(words: list[str]) -> list[str]:
-    """Return the scripts that ``eval`` or a shell's ``-c`` option would run."""
+    """Return the scripts that ``eval``, a shell's ``-c`` or a substitution in a word runs."""
     scripts: list[str] = []
     for index, word in enumerate(words):
+        scripts.extend(
+            next(part for part in match.groups() if part is not None)
+            for match in SUBSTITUTION.finditer(word)
+        )
         name = _program(word)
         if name == "eval":
             scripts.append(" ".join(words[index + 1 :]))
@@ -129,6 +202,18 @@ def _nested_scripts(words: list[str]) -> list[str]:
                     scripts.append(rest[position + 1])
                     break
     return scripts
+
+
+def _named(text: str, prefixes: Sequence[Prefix]) -> Prefix | None:
+    """Return the first gated prefix whose words appear, in order, on one line of ``text``."""
+    for prefix in prefixes:
+        program, *subcommand = prefix
+        pattern = rf"(?<![\w.-]){re.escape(program)}(?:\.exe)?\b" + "".join(
+            rf"[^\n]*?\b{re.escape(word)}\b" for word in subcommand
+        )
+        if re.search(pattern, text):
+            return prefix
+    return None
 
 
 def _invokes(words: list[str], prefix: Prefix) -> bool:

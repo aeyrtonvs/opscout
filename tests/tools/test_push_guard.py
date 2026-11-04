@@ -65,6 +65,14 @@ def test_every_bash_ask_rule_in_the_project_settings_is_guarded() -> None:
         "gh pr -R owner/repo create --fill",
         "uv --directory sub publish",
         "uv run twine upload dist/*",
+        # Found by the independent review: forms that broke the parser or hid the push.
+        "# don't push yet\ngit -C repo push",
+        "git -C repo \\\npush",
+        'out="$(git -C repo push)"',
+        "bash <<'EOF'\ngit -C repo push\nEOF",
+        "cat <<< 'x'\ngit -C repo push",
+        "echo $((1<<4))\ngit -C repo push",
+        "echo $'it\\'s' && git -C repo push",
     ],
 )
 def test_forms_the_ask_rules_miss_are_caught(command: str) -> None:
@@ -84,6 +92,9 @@ def test_forms_the_ask_rules_miss_are_caught(command: str) -> None:
         "git commit -m 'git push later'",
         "grep -rn 'git -C repo push' docs",
         "git commit -F - <<'EOF'\nchore: mention git -C repo push\nEOF\ngit status",
+        "git commit -F - <<'EOF'\nfix: don't stop\nEOF\ngit status",
+        "# a note about git -C repo push\ngit status",
+        "echo 'unbalanced",
         "gh pr view 12",
         "gh api repos/owner/repo",
         "uv run pytest",
@@ -117,3 +128,12 @@ def test_a_denial_names_the_plain_form_to_use() -> None:
 )
 def test_no_decision_is_returned_otherwise(event: dict[str, object]) -> None:
     assert decide(event, PREFIXES) is None
+
+
+def test_a_command_that_cannot_be_parsed_is_denied_when_it_names_a_gated_command() -> None:
+    event = {"tool_name": "Bash", "tool_input": {"command": "echo \"it's\" 'x && git push"}}
+
+    output = decide(event, PREFIXES)
+
+    assert output is not None
+    assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
