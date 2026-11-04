@@ -25,13 +25,13 @@ their FRs in `tags`. Scratch repositories with a local bare remote only.
 
 ## Phase 3: User Story 1 — the push guard (P1) 🎯 MVP
 
-- [ ] T005 [US1] Write failing tests for `decide_push` (pure) over a table of commands: plain
+- [X] T005 [US1] Write failing tests for `decide_push` (pure) over a table of commands: plain
   pushes asked with the remote and branches named (FR-007); protected destinations by
   refspec, current branch, deletion, pattern and remote default denied (FR-008); `--all`,
   `--mirror`, detached HEAD denied (FR-009); compound, assignments, wrappers, nested shells,
   `eval`, other global options and unsplittable text denied (FR-010); `gh pr create` asked
   and unrelated commands ignored (FR-011)
-- [ ] T006 [US1] Implement `decide_push` in `src/opscout/services/ship.py`; T005 passes
+- [X] T006 [US1] Implement `decide_push` in `src/opscout/services/ship.py`; T005 passes
 - [ ] T007 [US1] Write failing tests for `opscout hook pre-tool-use` on scratch repositories:
   the event on stdin, the JSON output, the current and default branches read with git in
   `cwd` or `-C` (FR-007, FR-008); configuration patterns read through the loader, and the

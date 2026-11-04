@@ -18,7 +18,9 @@ from opscout.core.config import (
     InvalidConfigError,
     Ship,
 )
+from opscout.core.ship import PushDecision
 from opscout.services.config import parse_config
+from opscout.services.ship import decide_push, read_command
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SPEC_FILE = REPO_ROOT / "specs" / "004-ship-skill" / "spec.md"
@@ -119,6 +121,155 @@ def test_the_compatibility_file_uses_every_ship_field() -> None:
     document = yaml.safe_load(COMPAT.read_text(encoding="utf-8"))["ship"]
 
     assert set(document) == set(Ship.model_fields)
+
+
+# The push guard (User Story 1)
+
+PATTERNS = ("main", "master", "release/*")
+
+
+def decision(
+    command: str, *, current: str | None = "feat/add-guard", default: str | None = "main"
+) -> PushDecision | None:
+    """Return the guard's decision for one command, with the branches a repository would give."""
+    read = read_command(command)
+    if read is None or isinstance(read, PushDecision):
+        return read
+    return decide_push(read, current=current, default=default, patterns=PATTERNS)
+
+
+ASKED = [
+    ("git push", "origin: feat/add-guard"),
+    ("git push origin", "origin: feat/add-guard"),
+    ("git push -u origin feat/add-guard", "origin: feat/add-guard"),
+    ("git push --set-upstream origin HEAD", "origin: feat/add-guard"),
+    ("git push origin HEAD:refs/heads/feat/other", "origin: feat/other"),
+    ("git push --force-with-lease origin feat/add-guard", "(force)"),
+    ("git push origin +feat/add-guard", "(force)"),
+    ("git push --tags origin", "origin: feat/add-guard"),
+    ("git push origin refs/tags/v1.0.0", "origin: refs/tags/v1.0.0"),
+    ("git -C sub push origin feat/x", "origin: feat/x"),
+    ("git push --dry-run --no-verify -q origin feat/x", "origin: feat/x"),
+]
+
+
+@spec("FR-007")
+@pytest.mark.parametrize(("command", "named"), ASKED)
+def test_a_plain_push_is_asked_and_named(command: str, named: str) -> None:
+    result = decision(command)
+
+    assert result is not None
+    assert result.verdict == "ask"
+    assert named in result.reason
+
+
+DENIED_PROTECTED = [
+    ("git push origin main", "main"),
+    ("git push origin HEAD:main", "main"),
+    ("git push origin feat/x:refs/heads/master", "master"),
+    ("git push origin release/1.2", "release/1.2"),
+    ("git push origin :main", "main"),
+    ("git push --delete origin release/1.2", "release/1.2"),
+    ("git push -f origin HEAD:main", "main"),
+]
+
+
+@spec("FR-008")
+@pytest.mark.parametrize(("command", "branch"), DENIED_PROTECTED)
+def test_a_push_to_a_protected_branch_is_denied(command: str, branch: str) -> None:
+    result = decision(command)
+
+    assert result is not None
+    assert result.verdict == "deny"
+    assert f"{branch} is protected" in result.reason
+
+
+@spec("FR-008")
+@pytest.mark.parametrize("current", ["main", "release/2.0", "develop"])
+def test_pushing_from_a_protected_branch_is_denied(current: str) -> None:
+    result = decision("git push", current=current, default="develop")
+
+    assert result is not None
+    assert result.verdict == "deny"
+    assert current in result.reason
+
+
+@spec("FR-009")
+@pytest.mark.parametrize(
+    "command", ["git push --all", "git push --mirror origin", "git push --branches"]
+)
+def test_pushing_every_branch_is_denied(command: str) -> None:
+    result = decision(command)
+
+    assert result is not None
+    assert result.verdict == "deny"
+
+
+@spec("FR-009")
+def test_a_push_from_a_detached_head_without_a_refspec_is_denied() -> None:
+    result = decision("git push origin", current=None)
+
+    assert result is not None
+    assert (result.verdict, "detached" in result.reason) == ("deny", True)
+
+
+UNREADABLE = [
+    "git status && git push",
+    "git push; echo done",
+    "FOO=1 git push",
+    "env git push",
+    "sudo git push",
+    "bash -c 'git push'",
+    'sh -c "git push origin main"',
+    "eval git push",
+    "git -c core.hooksPath=/dev/null push",
+    "git --git-dir=.git push",
+    'git push origin "$(git branch --show-current)"',
+    "git push origin `whoami`",
+    "git push --prune origin",
+    "git push --repo=origin",
+    "git push 'unterminated",
+    "(git push)",
+    "git push origin feat/x | tee log",
+    "echo git push",
+    "cd sub\ngit push",
+]
+
+
+@spec("FR-010")
+@pytest.mark.parametrize("command", UNREADABLE)
+def test_a_push_in_a_form_the_guard_cannot_read_is_denied(command: str) -> None:
+    result = decision(command)
+
+    assert result is not None
+    assert result.verdict == "deny"
+    assert "plain" in result.reason
+
+
+@spec("FR-011")
+def test_opening_a_pull_request_is_asked() -> None:
+    result = decision("gh pr create --draft --base main --title 'feat: x' --body 'y'")
+
+    assert result is not None
+    assert result.verdict == "ask"
+
+
+@spec("FR-011")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git status",
+        "git commit -m 'fix: push the fix'",
+        "git log --grep push",
+        'grep -r "git push" docs',
+        "ls -la",
+        "gh pr view 6",
+        "uv run pytest",
+        "git switch -c feat/x && git add -A",
+    ],
+)
+def test_other_commands_are_left_alone(command: str) -> None:
+    assert decision(command) is None
 
 
 # Proof
