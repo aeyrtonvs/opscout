@@ -149,19 +149,19 @@ reports every problem with file, line, column and key path, never the value.
 
 **Independent test**: `uv run just test tests/unit/config -k "version or compat or secret"`.
 
-- [ ] T019 [US4] Test the version checks: `schema_version: 2` gives only the
+- [X] T019 [US4] Test the version checks: `schema_version: 2` gives only the
   newer-opscout problem (FR-012); with `retired={0: "#from-version-0"}` passed in,
   `schema_version: 0` gives only the problem naming that note, and `-1` gives only the
   unknown-version problem (FR-013), in `tests/unit/config/test_config_contract.py`
-- [ ] T020 [US4] Test that the committed schema's `schema_version` is `const`
+- [X] T020 [US4] Test that the committed schema's `schema_version` is `const`
   `SCHEMA_VERSION`, and that every file in `tests/unit/config/compat/v1/` declares that
   version (FR-029); that every one validates and the set holds at least the minimal
   configuration (FR-030); test that every entry
   of `RETIRED_VERSIONS` has its anchor in `docs/reference/configuration.md` (FR-031)
-- [ ] T021 [US4] Test the secret rule: the credential-name checker passes the real schema,
+- [X] T021 [US4] Test the secret rule: the credential-name checker passes the real schema,
   fails a synthetic schema with a `token` string property, and passes one whose `token` is
   a `KeychainRef` (FR-019, FR-020)
-- [ ] T022 [US4] Implement the version steps 3–5 of research.md R4 in `parse_config`
+- [X] T022 [US4] Implement the version steps 3–5 of research.md R4 in `parse_config`
   (`supported` and `retired` keyword arguments), the credential-name checker, and
   `tests/unit/config/compat/v1/minimal.yaml`; T019 to T021 pass
 
@@ -190,7 +190,7 @@ reports every problem with file, line, column and key path, never the value.
 
 - [ ] T025 Test that `python -m opscout config validate --config example-config`, run as a
   subprocess, finishes under 2 s (SC-006), in `tests/unit/config/test_config_contract.py`
-- [ ] T026 [P] Write `docs/reference/configuration.md`: where the configuration is found,
+- [X] T026 [P] Write `docs/reference/configuration.md`: where the configuration is found,
   the file format, version 1, the rules for later sections (additive and breaking changes,
   keychain references, descriptions), the private repository's hook, and an empty
   "Migration notes" section (FR-029, FR-031)
