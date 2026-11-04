@@ -464,6 +464,72 @@ def test_the_readme_states_that_uv_is_required() -> None:
     assert "https://docs.astral.sh/uv/" in readme
 
 
+# The skill (User Story 1)
+
+SKILL = PLUGIN / "skills" / "summary" / "SKILL.md"
+AGENT_SKILLS_FIELDS = {
+    "name",
+    "description",
+    "license",
+    "compatibility",
+    "metadata",
+    "allowed-tools",
+}
+CLAUDE_CODE_FIELDS = {
+    "argument-hint",
+    "disable-model-invocation",
+    "effort",
+    "model",
+    "context",
+    "agent",
+}
+INJECTION = '!`opscout writeup formats --config "${user_config.config_dir}"`'
+
+
+def skill_parts() -> tuple[dict[str, object], str]:
+    """Return the skill's frontmatter and body."""
+    _, front, body = SKILL.read_text(encoding="utf-8").split("---\n", 2)
+    return yaml.safe_load(front), body
+
+
+@spec("FR-012")
+def test_the_skill_follows_the_agent_skills_specification() -> None:
+    front, _ = skill_parts()
+
+    assert front["name"] == SKILL.parent.name == "summary"
+    assert isinstance(front["description"], str)
+    assert 1 <= len(front["description"]) <= 1024
+    assert set(front) <= AGENT_SKILLS_FIELDS | CLAUDE_CODE_FIELDS
+
+
+@spec("FR-013")
+def test_the_skill_opens_with_its_contract() -> None:
+    _, body = skill_parts()
+    contract = body.split("## Contract\n", 1)[1].split("\n## ", 1)[0]
+
+    assert body.lstrip().startswith("# Summary\n\n## Contract\n")
+    for part in ("**Deliverable:**", "**Constraints:**", "**Non-goals:**", "**Acceptance:**"):
+        assert part in contract
+    assert "ruled out" in contract
+
+
+@spec("FR-014")
+def test_the_skill_injects_the_formats_for_the_configured_directory() -> None:
+    _, body = skill_parts()
+
+    assert body.count(INJECTION) == 1
+    assert [line for line in body.splitlines() if line.startswith("!`")] == [INJECTION]
+
+
+@spec("FR-019")
+@spec("FR-020")
+def test_the_skill_pre_approves_only_the_formats_command() -> None:
+    front, body = skill_parts()
+
+    assert front["allowed-tools"] == "Bash(opscout writeup formats *)"
+    assert re.search(r"never (post|call)", body, re.IGNORECASE)
+
+
 # Proof
 
 

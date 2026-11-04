@@ -74,12 +74,12 @@ reserved values only.
 
 ## Phase 5: User Story 1 — a write-up, ready to paste (P1) 🎯 MVP
 
-- [ ] T012 [US1] Write failing tests for `plugins/opscout/skills/summary/SKILL.md`: valid
+- [X] T012 [US1] Write failing tests for `plugins/opscout/skills/summary/SKILL.md`: valid
   Agent Skills frontmatter with only allowed keys, `name` equal to its directory and a
   description within limits (FR-012, research R6); the contract opens the body (FR-013);
   it injects `opscout writeup formats --config "${user_config.config_dir}"` (FR-014);
   `allowed-tools` holds only that command (FR-019, FR-020)
-- [ ] T013 [US1] Write the skill: contract (deliverable, constraints, non-goals, acceptance),
+- [X] T013 [US1] Write the skill: contract (deliverable, constraints, non-goals, acceptance),
   the injected formats, and the procedure of FR-015 to FR-019; T012 passes, `uv run just
   plugin` passes
 - [ ] T014 [US1] Verify in one headless run (`claude -p --plugin-dir plugins/opscout`,
