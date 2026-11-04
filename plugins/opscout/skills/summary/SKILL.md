@@ -41,7 +41,8 @@ allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/opscout" writeup formats *)
    in the session, leave the value out; you may say that the secret exists and where.
 4. **If there is nothing to summarize** (no work was done in this session), say so in one
    sentence and ask what the summary should cover. Write no block.
-5. **Write the block.** Put each section heading on its own line, in the format's order,
+5. **Write the block.** The reply starts with the block: nothing comes before it, not even
+   a note about posting (that goes in the closing line). Put each section heading on its own line, in the format's order,
    followed by its text. When the session says a section has nothing (nothing is left to
    do), say so in a few words ("Nothing pending."). When the session does not say, write
    "Not stated in the session." Never fill a section with work, reasons or results the

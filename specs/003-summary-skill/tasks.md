@@ -165,4 +165,4 @@ Findings of the review in a fresh context (2026-11-04), each reproduced or read.
 - [X] T029 Bound problems said "not a valid value here"; they now say what was expected;
   the FR-020 test matches the substituted rule against the injected command; docs no longer
   say skills call the launcher through PATH (low)
-- [ ] T030 Re-run the whole suite once on the final skill and record it (low)
+- [X] T030 Re-run the whole suite once on the final skill and record it (low)
