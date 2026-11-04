@@ -1,8 +1,10 @@
 # The local gates (ADR-0016). `uv run just setup` installs them; `uv run just check` runs
-# them on every file. Tools locked in uv.lock run as local hooks through uv; gitleaks and
+# the pre-commit stage on every file. commit-msg hooks check each message, and pre-push
+# hooks check every commit about to leave the machine, including commits that skipped the
+# other hooks. Tools locked in uv.lock run as local hooks through uv; gitleaks and
 # actionlint are upstream hooks pinned by commit (ADR-0020). Dependabot proposes updates.
 minimum_pre_commit_version: "4.0.0"
-default_install_hook_types: [pre-commit, commit-msg]
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
 default_stages: [pre-commit]
 
 repos:
@@ -46,6 +48,20 @@ repos:
         entry: uv run --frozen python -m tools.commit_message
         language: system
         stages: [commit-msg]
+      - id: leak-check-push
+        name: leak check, every commit being pushed (ADR-0015)
+        entry: uv run --frozen python -m tools.leak_check pushed
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: conventional-commit-push
+        name: Conventional Commit messages, every commit being pushed
+        entry: uv run --frozen python -m tools.commit_message --pushed
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e  # frozen: v8.30.1
@@ -53,9 +69,10 @@ repos:
       - id: gitleaks
       - id: gitleaks
         alias: gitleaks-history
-        name: gitleaks, whole history (CI)
+        name: gitleaks, whole history
         entry: gitleaks git --redact --verbose
-        stages: [manual]
+        always_run: true  # nothing is staged in CI or before a push
+        stages: [manual, pre-push]
 
   - repo: https://github.com/rhysd/actionlint
     rev: 914e7df21a07ef503a81201c76d2b11c789d3fca  # frozen: v1.7.12
