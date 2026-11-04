@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-03
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "leak-guard: a specification for the leak check that Phase 0a
 built (`tools/leak_check.py`, ADR-0015), which enforces Constitution Principle I and
@@ -378,3 +378,15 @@ pattern change in the history comes with a test case.
   keys); other platforms' shapes are added when an adapter for them exists.
 - The existing implementation from Phase 0a is the starting point; this feature changes it
   only where a requirement is unmet.
+
+## Actuals
+
+Recorded on 2026-11-04 (PLAN.md §4.3).
+
+- **Effort**: one working session, from `/speckit-specify` to the last task.
+- **Suite**: 89 tests in `tests/tools/test_leak_check.py`; every FR has at least one.
+- **Time** (quickstart): 0.31–0.35 s end to end for every tracked file, start-up through
+  `uv run` included; the typical-change test (20 files, 1,000 lines) stays under its
+  one-second budget.
+- **Changes beyond tracing**: the ref-name check (FR-032) and redaction inside locations
+  (FR-024). No layer-1 pattern changed.

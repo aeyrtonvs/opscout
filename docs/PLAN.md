@@ -1,7 +1,8 @@
 # opscout — plan
 
-> Status (2026-11-03): **Phase 0a done**: the repository is public at
-> `github.com/aeyrtonvs/opscout`, with CI green; Phase 0b is next (§7). The
+> Status (2026-11-04): **Phase 0a done**: the repository is public at
+> `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b in progress** (§7): spec 001,
+> leak-guard, is implemented on `feat/001-leak-guard`. The
 > constitution is ratified (1.0.2), ADRs 0001–0021 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -137,7 +138,7 @@ Spec Kit gives each spec stable IDs: user stories (`US1`…), functional require
 | Tests (pytest) | ✓ | ✓ macOS + Linux, Python 3.13 and latest |
 | Coverage gate on `core` and `services` | `just coverage` | ✓ |
 | Import contracts (import-linter) | ✓ | ✓ |
-| Leak check: generic patterns / private deny-list / commit e-mail | ✓ / ✓ / ✓, on each commit and every pushed commit | ✓ / — / ✓ |
+| Leak check: generic patterns / private deny-list / commit e-mail (spec 001) | ✓ / ✓ / ✓, on each commit and every pushed commit; ref names before a push | ✓ / — / ✓ |
 | Conventional Commit messages | ✓ on each commit and every pushed commit | ✓ |
 | Secret scan (gitleaks) | ✓ staged changes; whole history before a push | ✓ whole history, plus GitHub push protection |
 | Plugin and marketplace validation (`claude plugin validate --strict`) | ✓ | ✓ |
@@ -334,12 +335,18 @@ on the first push; the first commit reviewed for real data. Met on 2026-11-03.
 
 | Planned spec | Need | Delivers | Exit criteria |
 |---|---|---|---|
-| leak-guard | rules 1–2 | A spec for the leak check that Phase 0a built (its layers 2 and 3 moved forward on 2026-11-03): the synthetic-leak suite traced to it, and pattern changes driven by real misses and false positives (ADR-0015) | Every synthetic leak in the test set is caught; < 1 s on a typical diff (0.2 s for the whole repository on 2026-11-03) |
+| leak-guard ([001](../specs/001-leak-guard/spec.md)) | rules 1–2 | A spec for the leak check that Phase 0a built (its layers 2 and 3 moved forward on 2026-11-03): the synthetic-leak suite traced to it, and pattern changes driven by real misses and false positives (ADR-0015) | Every synthetic leak in the test set is caught; < 1 s on a typical diff (0.2 s for the whole repository on 2026-11-03) |
 | config-contract | all | Config models, JSON Schema, loader, `opscout config validate`, `example-config/` (ADR-0014) | Example and private configs validate; schema drift test |
 | summary-skill | 5 | Write-up formats from config: ticket, message, postmortem; a contract whose non-goals include "never list what was ruled out" | Eval suite at threshold and above the no-plugin baseline |
 | ship-skill | 6 | Branch naming, Conventional Commits, trailer, never to protected branches, draft PR; each push confirmed | `tool_order` graders: never pushes to a protected branch |
 | sso-check-hook | 6 | SessionStart warning from the local SSO token cache, no network | Tests for valid, expired and missing cache; p95 < 100 ms |
 | personal-context | 6 | Renders a marked section of `~/.claude/CLAUDE.md` from config; shows a diff and writes only on confirmation | Idempotent; content outside the markers untouched |
+
+Spec 001 (leak-guard), implemented 2026-11-04: every test of the leak check is tied to a
+requirement, and a traceability test fails when one has none. Two behaviors changed: before a
+push the check also examines branch and tag names (decided in the clarification), and
+redaction now hides a found value inside a file or ref name too, which CI output used to show
+in full. No pattern changed: every synthetic case passed against the Phase 0a patterns.
 
 Outside this repo (private runbook): consolidate the SSO sessions into one (back up first,
 show the diff, wait for approval).
@@ -505,3 +512,7 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [x] Code of Conduct contact: reports go through GitHub's private reporting form, the same
       channel as `SECURITY.md`, so no contact address is published. Decided 2026-11-03.
 - [ ] Re-verify §8 facts at implementation time; they change.
+- [ ] Leak check, ref names (spec 001, research R1): pre-commit runs no pre-push hook when a
+      push brings no new commit, such as a new branch on a commit already pushed, so those
+      ref names go unchecked; the rule-5 prompt before each push is the only control left.
+      Close it with a pre-push hook outside pre-commit if it is ever hit.

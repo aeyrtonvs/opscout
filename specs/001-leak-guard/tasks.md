@@ -170,12 +170,12 @@ read it.
   `specs/001-leak-guard/spec.md` and fail if any has no test in
   `tests/tools/test_leak_check.py` marked `spec("001", "FR-0NN")`, in
   `tests/tools/test_leak_check.py`, with no exemptions
-- [ ] T024 [P] Update `docs/PLAN.md`: the leak-guard row of Phase 0b points at
+- [X] T024 [P] Update `docs/PLAN.md`: the leak-guard row of Phase 0b points at
   `specs/001-leak-guard/` with its status; §9 records the known limit of research.md R1 (a
   push with no new commit runs no pre-commit hook, so its ref names are not checked)
-- [ ] T025 Run the quickstart (`specs/001-leak-guard/quickstart.md`) and record the
+- [X] T025 Run the quickstart (`specs/001-leak-guard/quickstart.md`) and record the
   measured times and the actual effort in `specs/001-leak-guard/spec.md` (PLAN.md §4.3)
-- [ ] T026 Run `uv run just check` and `uv run just coverage`; both pass
+- [X] T026 Run `uv run just check` and `uv run just coverage`; both pass
 
 ---
 
