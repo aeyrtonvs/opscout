@@ -8,9 +8,9 @@ on:
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # A cancelled run on main would leave its commits unchecked, since the next run checks
-  # only the commits after its own base.
+  # Each push to main gets a group of its own, so no run on main is cancelled or replaced
+  # by a newer one: its commits are checked only by that run.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -66,7 +66,7 @@ jobs:
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
-      - name: Every local gate, on every file
+      - name: The pre-commit gates, on every file
         env:
           # The tests job runs the fast checks; each commit's e-mail is checked below.
           SKIP: fast-checks,leak-check-identity
