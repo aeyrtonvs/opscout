@@ -2,6 +2,9 @@
 """Smoke tests: the package installs, imports, and its command line answers."""
 
 import importlib
+import shutil
+import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -27,3 +30,32 @@ def test_version_flag_prints_the_installed_version(capsys: pytest.CaptureFixture
 def test_no_arguments_prints_help_and_succeeds(capsys: pytest.CaptureFixture[str]) -> None:
     assert main([]) == 0
     assert capsys.readouterr().out.startswith("usage: opscout")
+
+
+def test_no_source_or_test_file_is_git_ignored() -> None:
+    """A file the suite uses but git ignores passes locally and is missing in CI."""
+    root = Path(__file__).resolve().parents[2]
+    git = shutil.which("git")
+    assert git is not None
+    listed = subprocess.run(  # noqa: S603  (a fixed git command)
+        [
+            git,
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--",
+            "src",
+            "tests",
+            "tools",
+            "schemas",
+            "example-config",
+        ],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    kept = {".py", ".pyi", ".yaml", ".yml", ".json", ".toml", ".md", ".txt"}
+
+    assert [path for path in listed if Path(path).suffix in kept] == []

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/aeyrtonvs/opscout/main/schemas/config.schema.json",
+  "additionalProperties": false,
+  "description": "The private opscout configuration (config.yaml in the configuration directory).",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "The major version of the configuration schema this file follows. This engine reads version 1.",
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version"
+  ],
+  "title": "opscout configuration",
+  "type": "object"
+}

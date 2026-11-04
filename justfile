@@ -34,6 +34,10 @@ plugin:
     claude plugin validate --strict .
     claude plugin validate --strict plugins/opscout
 
+# Regenerate the configuration's JSON Schema from the models (spec 002).
+schema:
+    opscout config schema > schemas/config.schema.json
+
 # The coverage gate on core and services (ADR-0016).
 coverage:
     coverage run -m pytest -q

@@ -26,6 +26,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: example-config
+        name: example configuration (spec 002)
+        entry: uv run --frozen opscout config validate --config example-config
+        language: system
+        pass_filenames: false
+        files: ^(example-config/|schemas/|src/opscout/)
       - id: plugin-manifests
         name: plugin and marketplace manifests (ADR-0003)
         entry: uv run --frozen just plugin
