@@ -22,7 +22,7 @@ allowed-tools: Bash(opscout writeup formats *)
 
 ## The formats
 
-!`opscout writeup formats --config "${user_config.config_dir}"`
+!`opscout writeup formats --config '${user_config.config_dir}'`
 
 ## Procedure
 

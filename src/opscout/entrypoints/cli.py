@@ -77,10 +77,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stdout.write(schema_text())
         return 0
     if args.command == "writeup" and args.writeup_command == "formats":
-        sys.stdout.write(_formats(Path(args.config) if args.config else None))
+        sys.stdout.write(_formats(_given_directory(args.config)))
         return 0
     parser.print_help()
     return 0
+
+
+def _given_directory(value: str | None) -> Path | None:
+    """Return the ``--config`` directory a skill passed, or None when it passed none.
+
+    A skill passes ``${user_config.config_dir}``. Claude Code substitutes it when the plugin
+    was installed and configured; when the plugin is loaded from a clone, the placeholder
+    arrives as is. Both an empty value and the placeholder count as no directory, so the
+    resolution falls back to ``OPSCOUT_CONFIG`` and the default (spec 003, FR-009).
+    """
+    if not value or value.startswith("${user_config."):
+        return None
+    return Path(value)
 
 
 def _formats(flag: Path | None) -> str:

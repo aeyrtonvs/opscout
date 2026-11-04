@@ -58,8 +58,21 @@ non-zero status aborts the whole skill invocation.
 - `SKILL.md` injects
   `!`opscout writeup formats --config "${user_config.config_dir}"`` and declares
   `allowed-tools: Bash(opscout writeup formats *)`, nothing else (FR-019, FR-020).
-- Whether the substitution reaches the injected command, and whether `bin/` is on its PATH,
-  is not documented: T-tasks verify both in a real headless run before the evals.
+- **Verified 2026-11-04** with three headless runs (`claude -p --plugin-dir plugins/opscout`,
+  synthetic text, USD 0.38 in all):
+  1. `claude -p` denies the Skill tool itself unless it is allowed (`--allowedTools
+     "Skill"`; in an eval case, `allowed_tools: [Skill]`).
+  2. A plugin loaded with `--plugin-dir` has no `userConfig` values, and `claude plugin
+     configure` accepts only installed plugins, so `${user_config.config_dir}` arrives
+     unsubstituted. Inside double quotes the permission check refuses it ("the shell may
+     read it differently than it was parsed … requires explicit approval") and the skill
+     aborts.
+  3. Single-quoted (`--config '${user_config.config_dir}'`) it passes the check; the formats
+     command treats an empty value or the unsubstituted placeholder as no directory, so the
+     resolution falls back to `OPSCOUT_CONFIG` and the default (FR-009). The launcher in
+     `bin/` was found on the injection's PATH, and `OPSCOUT_CONFIG` reached it.
+  4. With `OPSCOUT_CONFIG=example-config`, the write-up came out in the ticket format, eight
+     lines, without the ruled-out causes, with the closing format line.
 
 ## R3. The `writeups` section (FR-001 to FR-007)
 
@@ -121,6 +134,11 @@ the exit code. Reports publish to claude.ai unless `--no-publish` is passed. A s
 - Graders: `regex` `not_contains` for every ruled-out token; `regex` for the sections in
   order; `regex` `count` or a line-bound pattern for the limit; an `llm` grader only for
   "only facts from the session"; `tool_used: Skill` as the plugin-fired indicator.
+- **Settled by the headless check**: evals run with `OPSCOUT_CONFIG` exported to a synthetic
+  configuration in `plugins/opscout/evals/config/`, never the default directory (which, on
+  the maintainer's machine, is the private configuration). Whether `claude plugin eval`
+  passes the variable to its runs is not documented; the case `003-us2-s3` asks for a format
+  only that synthetic configuration defines, so it fails visibly if the variable is lost.
 - Configured-format cases (US2) need the skill to read a synthetic configuration. A case may
   set only `EVAL_*` environment variables, so `OPSCOUT_CONFIG` cannot be set that way, and
   the docs do not say what `${user_config.config_dir}` becomes in an eval run. The headless

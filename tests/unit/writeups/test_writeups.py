@@ -326,13 +326,17 @@ def test_an_invalid_configuration_prints_no_format(
 
 
 @spec("FR-009")
-def test_an_empty_config_option_counts_as_absent(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("value", ["", "${user_config.config_dir}"], ids=["empty", "unsubstituted"])
+def test_an_empty_or_unsubstituted_config_option_counts_as_absent(
+    value: str,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     directory = write_config(tmp_path, "")
     monkeypatch.setenv("OPSCOUT_CONFIG", str(directory))
 
-    assert main(["writeup", "formats", "--config", ""]) == 0
+    assert main(["writeup", "formats", "--config", value]) == 0
     assert f"Source: {directory / 'config.yaml'} (from OPSCOUT_CONFIG)" in capsys.readouterr().out
 
 
@@ -483,7 +487,7 @@ CLAUDE_CODE_FIELDS = {
     "context",
     "agent",
 }
-INJECTION = '!`opscout writeup formats --config "${user_config.config_dir}"`'
+INJECTION = "!`opscout writeup formats --config '${user_config.config_dir}'`"
 
 
 def skill_parts() -> tuple[dict[str, object], str]:

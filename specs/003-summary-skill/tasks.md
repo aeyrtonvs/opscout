@@ -82,7 +82,7 @@ reserved values only.
 - [X] T013 [US1] Write the skill: contract (deliverable, constraints, non-goals, acceptance),
   the injected formats, and the procedure of FR-015 to FR-019; T012 passes, `uv run just
   plugin` passes
-- [ ] T014 [US1] Verify in one headless run (`claude -p --plugin-dir plugins/opscout`,
+- [X] T014 [US1] Verify in one headless run (`claude -p --plugin-dir plugins/opscout`,
   confirmed by the maintainer) that the injection runs the launcher from `bin/` and what
   `${user_config.config_dir}` becomes when unset; record the result in research R2 and R5,
   and settle how US2 eval cases get a synthetic configuration
