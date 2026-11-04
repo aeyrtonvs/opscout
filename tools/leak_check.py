@@ -14,6 +14,7 @@ File names are checked as well as contents.
     python -m tools.leak_check commits [BASE] HEAD   # every layer, on each commit (CI)
     python -m tools.leak_check pushed                # the same, on the commits being pushed,
                                                      # and layers 1 and 2 on the ref names
+    python -m tools.leak_check refs NAME...          # layers 1 and 2, on ref names (CI)
 
 A value that layer 1 flags but that is not real data goes in ``leak_allowlist.toml``, with
 the reason. Layer-2 matches cannot be allow-listed: refine the private deny-list instead. In
@@ -284,28 +285,38 @@ def added_lines(diff: str) -> Iterator[tuple[str, int, str]]:
             number += 1
 
 
-def changed_files(sha: str) -> list[tuple[str, bool]]:
-    """Return ``(path, binary)`` for each file a commit adds or changes; deletions are left out.
-
-    ``--numstat -z`` gives each path unquoted and unambiguous, whatever characters it holds,
-    and marks a binary file with ``-`` counts.
-    """
-    listing = git(
+def _changes(sha: str, listing: str) -> str:
+    return git(
         "show",
         "--format=",
-        "--numstat",
+        listing,
         "-z",
+        "--no-abbrev",
         "--no-renames",
         "--diff-filter=d",
         "--diff-merges=first-parent",
         sha,
     )
-    files: list[tuple[str, bool]] = []
-    for record in listing.split("\0"):
+
+
+def changed_files(sha: str) -> list[tuple[str, str | None]]:
+    """Return ``(path, blob)`` for each file a commit adds or changes; deletions are left out.
+
+    ``blob`` is the object id of a file git treats as binary, which the diff does not show,
+    and None otherwise. ``-z`` gives each path unquoted, whatever characters it holds;
+    ``--numstat`` marks a binary file with ``-`` counts, and ``--raw`` gives its object id,
+    so the file is read by id even when its name is not valid UTF-8.
+    """
+    raw = _changes(sha, "--raw").split("\0")
+    blobs = {
+        path: meta.split()[3] for meta, path in zip(raw[0::2], raw[1::2], strict=False) if meta
+    }
+    files: list[tuple[str, str | None]] = []
+    for record in _changes(sha, "--numstat").split("\0"):
         fields = record.lstrip("\n").split("\t", 2)
         if len(fields) == 3:
             added, deleted, path = fields
-            files.append((path, added == "-" and deleted == "-"))
+            files.append((path, blobs.get(path) if added == deleted == "-" else None))
     return files
 
 
@@ -390,12 +401,12 @@ def _scan_commits(
             "--diff-merges=first-parent",
             sha,
         )
-        for path, binary in changed_files(sha):
+        for path, blob_id in changed_files(sha):
             findings += scan_line(
                 path, f"{commit} {path} (file name)", allowlist=allowlist, denylist=denylist
             )
-            if binary:  # git does not show it, so read it; a NUL byte means truly binary
-                blob = git("show", "--no-textconv", f"{sha}:{path}")
+            if blob_id:  # git does not show it, so read it; a NUL byte means truly binary
+                blob = git("cat-file", "blob", blob_id)
                 if "\0" not in blob:
                     findings += scan_text(
                         blob, f"{commit} {path}", allowlist=allowlist, denylist=denylist
@@ -410,25 +421,34 @@ def _scan_commits(
 REF_PREFIXES = ("refs/heads/", "refs/tags/")
 
 
-def pushed_ref_names(environ: Mapping[str, str]) -> list[str]:
-    """Return the ref names a push may publish, without their prefix, each once.
-
-    pre-commit passes only the first pushed ref, by its local and its remote name. Every
-    local branch and tag is added, so the other refs of a push are covered too, at the cost
-    of also checking local refs that are not pushed (research.md R1).
-    """
-    candidates = [
-        environ.get("PRE_COMMIT_LOCAL_BRANCH", ""),
-        environ.get("PRE_COMMIT_REMOTE_BRANCH", ""),
-        *local_ref_names(),
-    ]
+def short_ref_names(candidates: Sequence[str]) -> list[str]:
+    """Return the names without their ``refs/heads/`` or ``refs/tags/`` prefix, each once."""
     names: dict[str, None] = {}
     for candidate in candidates:
+        name = candidate
         for prefix in REF_PREFIXES:
-            candidate = candidate.removeprefix(prefix)
-        if candidate:
-            names[candidate] = None
+            name = name.removeprefix(prefix)
+        if name:
+            names[name] = None
     return list(names)
+
+
+def pushed_ref_names(environ: Mapping[str, str]) -> list[str]:
+    """Return the ref names a push may publish.
+
+    pre-commit passes only the first pushed ref, by its local and its remote name. Every
+    local branch and tag is added, so the other refs of a push are covered when they keep
+    their local name, at the cost of also checking local refs that are not pushed. A later
+    ref renamed on the way (``HEAD:refs/heads/<name>``) is not seen here; CI checks the
+    pull request's branch name instead (research.md R1).
+    """
+    return short_ref_names(
+        [
+            environ.get("PRE_COMMIT_LOCAL_BRANCH", ""),
+            environ.get("PRE_COMMIT_REMOTE_BRANCH", ""),
+            *local_ref_names(),
+        ]
+    )
 
 
 def _scan_ref_names(
@@ -491,6 +511,9 @@ def _parser() -> argparse.ArgumentParser:
     modes.add_parser(
         "pushed", help="every layer on each commit being pushed, and the ref names (pre-push)"
     )
+    modes.add_parser("refs", help="layers 1 and 2 on branch or tag names (CI)").add_argument(
+        "names", nargs="+"
+    )
     return parser
 
 
@@ -517,7 +540,37 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1
         print(f"leak check: {missing}; layer 2 was skipped (CONTRIBUTING.md)", file=sys.stderr)
     terms = denylist or []
+    # CI logs are public, so a run there never prints the values it found, not even inside a
+    # file or ref name, nor in the command of a git call that failed.
+    redact = args.redact or os.environ.get("CI") == "true"
+    try:
+        findings = _scan(args, allowlist, terms)
+    except subprocess.CalledProcessError as error:
+        if not redact:
+            raise
+        print(
+            f"leak check: git failed with status {error.returncode}; the command is hidden "
+            "because output is redacted. Nothing was checked: run it locally to see why.",
+            file=sys.stderr,
+        )
+        return 1
 
+    hidden = [finding.value for finding in findings]
+    for finding in findings:
+        print(finding.render(redact=redact, hidden=hidden))
+    if findings:
+        rules = {finding.rule for finding in findings}
+        hints = [HINTS[rule] for rule in sorted(rules & HINTS.keys())]
+        if rules - HINTS.keys():
+            hints.append(DEFAULT_HINT)
+        print("\n" + "\n".join(hints), file=sys.stderr)
+    return 1 if findings else 0
+
+
+def _scan(
+    args: argparse.Namespace, allowlist: Mapping[str, str], terms: Sequence[re.Pattern[str]]
+) -> list[Finding]:
+    """Run the scan of the chosen mode."""
     findings: list[Finding]
     if args.mode == "files":
         findings = _scan_files(args.paths, allowlist, terms)
@@ -530,23 +583,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         findings = _scan_identity()
     elif args.mode == "commits":
         findings = _scan_commits(commits(args.revisions), allowlist, terms)
+    elif args.mode == "refs":
+        findings = _scan_ref_names(short_ref_names(args.names), allowlist, terms)
     else:
         findings = _scan_commits(pushed_commits(os.environ), allowlist, terms)
         findings += _scan_ref_names(pushed_ref_names(os.environ), allowlist, terms)
-
-    # CI logs are public, so a run there never prints the values it found, not even inside a
-    # file or ref name.
-    redact = args.redact or os.environ.get("CI") == "true"
-    hidden = [finding.value for finding in findings]
-    for finding in findings:
-        print(finding.render(redact=redact, hidden=hidden))
-    if findings:
-        rules = {finding.rule for finding in findings}
-        hints = [HINTS[rule] for rule in sorted(rules & HINTS.keys())]
-        if rules - HINTS.keys():
-            hints.append(DEFAULT_HINT)
-        print("\n" + "\n".join(hints), file=sys.stderr)
-    return 1 if findings else 0
+    return findings
 
 
 if __name__ == "__main__":

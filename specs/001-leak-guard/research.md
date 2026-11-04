@@ -28,13 +28,19 @@ settles the design questions the spec leaves to the plan.
 Names are checked without their `refs/heads/` or `refs/tags/` prefix, and each finding is
 located as `ref <name>`.
 
+**Correction (2026-11-04, independent review)**: (2) covers a later ref only when it keeps a
+local name. A ref renamed on the way, such as the second refspec of
+`git push origin HEAD:main HEAD:refs/heads/<name>`, is neither passed by pre-commit nor a
+local ref, so it is not seen. The maintainer chose to record that limit and to check the
+branch name in CI (FR-033) rather than to add a hook outside pre-commit.
+
 **Rationale**: it is the same trade-off `pushed_commits` already makes for commits: check
 more than the push, never less. Over-checking costs nothing unless a local ref name holds a
 leak, which is worth fixing anyway. Reading the remote's refs would need the network, which
 the spec rules out.
 
-**Known limit**: a push that brings no new commit runs no pre-commit hook, so its ref names
-are not checked here. The rule-5 `ask` prompt before every push (AGENTS.md) is the
+**Known limits**: a push that brings no new commit runs no pre-commit hook, so its ref names
+are not checked here; nor is a later ref renamed on the way (the correction above). The rule-5 `ask` prompt before every push (AGENTS.md) is the
 remaining control for that case; it is recorded in PLAN.md §9.
 
 **Alternatives considered**:

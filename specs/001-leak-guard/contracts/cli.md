@@ -17,6 +17,7 @@ Run through uv by the git hooks (`.pre-commit-config.yaml`) and CI
 | `identity` | none | `GIT_AUTHOR_IDENT` and `GIT_COMMITTER_IDENT` |
 | `commits` | `[BASE] HEAD` | each commit of `BASE..HEAD`, or of every commit `HEAD` reaches when `BASE` is absent or all zeros |
 | `pushed` | none | each commit the remote lacks, and ref names (below) |
+| `refs` | `NAME…` (one or more) | the given branch or tag names, without `refs/heads/` or `refs/tags/` (CI, FR-033) |
 
 ## Inputs
 
@@ -51,5 +52,5 @@ layer 1 as everywhere else.
 | Status | Meaning |
 |---|---|
 | 0 | nothing found |
-| 1 | at least one finding, or the clone requires a deny-list that is missing |
+| 1 | at least one finding, the clone requires a deny-list that is missing, or git failed during a redacted run (the command is not printed, FR-034) |
 | 2 | bad arguments, or an invalid allow-list or deny-list entry (named in the message) |

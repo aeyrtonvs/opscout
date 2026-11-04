@@ -78,6 +78,12 @@ jobs:
         run: |
           uv run --frozen python -m tools.leak_check commits "$BASE" "$HEAD"
           uv run --frozen python -m tools.commit_message --range "$BASE" "$HEAD"
+      - name: Leak check of the branch name
+        # The pre-push hook cannot see a ref renamed on the way, so a leaky branch name is
+        # at least caught here, right after it is published (spec 001, FR-033).
+        env:
+          HEAD_REF: ${{ github.head_ref || github.ref_name }}
+        run: uv run --frozen python -m tools.leak_check refs "$HEAD_REF"
       - name: gitleaks over the whole history
         run: uv run --frozen pre-commit run gitleaks-history --hook-stage manual
       - name: Workflow security, with the online audits

@@ -493,6 +493,89 @@ def test_redaction_also_hides_values_in_file_names(
     assert CHAT_ID not in output
 
 
+@pytest.mark.spec("001", "FR-024")
+def test_commits_mode_redacts_values_in_file_names_in_ci(
+    git: Callable[..., str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
+    repo = Path.cwd()
+    (repo / f"{TICKET}.md").write_text(f"host {HOSTNAME}\n", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-q", "-m", "docs: add notes")
+
+    assert main(["commits", "HEAD"]) == 1
+    output = capsys.readouterr().out
+    assert "(file name): ticket-key" in output
+    assert ":1: hostname" in output
+    assert TICKET not in output
+    assert HOSTNAME not in output
+
+
+@pytest.mark.spec("001", "FR-021")
+@pytest.mark.spec("001", "FR-024")
+def test_commits_mode_reads_a_binary_file_whose_name_is_not_utf_8(
+    git: Callable[..., str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
+    repo = Path.cwd()
+    (repo / ".gitattributes").write_text("*.bin binary\n", encoding="utf-8")
+    source = tmp_path / "content.txt"
+    source.write_text(f"host {HOSTNAME}\n", encoding="utf-8")
+    blob = git("hash-object", "-w", str(source)).strip()
+    # A byte that is not UTF-8, passed to git through os.fsencode's surrogate escape.
+    git("update-index", "--add", "--cacheinfo", f"100644,{blob},{TICKET}-\udcff.bin")
+    git("add", ".gitattributes")
+    git("commit", "-q", "-m", "docs: add data")
+
+    assert main(["commits", "HEAD"]) == 1
+    output = capsys.readouterr().out
+    assert "(file name): ticket-key" in output
+    assert ".bin:1: hostname" in output
+    assert TICKET not in output
+    assert HOSTNAME not in output
+
+
+@pytest.mark.spec("001", "FR-034")
+def test_a_git_failure_fails_closed_and_prints_no_command_when_redacting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
+
+    def failing(*arguments: str) -> list[str]:
+        raise subprocess.CalledProcessError(128, ["git", "show", f"HEAD:{TICKET}.bin"])
+
+    monkeypatch.setattr(tools.leak_check, "commits", failing)
+
+    assert main(["commits", "HEAD"]) == 1
+    captured = capsys.readouterr()
+    assert "git failed" in captured.err
+    assert TICKET not in captured.out + captured.err
+
+
+@pytest.mark.spec("001", "FR-034")
+def test_a_git_failure_is_shown_in_full_when_not_redacting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
+
+    def failing(*arguments: str) -> list[str]:
+        raise subprocess.CalledProcessError(128, ["git", "rev-list"])
+
+    monkeypatch.setattr(tools.leak_check, "commits", failing)
+
+    with pytest.raises(subprocess.CalledProcessError):
+        main(["commits", "HEAD"])
+
+
 @pytest.mark.spec("001", "FR-016")
 def test_message_mode_checks_comment_lines_but_not_the_diff_below_scissors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -849,6 +932,25 @@ def test_pushed_mode_lets_an_allowlisted_ref_name_through(
     pushing("branch", f"fix/{TICKET}-login")
 
     assert main(["pushed"]) == 0
+
+
+@pytest.mark.spec("001", "FR-033")
+def test_refs_mode_checks_the_names_it_is_given(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
+
+    assert main(["refs", "feat/001-example", "refs/heads/main"]) == 0
+    assert main(["refs", f"refs/heads/fix/{TICKET}"]) == 1
+    assert f"ref fix/{TICKET}: ticket-key" in capsys.readouterr().out
+
+
+@pytest.mark.spec("001", "FR-033")
+def test_ci_checks_the_pull_request_branch_name() -> None:
+    workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    assert "github.head_ref || github.ref_name" in workflow
+    assert 'tools.leak_check refs "$HEAD_REF"' in workflow
 
 
 @pytest.mark.spec("001", "FR-030")

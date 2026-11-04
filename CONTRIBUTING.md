@@ -43,7 +43,9 @@ run `SSL_CERT_FILE=/etc/ssl/cert.pem uv run just setup`.
 The hooks check every commit, and again every commit you push, for real data in three
 layers (ADR-0015; specified in [`specs/001-leak-guard/`](specs/001-leak-guard/spec.md)).
 File names are checked as well as contents, and before a push so are the names of your
-branches and tags, which GitHub publishes with them.
+branches and tags, which GitHub publishes with them. The hook cannot see a ref you rename on
+the way (`HEAD:refs/heads/<name>`) unless it is the first one pushed, so CI checks each pull
+request's branch name too.
 
 1. Generic patterns: secrets (gitleaks), account IDs, IP addresses outside the
    documentation ranges, chat and ticket ID shapes, internal hostnames, cloud resource

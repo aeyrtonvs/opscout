@@ -343,10 +343,11 @@ on the first push; the first commit reviewed for real data. Met on 2026-11-03.
 | personal-context | 6 | Renders a marked section of `~/.claude/CLAUDE.md` from config; shows a diff and writes only on confirmation | Idempotent; content outside the markers untouched |
 
 Spec 001 (leak-guard), implemented 2026-11-04: every test of the leak check is tied to a
-requirement, and a traceability test fails when one has none. Two behaviors changed: before a
-push the check also examines branch and tag names (decided in the clarification), and
-redaction now hides a found value inside a file or ref name too, which CI output used to show
-in full. No pattern changed: every synthetic case passed against the Phase 0a patterns.
+requirement, and a traceability test fails when one has none. Behaviors that changed: before a
+push the check also examines branch and tag names (decided in the clarification), and CI
+checks each branch name; redaction now hides a found value inside a file or ref name too,
+which CI output used to show in full, and a git error in a redacted run no longer prints the
+file name it failed on. No pattern changed: every synthetic case passed against the Phase 0a patterns.
 
 Outside this repo (private runbook): consolidate the SSO sessions into one (back up first,
 show the diff, wait for approval).
@@ -512,7 +513,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [x] Code of Conduct contact: reports go through GitHub's private reporting form, the same
       channel as `SECURITY.md`, so no contact address is published. Decided 2026-11-03.
 - [ ] Re-verify §8 facts at implementation time; they change.
-- [ ] Leak check, ref names (spec 001, research R1): pre-commit runs no pre-push hook when a
-      push brings no new commit, such as a new branch on a commit already pushed, so those
-      ref names go unchecked; the rule-5 prompt before each push is the only control left.
-      Close it with a pre-push hook outside pre-commit if it is ever hit.
+- [ ] Leak check, ref names (spec 001, research R1): the pre-push hook cannot see a push that
+      brings no new commit (pre-commit runs no hook then), nor a later ref renamed on the way
+      (`git push origin HEAD:main HEAD:refs/heads/<name>`). CI checks each pull request's
+      branch name right after it is published (FR-033), and the rule-5 prompt shows every
+      push command first. Close it with a pre-push hook outside pre-commit if it is ever hit.
+- [ ] Leak check, annotated tags: their messages and taggers are not checked (a non-goal of
+      spec 001, decided 2026-11-04). Decide before the first release tag.

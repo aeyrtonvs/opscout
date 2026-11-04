@@ -209,6 +209,13 @@ pattern change in the history comes with a test case.
   no commit the remote lacks (for example a new branch on a commit already pushed), so its
   ref names are not checked; the confirmation asked before every push (AGENTS.md rule 5) is
   the control left, and PLAN.md §9 records the limit.
+- **A renamed ref that is not the first one pushed**: the hook framework passes the hook only
+  the first ref of a push, so in `git push origin HEAD:main HEAD:refs/heads/<name>` the second
+  name is neither passed nor a local ref, and the pre-push hook cannot check it. CI checks the
+  branch name of each pull request (FR-033), and PLAN.md §9 records the limit. Found by the
+  independent review.
+- **Non-UTF-8 file names**: a file whose name is not valid UTF-8 is read by its object id,
+  so its contents are checked and no error prints its name.
 - **Ref names**: a branch or tag name is checked as a whole, so a ticket key embedded in
   `fix/<key>-summary` is found; the remote's name and URL are not checked.
 
@@ -271,8 +278,16 @@ pattern change in the history comes with a test case.
   the remote does not have: its identity, its message, the names of the files it adds or
   changes, and the lines it adds.
 - **FR-032**: Whenever the pre-push hooks run, the check MUST examine, with layers 1 and 2,
-  the name of every branch and tag being pushed, and report a finding against the ref.
-  Deleting a remote ref is not checked.
+  the local and remote names of the first ref being pushed and the name of every local branch
+  and tag, and report a finding against the ref. Deleting a remote ref is not checked. A
+  later ref renamed on the way is beyond what the hook can see (Edge Cases); FR-033 catches it
+  in CI.
+- **FR-033**: CI MUST check the name of the branch it runs for (the pull request's head
+  branch, or the pushed branch) with layer 1, so a leaky name that got past the pre-push hook
+  is caught right after it is published.
+- **FR-034**: When a git command fails during a redacted run, the check MUST fail and MUST NOT
+  print the failing command, which can hold a file name; without redaction it shows the error
+  in full.
 - **FR-019**: The check MUST examine a given range of commits in the same way, so CI can
   check every commit of a pull request; a range without a known base covers every commit
   reachable from its head.
@@ -343,6 +358,9 @@ pattern change in the history comes with a test case.
   repository.
 - **IPv6 addresses and other shapes not listed in FR-001 to FR-007.** Decided on
   2026-11-03: they are added only when a real miss justifies them (FR-027).
+- **Annotated tags.** A tag's message and tagger are published with it but are not checked;
+  this repository has no tags yet, and releases will write their own messages. Decided on
+  2026-11-04 and recorded in PLAN.md §9.
 - **Allow-listing private terms or identities.** Neither layer 2 nor layer 3 can be excused
   through the allow-list.
 
@@ -384,9 +402,12 @@ pattern change in the history comes with a test case.
 Recorded on 2026-11-04 (PLAN.md §4.3).
 
 - **Effort**: one working session, from `/speckit-specify` to the last task.
-- **Suite**: 89 tests in `tests/tools/test_leak_check.py`; every FR has at least one.
+- **Suite**: 95 tests in `tests/tools/test_leak_check.py`; every FR has at least one.
 - **Time** (quickstart): 0.31–0.35 s end to end for every tracked file, start-up through
   `uv run` included; the typical-change test (20 files, 1,000 lines) stays under its
   one-second budget.
-- **Changes beyond tracing**: the ref-name check (FR-032) and redaction inside locations
-  (FR-024). No layer-1 pattern changed.
+- **Changes beyond tracing**: the ref-name check (FR-032), the branch-name check in CI
+  (FR-033), redaction inside locations (FR-024), reading binary files by object id (FR-021)
+  and failing closed on a git error under redaction (FR-034). No layer-1 pattern changed.
+- **Independent review**: found the renamed-ref gap, the unredacted git error and a missing
+  `commits`-mode redaction test; all three were resolved the same day.

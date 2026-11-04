@@ -206,3 +206,21 @@ read it.
 ## Phase 9: Convergence
 
 - [X] T029 Assert that the error for a required but missing deny-list names the path where it was expected, in `test_a_clone_can_require_the_private_denylist`, `tests/tools/test_leak_check.py` per US2/AC4 (partial)
+
+## Phase 10: Independent review
+
+Findings of the fresh-context review of the diff (2026-11-04); the maintainer chose the
+handling of R1 and of annotated tags.
+
+- [X] T030 Test, then fix: a binary file whose name is not valid UTF-8 made `git show`
+  fail and the traceback print the name unredacted in CI; read binary files by object id
+  (`changed_files` in `tools/leak_check.py`) per FR-021, FR-024
+- [X] T031 Test, then fix: fail closed without printing the git command when a git call
+  fails in a redacted run, in `main` of `tools/leak_check.py` per FR-034
+- [X] T032 Test redaction of file names and contents in `commits` mode, the mode CI runs,
+  in `tests/tools/test_leak_check.py` per FR-024
+- [X] T033 Test, then add the `refs` mode in `tools/leak_check.py` and the branch-name step in
+  `.github/workflows/ci.yml` per FR-033; record the renamed-ref limit in `spec.md`,
+  `research.md` R1 and `docs/PLAN.md` §9 per FR-032
+- [X] T034 Record annotated tags as a non-goal in `spec.md` and an open item in
+  `docs/PLAN.md` §9

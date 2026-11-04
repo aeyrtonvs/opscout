@@ -47,6 +47,7 @@ never exists in this repository (FR-012).
 | `identity` | the author and committer of the commit being made | 3 | pre-commit (FR-017) |
 | `commits [BASE] HEAD` | each commit of the range | 1, 3 (and 2 when present) | CI (FR-019) |
 | `pushed` | each commit the remote lacks, and the names of the pushed and local refs | 1, 2, 3 | pre-push (FR-018, FR-032) |
+| `refs NAME…` | the given branch or tag names | 1 (and 2 when present) | CI (FR-033) |
 
 States: a run either passes (exit 0), finds something (exit 1), or cannot start because of
 an invalid allow-list or deny-list, or a missing deny-list the clone requires (exit 1 or 2,
