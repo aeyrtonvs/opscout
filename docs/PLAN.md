@@ -2,7 +2,8 @@
 
 > Status (2026-11-04): **Phase 0a done**: the repository is public at
 > `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b in progress** (§7): spec 001,
-> leak-guard, is implemented on `feat/001-leak-guard`. The
+> leak-guard, is merged; spec 002, config-contract, is implemented on
+> `feat/002-config-contract`. The
 > constitution is ratified (1.0.2), ADRs 0001–0021 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -142,7 +143,7 @@ Spec Kit gives each spec stable IDs: user stories (`US1`…), functional require
 | Conventional Commit messages | ✓ on each commit and every pushed commit | ✓ |
 | Secret scan (gitleaks) | ✓ staged changes; whole history before a push | ✓ whole history, plus GitHub push protection |
 | Plugin and marketplace validation (`claude plugin validate --strict`) | ✓ | ✓ |
-| `example-config/` against the schema | planned (Phase 0b) | planned (Phase 0b) |
+| `example-config/` against the schema (spec 002) | ✓ when it, the schema or the package changes | ✓ on every file |
 | Evals (`claude plugin eval`) | before each release | on demand, with a cost ceiling |
 | Workflow security (zizmor) | ✓ offline audits | ✓ with the online audits |
 | CodeQL, dependency review, OpenSSF Scorecard | — | ✓ once the repository is public |
@@ -236,6 +237,7 @@ opscout/
 ├── tests/                            # unit/ contract/ integration/
 ├── schemas/config.schema.json        # generated from the config models
 ├── example-config/                   # fake values, validated in CI
+├── .pre-commit-hooks.yaml            # opscout-config-validate, for private configuration repositories
 ├── deploy/                           # reference IAM policies, Slack app manifest, launchd template
 ├── specs/NNN-slug/                   # Spec Kit features
 ├── docs/                             # PLAN.md, adr/, tutorials/, how-to/, reference/, explanation/
@@ -336,7 +338,7 @@ on the first push; the first commit reviewed for real data. Met on 2026-11-03.
 | Planned spec | Need | Delivers | Exit criteria |
 |---|---|---|---|
 | leak-guard ([001](../specs/001-leak-guard/spec.md)) | rules 1–2 | A spec for the leak check that Phase 0a built (its layers 2 and 3 moved forward on 2026-11-03): the synthetic-leak suite traced to it, and pattern changes driven by real misses and false positives (ADR-0015) | Every synthetic leak in the test set is caught; < 1 s on a typical diff (0.2 s for the whole repository on 2026-11-03) |
-| config-contract | all | Config models, JSON Schema, loader, `opscout config validate`, `example-config/` (ADR-0014) | Example and private configs validate; schema drift test |
+| config-contract ([002](../specs/002-config-contract/spec.md)) | all | Config models, JSON Schema, loader, `opscout config validate`, `example-config/` (ADR-0014) | Example and private configs validate; schema drift test |
 | summary-skill | 5 | Write-up formats from config: ticket, message, postmortem; a contract whose non-goals include "never list what was ruled out" | Eval suite at threshold and above the no-plugin baseline |
 | ship-skill | 6 | Branch naming, Conventional Commits, trailer, never to protected branches, draft PR; each push confirmed | `tool_order` graders: never pushes to a protected branch |
 | sso-check-hook | 6 | SessionStart warning from the local SSO token cache, no network | Tests for valid, expired and missing cache; p95 < 100 ms |
@@ -348,6 +350,17 @@ push the check also examines branch and tag names (decided in the clarification)
 checks each branch name; redaction now hides a found value inside a file or ref name too,
 which CI output used to show in full, and a git error in a redacted run no longer prints the
 file name it failed on. No pattern changed: every synthetic case passed against the Phase 0a patterns.
+
+Spec 002 (config-contract), implemented 2026-11-04: version 1 of the configuration schema is
+the envelope only (`schema_version`), decided in the clarification; each later spec adds its
+own section as an additive change. `opscout config validate` lists every problem with file,
+line, column and key path and never the value found; `schemas/config.schema.json` is
+generated from the models and a test fails when it drifts; `example-config/` is validated in
+the gates; a published pre-commit hook lets the private repository run the same check. The
+reference is `docs/reference/configuration.md`. New dependencies, as ADR-0014 requires
+generated-schema models and YAML: `pydantic` and `pyyaml` at run time, `types-pyyaml` and
+`jsonschema` for development, each locked at its newest release past the 7-day cooldown
+(spec 002, research R7).
 
 Outside this repo (private runbook): consolidate the SSO sessions into one (back up first,
 show the diff, wait for approval).

@@ -88,4 +88,8 @@ Spec-Driven Development with GitHub Spec Kit (ADR-0008):
 - `src/opscout/` and `tests/`: the Python package and its tests. `plugins/opscout/`: the
   plugin, listed by `.claude-plugin/marketplace.json`.
 - `tools/`: this repository's development hooks and checks; not shipped.
-- Planned (PLAN.md §6): `example-config/`, `schemas/`, `specs/`, `deploy/`.
+- `specs/`: the Spec Kit features. `schemas/config.schema.json`: the configuration's JSON
+  Schema, generated from the models (`uv run just schema`). `example-config/`: a valid
+  configuration with fake values. `.pre-commit-hooks.yaml`: the hook a private configuration
+  repository uses (spec 002).
+- Planned (PLAN.md §6): `deploy/`.

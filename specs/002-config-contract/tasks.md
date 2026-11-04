@@ -175,12 +175,12 @@ reports every problem with file, line, column and key path, never the value.
 
 **Independent test**: `uv run just test tests/unit/config -k hook`.
 
-- [ ] T023 [US5] Test that `.pre-commit-hooks.yaml` publishes `opscout-config-validate`
+- [X] T023 [US5] Test that `.pre-commit-hooks.yaml` publishes `opscout-config-validate`
   with the entry, `language: python`, `files: ^config\.ya?ml$` and `pass_filenames: false`
   of research.md R6, and that running its entry in a scratch directory validates that
   directory even when `OPSCOUT_CONFIG` names another one (FR-033), in
   `tests/unit/config/test_config_contract.py`
-- [ ] T024 [P] [US5] Write `.pre-commit-hooks.yaml`; T023 passes
+- [X] T024 [P] [US5] Write `.pre-commit-hooks.yaml`; T023 passes
 
 **Checkpoint**: every story works.
 
@@ -188,16 +188,16 @@ reports every problem with file, line, column and key path, never the value.
 
 ## Phase 8: Polish and cross-cutting
 
-- [ ] T025 Test that `python -m opscout config validate --config example-config`, run as a
+- [X] T025 Test that `python -m opscout config validate --config example-config`, run as a
   subprocess, finishes under 2 s (SC-006), in `tests/unit/config/test_config_contract.py`
 - [X] T026 [P] Write `docs/reference/configuration.md`: where the configuration is found,
   the file format, version 1, the rules for later sections (additive and breaking changes,
   keychain references, descriptions), the private repository's hook, and an empty
   "Migration notes" section (FR-029, FR-031)
-- [ ] T027 [P] Update the repository map in `AGENTS.md` (`example-config/`, `schemas/`
+- [X] T027 [P] Update the repository map in `AGENTS.md` (`example-config/`, `schemas/`
   exist), and `docs/PLAN.md`: status line, the config-contract row and a paragraph on what
   it delivered, the §4.4 row for `example-config/`, and the dependencies' reason
-- [ ] T028 Remove the `xfail` mark from the traceability test (T003); every FR has a test
+- [X] T028 Remove the `xfail` mark from the traceability test (T003); every FR has a test
 - [ ] T029 Run the quickstart's steps 1–4, `uv run just check` and `uv run just coverage`;
   record the actuals (effort, timing) in an Actuals section of `spec.md` and set its status
   to Implemented

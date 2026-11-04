@@ -1,0 +1,14 @@
+# Hooks this repository publishes for other repositories (spec 002, FR-033). A private
+# configuration repository validates its config.yaml with the engine's own rules:
+#
+#   - repo: https://github.com/aeyrtonvs/opscout
+#     rev: <commit>
+#     hooks:
+#       - id: opscout-config-validate
+- id: opscout-config-validate
+  name: opscout configuration
+  description: Validate config.yaml against the opscout configuration schema.
+  entry: opscout config validate --config .
+  language: python
+  files: ^config\.ya?ml$
+  pass_filenames: false
