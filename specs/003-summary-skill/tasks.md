@@ -105,7 +105,7 @@ reserved values only.
 - [X] T017 Test that every eval case's name matches a scenario of this spec, that every
   skill scenario has a case, and that every case's frontmatter uses only documented keys
   (FR-026), in `tests/unit/writeups/test_writeups.py`
-- [ ] T018 Run the suite with the maintainer's confirmation (quickstart step 4); iterate on
+- [X] T018 Run the suite with the maintainer's confirmation (quickstart step 4); iterate on
   `SKILL.md` until every case scores ≥ 0.9 and the delta over the baseline is positive;
   record scores, delta and cost in an Actuals section of the spec (FR-028, SC-001 to SC-003)
 
@@ -113,7 +113,7 @@ reserved values only.
 
 ## Phase 7: Polish
 
-- [ ] T019 [P] Update `AGENTS.md` (repository map: `plugins/opscout/bin/`, skills, evals) and
+- [X] T019 [P] Update `AGENTS.md` (repository map: `plugins/opscout/bin/`, skills, evals) and
   `docs/PLAN.md` (status line, the summary-skill row and a paragraph, §9)
 - [ ] T020 With the maintainer's agreement, add the maintainer's own formats to the private
   configuration and check that it validates and drives the skill locally (SC-005); record

@@ -2,9 +2,9 @@
 
 > Status (2026-11-04): **Phase 0a done**: the repository is public at
 > `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b in progress** (§7): spec 001,
-> leak-guard, is merged; spec 002, config-contract, is implemented on
-> `feat/002-config-contract`. The
-> constitution is ratified (1.0.2), ADRs 0001–0021 are accepted, Spec Kit 1.2.6 is
+> leak-guard, and spec 002, config-contract, are merged; spec 003, summary-skill, is
+> implemented on `feat/003-summary-skill`. The
+> constitution is ratified (1.0.2), ADRs 0001–0022 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
 > Company-specific facts behind this plan live in the private config repo
@@ -340,7 +340,7 @@ on the first push; the first commit reviewed for real data. Met on 2026-11-03.
 |---|---|---|---|
 | leak-guard ([001](../specs/001-leak-guard/spec.md)) | rules 1–2 | A spec for the leak check that Phase 0a built (its layers 2 and 3 moved forward on 2026-11-03): the synthetic-leak suite traced to it, and pattern changes driven by real misses and false positives (ADR-0015) | Every synthetic leak in the test set is caught; < 1 s on a typical diff (0.2 s for the whole repository on 2026-11-03) |
 | config-contract ([002](../specs/002-config-contract/spec.md)) | all | Config models, JSON Schema, loader, `opscout config validate`, `example-config/` (ADR-0014) | Example and private configs validate; schema drift test |
-| summary-skill | 5 | Write-up formats from config: ticket, message, postmortem; a contract whose non-goals include "never list what was ruled out" | Eval suite at threshold and above the no-plugin baseline |
+| summary-skill ([003](../specs/003-summary-skill/spec.md)) | 5 | Write-up formats from config: ticket, message, postmortem; a contract whose non-goals include "never list what was ruled out" | Eval suite at threshold and above the no-plugin baseline |
 | ship-skill | 6 | Branch naming, Conventional Commits, trailer, never to protected branches, draft PR; each push confirmed | `tool_order` graders: never pushes to a protected branch |
 | sso-check-hook | 6 | SessionStart warning from the local SSO token cache, no network | Tests for valid, expired and missing cache; p95 < 100 ms |
 | personal-context | 6 | Renders a marked section of `~/.claude/CLAUDE.md` from config; shows a diff and writes only on confirmation | Idempotent; content outside the markers untouched |
@@ -362,6 +362,15 @@ reference is `docs/reference/configuration.md`. New dependencies, as ADR-0014 re
 generated-schema models and YAML: `pydantic` and `pyyaml` at run time, `types-pyyaml` and
 `jsonschema` for development, each locked at its newest release past the 7-day cooldown
 (spec 002, research R7).
+
+Spec 003 (summary-skill), implemented 2026-11-04: the configuration gains an optional
+`writeups` section (additive, schema version 1); `opscout writeup formats` prints the built-in
+ticket, message and postmortem formats with the configured ones applied, and always exits 0;
+the plugin gains its first code, a `bin/opscout` launcher run through uv that runs the
+clone's engine or the matching release (ADR-0022, which answers the §9 item on how the plugin
+finds the package), and the `summary` skill. `claude plugin eval` cannot run the engine from a
+clone, so until the first release the eval cases run through `tools/skill_evals.py`
+(ADR-0013, amended).
 
 Outside this repo (private runbook): consolidate the SSO sessions into one (back up first,
 show the diff, wait for approval).
@@ -540,5 +549,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
       checks, because hosted macOS runners were sometimes unavailable and blocked merges; a
       daily run on `main` covers macOS. Decide with daemon-core (Phase 1), the first
       macOS-specific code, whether macOS blocks merges again.
+- [ ] Skill evals (ADR-0013, amended 2026-11-04): `claude plugin eval` confines a run to the
+      plugin directory, so before the first release it cannot run the engine from a clone;
+      `tools/skill_evals.py` runs the same cases through `claude -p` until then. Move the
+      suites back to `claude plugin eval` after the first release, and check that an
+      installed plugin's eval run can reach PyPI for `uvx`.
 - [ ] Leak check, annotated tags: their messages and taggers are not checked (a non-goal of
       spec 001, decided 2026-11-04). Decide before the first release tag.

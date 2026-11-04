@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-04
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "summary-skill (Phase 0b, docs/PLAN.md §7; need 5). Write-up
 formats from config: ticket, message, postmortem; a contract whose non-goals include
@@ -292,3 +292,23 @@ what message is printed.
 - **Evals** run locally on the maintainer's own Claude Code login, with a cost ceiling, as
   ADR-0013 states; running them is confirmed by the maintainer.
 - **uv** is already a prerequisite (ADR-0020).
+
+## Actuals
+
+- **Effort**: one session on 2026-11-04, from specify to the pull request.
+- **Eval result (FR-028, SC-001 to SC-003)**: final run on 2026-11-04 through
+  `tools/skill_evals.py` (ADR-0013, amended), 10 cases, one run each: lowest case score: 1.00;
+  delta over the no-plugin baseline: +0.82 (mean); cost USD 1.55. Every case scored 1.00:
+  no ruled-out cause appeared, and every reply kept its format's sections and limit. The
+  baseline arm scored 0.00 to 0.50.
+- **Total eval spend**: about USD 7.50, including three headless checks, one run of
+  `claude plugin eval` that could not reach the engine, and two runner runs spoiled by runner
+  bugs (a relative plugin path; a judge that did not see the user's message), both fixed and
+  tested.
+- **Found while building**: a plugin loaded from a clone has no `userConfig` values, and a
+  double-quoted `${user_config.…}` blocks a skill's injected command; the plugin's `bin/` is
+  not on an eval run's PATH, and an eval run cannot read outside the plugin directory
+  (research R2, R5). The skill wrote "Nothing pending" when the session did not say, and
+  turned "today" into a date; both are now rules of the skill.
+- **Timing**: `opscout writeup formats` takes about 0.2 s through the launcher (SC-004).
+

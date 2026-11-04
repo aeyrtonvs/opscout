@@ -609,7 +609,6 @@ def test_deterministic_graders_come_first() -> None:
 
 
 @spec("FR-028")
-@pytest.mark.xfail(reason="removed in T018, once the eval result is recorded", strict=True)
 def test_the_recorded_eval_result_meets_the_threshold() -> None:
     actuals = SPEC_FILE.read_text(encoding="utf-8").split("## Actuals", 1)
     assert len(actuals) == 2, "the eval result is not recorded in the spec yet"
