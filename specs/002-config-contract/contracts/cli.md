@@ -45,7 +45,9 @@ opscout config: example-config (from --config)
 example-config/config.yaml:3:1: example_section: unknown key; it may be a typo or come from a newer opscout
 ```
 
-A message never contains the value found in the file (FR-017).
+The key path is dotted, with `[n]` for list items; `(top level)` means the top-level
+mapping and `(document)` the file as a whole (encoding, size, syntax, limits). A message
+never contains the value found in the file (FR-017).
 
 ### Exit status
 

@@ -225,3 +225,17 @@ reports every problem with file, line, column and key path, never the value.
 2. Add US2 (the example in the gates), then US3 (the schema), then US4 (versions and the
    compatibility set), then US5 (the hook).
 3. Polish, then `/speckit-converge` and an independent review before the pull request.
+
+---
+
+## Phase 9: Convergence
+
+- [X] T031 Report reading problems (duplicate keys, refused tags, merge keys, complex keys)
+  in the same run as the content problems, hiding only the errors of values that were
+  replaced, and test a file with a duplicate key and an unknown key, in
+  `src/opscout/services/config.py` and `tests/unit/config/test_config_contract.py` per
+  FR-016 (partial)
+- [X] T032 Bring `data-model.md`, `contracts/cli.md`, `plan.md` and `research.md` R4 in line
+  with the code: the `(document)` path, the 100-level depth limit, `parse_config` raising
+  `InvalidConfigError`, and Pydantic reporting a missing or mistyped `schema_version` per
+  plan: design notes (partial)

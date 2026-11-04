@@ -33,7 +33,7 @@ in any letter case, `token`, `password`, `passwd`, `secret`, `api_key`, `apikey`
 | `file` | text | the path as given to the loader |
 | `line` | integer ≥ 1 | 1-based |
 | `column` | integer ≥ 1 | 1-based |
-| `path` | text | dotted key path with `[n]` for items, or `(top level)` |
+| `path` | text | dotted key path with `[n]` for items; `(top level)` for the top-level mapping; `(document)` for the file as a whole (encoding, size, syntax, limits) |
 | `message` | text | never contains the value found (FR-017) |
 
 Problems are ordered by `line`, then `column` (FR-016).
@@ -59,3 +59,4 @@ Problems are ordered by `line`, then `column` (FR-016).
 |---|---|---|
 | file size | 1 MiB | FR-005 |
 | nodes, aliases expanded | 10,000 | FR-010 |
+| nesting | 100 levels | FR-010 |

@@ -111,7 +111,8 @@ class Reader:
     file: str
     values: dict[tuple[str | int, ...], tuple[int, int]] = field(default_factory=dict)
     keys: dict[tuple[str | int, ...], tuple[int, int]] = field(default_factory=dict)
-    refused: dict[tuple[str | int, ...], Problem] = field(default_factory=dict)
+    refused: list[Problem] = field(default_factory=list)
+    replaced: set[tuple[str | int, ...]] = field(default_factory=set)
     nodes: int = 0
 
     def problem(self, place: tuple[int, int], path: str, message: str) -> Problem:
@@ -163,8 +164,6 @@ def read_yaml(data: bytes, file: str) -> tuple[Any, Reader]:
         document = _build(node, (), reader, constructor)
     except _StopError as stop:
         raise _invalid(stop.problem) from None
-    if reader.refused:
-        raise InvalidConfigError(tuple(sorted(reader.refused.values())))
     return document, reader
 
 
@@ -207,8 +206,10 @@ def _build(
             return constructor.construct_object(node)
         except Exception:  # PyYAML raises ValueError and others for a value like !!int abc
             _refuse(reader, path, node, "this value cannot be read as its tag says")
+            reader.replaced.add(path)
             return None
     _refuse(reader, path, node, "this tag is not allowed; only plain data is read")
+    reader.replaced.add(path)
     return None
 
 
@@ -221,7 +222,7 @@ def _hide_quoted(match: re.Match[str]) -> str:
 
 
 def _refuse(reader: Reader, path: tuple[str | int, ...], node: yaml.Node, message: str) -> None:
-    reader.refused.setdefault(path, reader.problem(_start(node), _dotted(path), message))
+    reader.refused.append(reader.problem(_start(node), _dotted(path), message))
 
 
 def _start(node: yaml.Node) -> tuple[int, int]:
@@ -247,13 +248,24 @@ def _dotted(path: tuple[str | int, ...]) -> str:
 
 
 def validate[M: BaseModel](document: Any, reader: Reader, model: type[M]) -> M:
-    """Validate plain data against a model and locate every problem in the file."""
+    """Validate plain data against a model and locate every problem in the file.
+
+    The problems found while reading come first in importance: a value the reader refused
+    and replaced gets no second problem from the model, but every other part of the
+    document is still validated, so one run reports everything (FR-016).
+    """
+    problems = list(reader.refused)
     try:
-        return model.model_validate(document)
+        result = model.model_validate(document)
     except ValidationError as error:
-        details = error.errors(include_url=False, include_input=False)
-        problems = tuple(sorted(_locate(detail, reader) for detail in details))
-        raise InvalidConfigError(problems) from None
+        for detail in error.errors(include_url=False, include_input=False):
+            where = _document_path(detail["loc"], reader, keep_last=False)
+            if not any(where[: len(path)] == path for path in reader.replaced):
+                problems.append(_locate(detail, reader))
+    else:
+        if not problems:
+            return result
+    raise InvalidConfigError(tuple(sorted(problems)))
 
 
 def _locate(detail: ErrorDetails, reader: Reader) -> Problem:

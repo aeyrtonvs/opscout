@@ -118,8 +118,8 @@ in `tests/unit/config/`, the first test package for engine code with a spec.
   `<file>: valid (schema version 1)` line.
 - **Key paths** are dotted, with `[n]` for sequence items; the top level is shown as
   `(top level)`.
-- **Problem** is a frozen dataclass in `core`; `parse_config` returns either a
-  `Configuration` or a non-empty tuple of problems.
+- **Problem** is a frozen dataclass in `core`; `parse_config` returns a `Configuration` or
+  raises `InvalidConfigError`, which carries every problem in file order.
 - **Traceability (FR-034)**: the same technique as spec 001: a test reads the `FR-0NN` IDs
   from this spec and compares them with the `spec("002", …)` marks of the module.
 - **Timing (SC-006)**: a subprocess runs `python -m opscout config validate --config

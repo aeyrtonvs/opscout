@@ -79,10 +79,12 @@ building the text from the type keeps FR-017 a property of our code, not of a de
 
 ## R4. How is the schema version checked? (FR-011 to FR-013, FR-031)
 
-**Decision**: before model validation, the walker's top-level mapping is checked:
+**Decision**: a missing `schema_version`, or one that is not an integer (a boolean, `1.0`,
+`"1"`), is reported by model validation with every other problem; a strict integer check
+runs before the literal, which alone would accept `1.0` and `true`. An integer other than
+the supported one is checked before model validation:
 
-1. `schema_version` missing → one problem at the top level.
-2. Not an integer, or a boolean → one type problem.
+1. (missing) and 2. (not an integer): reported by the model, as above.
 3. Above `SCHEMA_VERSION` (1) → one "written for a newer opscout; upgrade" problem.
 4. In `RETIRED_VERSIONS` (a mapping from a retired major version to its migration note's
    anchor, empty today) → one problem naming the note.
