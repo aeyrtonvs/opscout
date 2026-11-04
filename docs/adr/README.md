@@ -35,3 +35,4 @@ Decisions local to one feature stay in that feature's `specs/NNN-slug/research.m
 | [0019](0019-project-name-opscout.md) | The project is named opscout; the working name ops-harness is retired | accepted |
 | [0020](0020-toolchain-pinned-through-uv.md) | The development toolchain is pinned through uv; neither local use nor development needs containers | accepted |
 | [0021](0021-local-first-portable-by-construction.md) | Local-first and portable by construction; the foreseen hosted shape is a personal VM | accepted |
+| [0022](0022-plugin-runs-the-engine-through-uv.md) | The plugin runs the engine through a uv launcher in its `bin/` | accepted |

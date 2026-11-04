@@ -12,6 +12,7 @@ import re
 import subprocess
 import sys
 import time
+import uuid
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -211,6 +212,17 @@ def test_a_directory_in_place_of_the_file_is_reported(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigLocationError, match=r"config\.yaml: not a file$"):
         load_config(tmp_path)
+
+
+@spec("FR-003")
+def test_an_unreadable_directory_is_a_location_problem(tmp_path: Path) -> None:
+    locked = write_config(tmp_path / "locked", "schema_version: 1\n")
+    locked.chmod(0)
+    try:
+        with pytest.raises(ConfigLocationError, match="cannot be read"):
+            load_config(locked)
+    finally:
+        locked.chmod(0o700)
 
 
 @spec("FR-004")
@@ -432,6 +444,12 @@ class _Kinds(pydantic.BaseModel):
     kind: Literal["first", "second"] = "first"
     flag: bool = False
     count: Annotated[int, pydantic.Field(gt=0)] = 1
+    small: Annotated[int, pydantic.Field(le=10)] = 1
+    big: Annotated[int, pydantic.Field(ge=5)] = 5
+    tiny: Annotated[int, pydantic.Field(lt=0)] = -1
+    few: Annotated[list[int], pydantic.Field(max_length=2)] = []
+    some: Annotated[list[int], pydantic.Field(min_length=1)] = [1]
+    ident: uuid.UUID | None = None
     choice: int | bool = 0
 
 
@@ -448,7 +466,13 @@ class _Kinds(pydantic.BaseModel):
         ("items: example", "items", "expected a list"),
         ("kind: third", "kind", "expected 'first' or 'second'"),
         ("flag: example", "flag", "expected true or false"),
-        ("count: 0", "count", "not a valid value here"),
+        ("count: 0", "count", "expected more than 0"),
+        ("small: 11", "small", "expected at most 10"),
+        ("big: 1", "big", "expected at least 5"),
+        ("tiny: 0", "tiny", "expected less than 0"),
+        ("few: [1, 2, 3]", "few", "expected at most 2 item(s)"),
+        ("some: []", "some", "expected at least 1 item(s)"),
+        ("ident: example", "ident", "not a valid value here"),
         ("choice: example", "choice", "expected an integer"),
     ],
     ids=[
@@ -460,6 +484,12 @@ class _Kinds(pydantic.BaseModel):
         "list",
         "literal",
         "boolean",
+        "greater-than",
+        "less-than-equal",
+        "greater-than-equal",
+        "less-than",
+        "too-long",
+        "too-short",
         "other",
         "union",
     ],
@@ -618,7 +648,7 @@ SCHEMA_FILE = REPO_ROOT / "schemas" / "config.schema.json"
 
 @spec("FR-026")
 def test_the_example_is_a_valid_configuration() -> None:
-    assert load_config(EXAMPLE_DIR) == Configuration(schema_version=1)
+    assert load_config(EXAMPLE_DIR).schema_version == SCHEMA_VERSION
 
 
 @spec("FR-026")

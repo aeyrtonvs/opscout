@@ -1,0 +1,6 @@
+# An invalid synthetic configuration (spec 003, FR-018): a format name with capitals.
+schema_version: 1
+writeups:
+  formats:
+    Status_Update:
+      description: Not a valid name.

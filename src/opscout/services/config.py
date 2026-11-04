@@ -322,6 +322,9 @@ def _locate(detail: ErrorDetails, reader: Reader) -> Problem:
         message = _UNKNOWN_KEY if kind == "extra_forbidden" else "required key is missing"
         return reader.problem(reader.values[tuple(parent)], _dotted(path), message)
     path = _document_path(detail["loc"], reader, keep_last=False)
+    if detail["loc"][-1:] == ("[key]",) and path in reader.keys:
+        # A mapping key that breaks its rule (such as a format name) is located at the key.
+        return reader.problem(reader.keys[path], _dotted(path), _message(detail))
     return reader.problem(reader.values[path], _dotted(path), _message(detail))
 
 
@@ -355,6 +358,18 @@ def _message(detail: ErrorDetails) -> str:
         return f"expected at least {context.get('min_length')} character(s)"
     if kind == "string_too_long":
         return f"expected at most {context.get('max_length')} characters"
+    bounds = {
+        "greater_than": ("more than", "gt"),
+        "greater_than_equal": ("at least", "ge"),
+        "less_than": ("less than", "lt"),
+        "less_than_equal": ("at most", "le"),
+    }
+    if kind in bounds:
+        words, key = bounds[kind]
+        return f"expected {words} {context.get(key)}"
+    if kind in ("too_long", "too_short"):
+        words, key = ("at most", "max_length") if kind == "too_long" else ("at least", "min_length")
+        return f"expected {words} {context.get(key)} item(s)"
     if kind == "string_pattern_mismatch":
         return f"expected text matching {context.get('pattern')}"
     return "not a valid value here"

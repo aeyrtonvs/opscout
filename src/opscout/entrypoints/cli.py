@@ -12,10 +12,12 @@ from opscout.core.config import (
     SCHEMA_VERSION,
     ConfigLocationError,
     InvalidConfigError,
+    Writeups,
     schema_text,
 )
 from opscout.entrypoints.config import config_file, load_config
 from opscout.services.config import resolve_config_dir
+from opscout.services.writeups import render_formats, render_invalid, resolve_formats
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -45,6 +47,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="print the JSON Schema of the configuration",
         description="Print the JSON Schema, as committed at schemas/config.schema.json.",
     )
+    writeup = commands.add_parser(
+        "writeup", help="write-up formats", description="Write-up formats (spec 003)."
+    )
+    writeup_commands = writeup.add_subparsers(
+        dest="writeup_command", metavar="COMMAND", required=True
+    )
+    formats = writeup_commands.add_parser(
+        "formats",
+        help="print the write-up formats for the summary skill",
+        description=(
+            "Print the built-in write-up formats with the configured ones applied. Always "
+            "exits 0; problems are explained in the output."
+        ),
+    )
+    formats.add_argument(
+        "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
+    )
     return parser
 
 
@@ -57,8 +76,39 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "config" and args.config_command == "schema":
         sys.stdout.write(schema_text())
         return 0
+    if args.command == "writeup" and args.writeup_command == "formats":
+        sys.stdout.write(_formats(_given_directory(args.config)))
+        return 0
     parser.print_help()
     return 0
+
+
+def _given_directory(value: str | None) -> Path | None:
+    """Return the ``--config`` directory a skill passed, or None when it passed none.
+
+    A skill passes ``${user_config.config_dir}``. Claude Code substitutes it when the plugin
+    was installed and configured; when the plugin is loaded from a clone, the placeholder
+    arrives as is. Both an empty value and the placeholder count as no directory, so the
+    resolution falls back to ``OPSCOUT_CONFIG`` and the default (spec 003, FR-009).
+    """
+    if not value or value.startswith("${user_config."):
+        return None
+    return Path(value)
+
+
+def _formats(flag: Path | None) -> str:
+    """Return the write-up formats, or why there are none (spec 003, FR-008 to FR-010)."""
+    location = resolve_config_dir(flag, os.environ, Path.home())
+    try:
+        configuration = load_config(location.directory)
+    except ConfigLocationError as error:
+        source = f"Source: none, {error} ({location.source}); using the built-in formats"
+        return render_formats(resolve_formats(Writeups()), source=source, language=None)
+    except InvalidConfigError as error:
+        return render_invalid(location.directory, len(error.problems))
+    writeups = configuration.writeups
+    source = f"Source: {config_file(location.directory)} ({location.source})"
+    return render_formats(resolve_formats(writeups), source=source, language=writeups.language)
 
 
 def _validate(flag: Path | None) -> int:
