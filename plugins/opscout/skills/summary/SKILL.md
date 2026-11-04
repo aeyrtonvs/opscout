@@ -35,14 +35,17 @@ allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/opscout" writeup formats *)
    use, and write nothing else.
 3. **Gather the facts** from this session only: what happened, why, what was done, what is
    pending, and what the format's sections ask for. Leave out every hypothesis, check or
-   option that was considered and ruled out, and the steps taken to reach the result. A
+   option that was considered and ruled out, and the steps taken to reach the result. Keep
+   times and dates as the session states them: "today" stays "today", never a date. A
    first guess that turned out to be the cause is a fact; keep it. If a secret value appeared
    in the session, leave the value out; you may say that the secret exists and where.
 4. **If there is nothing to summarize** (no work was done in this session), say so in one
    sentence and ask what the summary should cover. Write no block.
 5. **Write the block.** Put each section heading on its own line, in the format's order,
-   followed by its text. A section with nothing to say gets a few words ("Nothing pending."),
-   never invented work. Without sections, write free text. Count every non-empty line inside
+   followed by its text. When the session says a section has nothing (nothing is left to
+   do), say so in a few words ("Nothing pending."). When the session does not say, write
+   "Not stated in the session." Never fill a section with work, reasons or results the
+   session does not state. Without sections, write free text. Count every non-empty line inside
    the block, headings included, and stay within the format's limit: cut detail, never
    facts the reader needs. Follow the rules for every format and the format's own rules.
 6. **Close** with one line after the block: `Format: <name>`, then, if none was named, the

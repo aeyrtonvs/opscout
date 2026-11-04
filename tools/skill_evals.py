@@ -30,7 +30,7 @@ from typing import Any
 
 import yaml
 
-Judge = Callable[[str, str], bool]
+Judge = Callable[[str, str, str], bool]  # criterion, user message, reply
 ISOLATION = ["--setting-sources", "project", "--strict-mcp-config", "--no-session-persistence"]
 
 
@@ -67,6 +67,7 @@ class Arm:
     text: str
     tools: list[tuple[str, str]]
     cost: float
+    prompt: str = ""
 
 
 def _front(path: Path) -> tuple[dict[str, Any], str]:
@@ -123,7 +124,7 @@ def grade(grader: Grader, arm: Arm, judge: Judge) -> bool:
             for name, arguments in arm.tools
         )
     if grader.type == "llm":
-        return judge(grader.criteria, arm.text)
+        return judge(grader.criteria, arm.prompt, arm.text)
     raise ValueError(f"grader {grader.name}: type {grader.type} is not supported")
 
 
@@ -180,14 +181,16 @@ def _run(case: Case, plugin: Path | None, environment: dict[str, str]) -> Arm:
         arguments += ["--allowedTools", *case.allowed_tools]
     if plugin is not None:
         arguments += ["--plugin-dir", str(plugin)]
-    return parse_stream(_claude([*arguments, "--", case.prompt], environment))
+    arm = parse_stream(_claude([*arguments, "--", case.prompt], environment))
+    return Arm(arm.text, arm.tools, arm.cost, case.prompt)
 
 
-def _judge_with(environment: dict[str, str], spent: list[float]) -> Judge:
-    def judge(criteria: str, text: str) -> bool:
+def _judge_with(environment: dict[str, str], spent: list[float], notes: list[str]) -> Judge:
+    def judge(criteria: str, message: str, text: str) -> bool:
         prompt = (
-            "You grade one reply against one criterion. Answer with exactly PASS or FAIL.\n\n"
-            f"Criterion:\n{criteria}\n\nReply:\n{text}\n"
+            "You grade one reply against one criterion. Answer PASS or FAIL as the first "
+            "word, then one sentence saying why.\n\n"
+            f"Criterion:\n{criteria}\n\nThe user's message:\n{message}\n\nThe reply:\n{text}\n"
         )
         votes = 0
         for _ in range(3):
@@ -211,7 +214,9 @@ def _judge_with(environment: dict[str, str], spent: list[float]) -> Judge:
             except json.JSONDecodeError:
                 continue
             spent.append(float(result.get("total_cost_usd") or 0.0))
-            votes += str(result.get("result", "")).strip().upper().startswith("PASS")
+            verdict = str(result.get("result", "")).strip()
+            notes.append(verdict)
+            votes += verdict.upper().startswith("PASS")
         return votes >= 2
 
     return judge
@@ -237,7 +242,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     environment = {**os.environ, "OPSCOUT_CONFIG": str(args.config_dir.resolve())}
     plugin = args.plugin.resolve()  # each run starts in an empty directory
     spent: list[float] = []
-    judge = _judge_with(environment, spent)
+    notes: list[str] = []
+    judge = _judge_with(environment, spent, notes)
     results: list[dict[str, Any]] = []
     partial = False
     for case in load_cases(args.evals or plugin / "evals"):
@@ -248,6 +254,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             break
         record: dict[str, Any] = {"name": case.name}
         for label, loaded in (("with", plugin), ("without", None)):
+            notes.clear()
             arm = _run(case, loaded, environment)
             spent.append(arm.cost)
             passed = {g.name: grade(g, arm, judge) for g in case.graders}
@@ -255,6 +262,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "score": case_score(case.graders, passed, two_arms=True),
                 "graders": passed,
                 "reply": arm.text,
+                "judge_notes": list(notes),
                 "cost_usd": arm.cost,
             }
         record["delta"] = record["with"]["score"] - record["without"]["score"]

@@ -81,7 +81,9 @@ def test_cases_and_graders_are_loaded(tmp_path: Path) -> None:
 )
 def test_regex_graders_match_the_final_reply(grader: Grader, text: str, passed: bool) -> None:
     assert (
-        grade(grader, Arm(text=text, tools=[], cost=0.0), judge=lambda criteria, text: True)
+        grade(
+            grader, Arm(text=text, tools=[], cost=0.0), judge=lambda criteria, message, text: True
+        )
         is passed
     )
 
@@ -90,21 +92,21 @@ def test_a_tool_used_grader_reads_the_tool_calls() -> None:
     grader = Grader("g", "tool_used", tool="Skill", input_match="summary")
 
     assert grade(
-        grader, Arm("", [("Skill", '{"skill": "opscout:summary"}')], 0.0), lambda c, t: True
+        grader, Arm("", [("Skill", '{"skill": "opscout:summary"}')], 0.0), lambda c, m, t: True
     )
-    assert not grade(grader, Arm("", [("Bash", "{}")], 0.0), lambda c, t: True)
+    assert not grade(grader, Arm("", [("Bash", "{}")], 0.0), lambda c, m, t: True)
 
 
-def test_an_llm_grader_asks_the_judge() -> None:
+def test_an_llm_grader_shows_the_judge_the_message_and_the_reply() -> None:
     grader = Grader("g", "llm", criteria="Only facts.")
-    seen: list[tuple[str, str]] = []
+    seen: list[tuple[str, str, str]] = []
 
-    def judge(criteria: str, text: str) -> bool:
-        seen.append((criteria, text))
+    def judge(criteria: str, message: str, text: str) -> bool:
+        seen.append((criteria, message, text))
         return False
 
-    assert not grade(grader, Arm("reply", [], 0.0), judge)
-    assert seen == [("Only facts.", "reply")]
+    assert not grade(grader, Arm("reply", [], 0.0, "the user's message"), judge)
+    assert seen == [("Only facts.", "the user's message", "reply")]
 
 
 def test_the_skill_indicator_is_left_out_of_a_two_arm_score() -> None:
