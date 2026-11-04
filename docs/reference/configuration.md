@@ -57,12 +57,17 @@ It validates the repository it runs in, whatever `OPSCOUT_CONFIG` says.
 - Plain data only: mappings, sequences, and string, integer, float, boolean, null and
   date scalars. Other tags (such as `!!python/object` or `!!binary`) and the merge key
   `<<` are refused, and reading never runs code.
-- No duplicate keys. Aliases are allowed, up to 10,000 nodes once expanded and 100 levels
-  of nesting.
-- No value is converted to another type: `"1"` is a string, `1.0` a number, `yes` and
-  `true` booleans.
+- Every key is a string, and no key appears twice in a mapping. `1:`, `true:`, `~:` and
+  `2001-01-01:` are not string keys; quote them if you mean text.
+- Aliases are allowed, up to 10,000 nodes once expanded and 100 levels of nesting.
+- No value is converted to another type: `"1"` is a string, `1.0` a number, `true` a
+  boolean.
+- Values mean the same to opscout and to an editor that follows YAML 1.2: an integer is
+  written in plain decimal (`10`, not `0x0a`, `1_0` or `010`), and a boolean as `true` or
+  `false` (`yes`, `no`, `on` and `off` are refused; quote them for text).
 - Every key must be known. A key opscout does not know is a problem: a typo, or a key from
-  a newer opscout.
+  a newer opscout. In messages, a key that is empty or not plain text is shown quoted and
+  escaped.
 
 The models in `src/opscout/core/config.py` are the source of truth. Their JSON Schema is
 committed at [`schemas/config.schema.json`](../../schemas/config.schema.json), so editors

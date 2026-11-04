@@ -28,6 +28,8 @@ def load_config(directory: Path) -> Configuration:
     if not directory.is_dir():
         raise ConfigLocationError(f"{directory}: not a directory")
     path = config_file(directory)
+    if path.exists() and not path.is_file():
+        raise ConfigLocationError(f"{path}: not a file")
     if not path.is_file():
         hint = ""
         if (directory / "config.yml").exists():

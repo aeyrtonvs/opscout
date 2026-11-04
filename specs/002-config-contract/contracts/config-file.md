@@ -11,8 +11,10 @@
 - One document whose top level is a mapping.
 - Plain data only: mappings, sequences, and string, integer, float, boolean, null and
   timestamp scalars. Other tags and the merge key `<<` are rejected.
-- No duplicate keys. Aliases allowed; at most 10,000 nodes once expanded.
-- No value is converted: `"1"` is a string, `1.0` a float, `true` a boolean.
+- String keys only, no duplicate keys. Aliases allowed; at most 10,000 nodes once expanded
+  and 100 levels of nesting.
+- No value is converted: `"1"` is a string, `1.0` a float, `true` a boolean. Integers are
+  plain decimal and booleans `true` or `false`, so YAML 1.2 editors read them the same.
 
 ## Content
 

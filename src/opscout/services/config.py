@@ -11,7 +11,9 @@ refuses duplicate keys, tags that are not plain data and the merge key, and stop
 from the kind of error, never from the value found (FR-017).
 """
 
+import codecs
 import enum
+import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -44,9 +46,23 @@ _YAML: Final = "tag:yaml.org,2002:"
 _PLAIN_SCALARS: Final = frozenset(
     f"{_YAML}{name}" for name in ("str", "int", "float", "bool", "null", "timestamp")
 )
+_STR: Final = f"{_YAML}str"
 _MAP: Final = f"{_YAML}map"
 _SEQ: Final = f"{_YAML}seq"
 _MERGE: Final = f"{_YAML}merge"
+# YAML 1.1 forms that YAML 1.2, which editors follow, reads differently (FR-015).
+_FORMS: Final = {
+    f"{_YAML}int": (
+        re.compile(r"[-+]?(0|[1-9][0-9]*)"),
+        "write integers in plain decimal digits; YAML 1.2 editors read this form differently",
+    ),
+    f"{_YAML}bool": (
+        re.compile(r"true|True|TRUE|false|False|FALSE"),
+        "write booleans as true or false; quote the value if it is text",
+    ),
+}
+_PLAIN_KEY: Final = re.compile(r"[^\s.\[\]\"'\\]+")
+MAX_SHOWN_KEY: Final = 64
 _QUOTED: Final = re.compile(r"'[^']*'|\"[^\"]*\"")
 
 _UNKNOWN_KEY: Final = "unknown key; it may be a typo or come from a newer opscout"
@@ -136,14 +152,22 @@ def read_yaml(data: bytes, file: str) -> tuple[Any, Reader]:
     reader = Reader(file)
     if len(data) > MAX_BYTES:
         raise _invalid(reader.problem((1, 1), DOCUMENT, "the file is larger than 1 MiB"))
+    body = data.removeprefix(codecs.BOM_UTF8)
     try:
-        text = data.decode("utf-8-sig")
+        text = body.decode("utf-8")
     except UnicodeDecodeError as error:
-        before = data[: error.start]
-        place = (before.count(b"\n") + 1, error.start - before.rfind(b"\n"))
+        before = body[: error.start]
+        line_start = before.rfind(b"\n") + 1
+        column = len(body[line_start : error.start].decode("utf-8", errors="replace")) + 1
+        place = (before.count(b"\n") + 1, column)
         raise _invalid(reader.problem(place, DOCUMENT, "the file is not valid UTF-8")) from None
     try:
         node = yaml.compose(text, Loader=yaml.SafeLoader)
+    except yaml.reader.ReaderError as error:
+        before_text = text[: error.position]
+        place = (before_text.count("\n") + 1, error.position - before_text.rfind("\n"))
+        message = "not valid YAML: the file holds a character YAML does not allow"
+        raise _invalid(reader.problem(place, DOCUMENT, message)) from None
     except yaml.MarkedYAMLError as error:
         mark = error.problem_mark or error.context_mark
         place = (mark.line + 1, mark.column + 1) if mark else (1, 1)
@@ -186,8 +210,8 @@ def _build(
             if key_node.tag == _MERGE:
                 _refuse(reader, path, key_node, "merge keys (<<) are not supported")
                 continue
-            if not isinstance(key_node, yaml.ScalarNode) or key_node.tag not in _PLAIN_SCALARS:
-                _refuse(reader, path, key_node, "a key must be a plain scalar")
+            if not isinstance(key_node, yaml.ScalarNode) or key_node.tag != _STR:
+                _refuse(reader, path, key_node, "a key must be a string")
                 continue
             key = constructor.construct_object(key_node)
             if key in mapping:
@@ -202,6 +226,11 @@ def _build(
             for index, item in enumerate(node.value)
         ]
     if isinstance(node, yaml.ScalarNode) and node.tag in _PLAIN_SCALARS:
+        form = _FORMS.get(node.tag)
+        if form is not None and not form[0].fullmatch(node.value):
+            _refuse(reader, path, node, form[1])
+            reader.replaced.add(path)
+            return None
         try:
             return constructor.construct_object(node)
         except Exception:  # PyYAML raises ValueError and others for a value like !!int abc
@@ -243,8 +272,23 @@ def _dotted(path: tuple[str | int, ...]) -> str:
     """Return a key path such as ``section.items[1]``, or ``(top level)``."""
     text = ""
     for part in path:
-        text += f"[{part}]" if isinstance(part, int) else f".{part}" if text else str(part)
+        if isinstance(part, int):
+            text += f"[{part}]"
+        else:
+            text += f".{_shown(part)}" if text else _shown(part)
     return text or TOP_LEVEL
+
+
+def _shown(key: str) -> str:
+    """Return a key as printed: bare when it is plain text, else quoted and escaped (FR-017).
+
+    Escaping keeps line breaks and terminal control sequences in a key from reaching the
+    output, and long keys are cut short.
+    """
+    shown, cut = key[:MAX_SHOWN_KEY], "…" if len(key) > MAX_SHOWN_KEY else ""
+    if _PLAIN_KEY.fullmatch(shown) and shown.isprintable():
+        return shown + cut
+    return json.dumps(shown) + cut
 
 
 def validate[M: BaseModel](document: Any, reader: Reader, model: type[M]) -> M:

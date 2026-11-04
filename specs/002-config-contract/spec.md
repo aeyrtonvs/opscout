@@ -206,6 +206,10 @@ commit is refused with the problems listed.
   into an unreasonably large structure is rejected rather than expanded.
 - **Implicit typing surprises.** `schema_version: "1"`, `schema_version: 1.0` and
   `schema_version: true` are type problems; no value is silently converted to another type.
+  YAML 1.1 forms that YAML 1.2 editors read differently (`0x1`, `0_1`, `010`, `yes`, `off`)
+  are problems too, and so are keys that are not strings (`1:`, `true:`, `~:`).
+- **Keys that would mislead the output.** An empty key, or one holding a line break or a
+  terminal control sequence, is printed escaped and quoted.
 - **Text that is not valid UTF-8, or a byte-order mark.** Invalid UTF-8 is a problem naming
   the file; a UTF-8 byte-order mark is accepted.
 - **A very large file.** Files above a size limit are rejected before parsing, with the
@@ -239,10 +243,12 @@ commit is refused with the problems listed.
 - **FR-005**: The file MUST be read as UTF-8 (a byte-order mark is accepted). Invalid UTF-8,
   and a file larger than 1 MiB, MUST be reported without parsing.
 - **FR-006**: Only plain YAML data MUST be accepted: mappings, sequences and scalars. Tags
-  that construct objects MUST be rejected, and reading MUST never run code.
+  that construct objects MUST be rejected, and reading MUST never run code. Every mapping
+  key MUST be a string; any other key is a problem located at the key.
 - **FR-007**: A duplicate key in a mapping MUST be a problem, located at its second
   occurrence.
-- **FR-008**: A syntax error MUST be reported with its file, line and column.
+- **FR-008**: A syntax error, including a character YAML does not allow, MUST be reported
+  with its file, line and column, never as a crash.
 - **FR-009**: The top level MUST be a mapping. An empty document, a comment-only document,
   or a top level of another kind MUST be a problem.
 - **FR-010**: Aliases MUST resolve to plain data; a document whose expansion exceeds a
@@ -261,12 +267,16 @@ commit is refused with the problems listed.
 - **FR-014**: A key the schema does not define MUST be a problem at any depth. Its message
   MUST name the key path and say it may be a typo or come from a newer opscout.
 - **FR-015**: Values MUST be checked strictly: a value of the wrong type is a problem and is
-  never converted to the expected type.
+  never converted to the expected type. An integer MUST be written in plain decimal and a
+  boolean as `true` or `false`, so that the engine and an editor that follows YAML 1.2
+  read every value the same way.
 - **FR-016**: Every problem in a file MUST be reported in one run, except as FR-012 and
   FR-013 state. Each problem MUST give the file, line, column, key path and message, and
   problems MUST be listed in file order.
 - **FR-017**: Problem messages MUST NOT include the value found in the file; they name the
-  key, the expected type or values, and the location.
+  key, the expected type or values, and the location. A key is printed escaped, and quoted
+  when it is empty or not plain text, so no line break or control character from the file
+  reaches the output.
 - **FR-018**: The validate command MUST exit with status 0 when the configuration is valid,
   1 when it is invalid or cannot be found or read, and 2 on bad arguments.
 
@@ -412,12 +422,17 @@ commit is refused with the problems listed.
 
 - **Effort**: one session on 2026-11-04, from specify to the pull request, the same as spec
   001.
-- **Tests**: 122 in `tests/unit/config/test_config_contract.py`, every FR traced; 25
-  invalid configurations in the test set (SC-004); coverage of `core` and `services` 100 %.
+- **Tests**: 163 in `tests/unit/config/test_config_contract.py`, every FR traced; 40
+  invalid configurations in the test set, each checked at its exact line and column
+  (SC-004); coverage of `core` and `services` 100 %.
 - **Timing**: validating the example takes 0.13 s end to end through `uv run` (SC-006).
 - **Private configuration**: validated locally with `opscout config validate` (SC-002); its
   content stays in the private repository.
 - **Found while building**: Pydantic accepts `1.0` and `true` for `Literal[1]` even in strict
   mode, and adds a union's member type to error locations (`choice.int`); both are handled
-  and tested.
+  and tested. Converge found that reading problems stopped the rest of the validation
+  (FR-016). The independent review found a crash on characters YAML does not allow,
+  misplaced non-string keys, YAML 1.1 forms that editors read differently, and keys that
+  could carry control characters into the output; the spec now states each rule (FR-006,
+  FR-008, FR-015, FR-017), and each is fixed and tested.
 

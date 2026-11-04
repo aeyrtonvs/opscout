@@ -239,3 +239,25 @@ reports every problem with file, line, column and key path, never the value.
   with the code: the `(document)` path, the 100-level depth limit, `parse_config` raising
   `InvalidConfigError`, and Pydantic reporting a missing or mistyped `schema_version` per
   plan: design notes (partial)
+
+---
+
+## Phase 10: Independent review
+
+Findings of the review in a fresh context (2026-11-04), each reproduced; the spec's FR-006,
+FR-008, FR-015 and FR-017 now state the behavior.
+
+- [X] T033 Report a character YAML does not allow (`\x00`, `\x07`, U+FFFE) as a located
+  problem instead of a traceback, in `src/opscout/services/config.py`, with cases in
+  `INVALID` (FR-008, high)
+- [X] T034 Refuse a mapping key that is not a string, at the key, so integer, boolean, null,
+  float and date keys get the right place and no false duplicate (FR-006, FR-007, medium)
+- [X] T035 Refuse integers not in plain decimal and booleans other than `true`/`false`
+  (FR-015, low)
+- [X] T036 Print keys escaped and quoted when empty or not plain text (FR-017, low); count
+  the column of invalid UTF-8 in characters (FR-005, low); say "not a file" for a
+  directory named `config.yaml` (FR-004, low)
+- [X] T037 Check the exact column of every `INVALID` case, add `!!python/object/apply` and
+  `!!python/name` cases, and test that distinct keys are never reported as duplicates
+  (tests that did not prove FR-006, FR-007 and SC-004)
+- [X] T038 State the key and scalar rules in `docs/reference/configuration.md`
