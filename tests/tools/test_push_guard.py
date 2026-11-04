@@ -2,6 +2,7 @@
 """The push guard denies the forms that slip past the rule-5 ask rules (AGENTS.md, ADR-0018)."""
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -73,6 +74,17 @@ def test_every_bash_ask_rule_in_the_project_settings_is_guarded() -> None:
         "cat <<< 'x'\ngit -C repo push",
         "echo $((1<<4))\ngit -C repo push",
         "echo $'it\\'s' && git -C repo push",
+        # Found by the second review.
+        'out="$(git -C repo push origin "$(git branch --show-current)")"',
+        "echo \"$(git -C repo push 2>&1 | grep -E '(error|rejected)')\"",
+        'echo "$(echo " #")"; git -C repo push',
+        "echo $(pwd)#; git -C repo push",
+        "echo a\\ #b; git -C repo push",
+        "(( z = x << y ))\ngit -C repo push",
+        "cat <<E'OF'\nhello\nEOF\ngit -C repo push",
+        "bash<<EOF\ngit push\nEOF",
+        "bash <<\\EOF\ngit push\nEOF",
+        "bash <<'END-OF-SCRIPT'\ngit push\nEND-OF-SCRIPT",
     ],
 )
 def test_forms_the_ask_rules_miss_are_caught(command: str) -> None:
@@ -94,6 +106,7 @@ def test_forms_the_ask_rules_miss_are_caught(command: str) -> None:
         "git commit -F - <<'EOF'\nchore: mention git -C repo push\nEOF\ngit status",
         "git commit -F - <<'EOF'\nfix: don't stop\nEOF\ngit status",
         "# a note about git -C repo push\ngit status",
+        "git status # don't worry",
         "echo 'unbalanced",
         "gh pr view 12",
         "gh api repos/owner/repo",
@@ -137,3 +150,11 @@ def test_a_command_that_cannot_be_parsed_is_denied_when_it_names_a_gated_command
 
     assert output is not None
     assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+def test_a_long_eval_chain_is_read_quickly() -> None:
+    start = time.perf_counter()
+
+    assert find_escape("eval " * 30 + "echo done", PREFIXES) is None
+    assert find_escape("eval " * 30 + "git -C repo push", PREFIXES) is not None
+    assert time.perf_counter() - start < 1

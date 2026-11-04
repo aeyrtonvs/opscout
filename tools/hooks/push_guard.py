@@ -27,12 +27,9 @@ from tools.hooks._protocol import Decision, Event, run_hook
 Prefix = tuple[str, ...]
 
 ASK_RULE = re.compile(r"Bash\((?P<prefix>[^*()]+?)(?: \*)?\)")
-# A here-document operator; not a here-string (<<<) and not a shift such as 1<<4.
-HEREDOC = re.compile(
-    r"(?<![<\w])<<(?!<)(?P<strip>-?)[ \t]*(?P<quote>['\"]?)(?P<delimiter>[A-Za-z_]\w*)(?P=quote)"
-)
-# Command substitutions inside a word, such as "$(git push)" in double quotes.
-SUBSTITUTION = re.compile(r"\$\(([^()]*)\)|`([^`]*)`")
+ASSIGNMENT = re.compile(r"[A-Za-z_]\w*=.*", re.DOTALL)
+# Nesting this deep is not habit, so the reader stops there and fails closed.
+MAX_DEPTH = 8
 PUNCTUATION = "();<>|&`\n"
 SEPARATOR_CHARS = frozenset(";|&\n")
 SHELLS = frozenset({"bash", "dash", "fish", "ksh", "sh", "zsh"})
@@ -50,16 +47,20 @@ def ask_prefixes(settings: dict[str, Any]) -> list[Prefix]:
     return [tuple(match["prefix"].split()) for rule in rules if (match := ASK_RULE.fullmatch(rule))]
 
 
-def find_escape(command: str, prefixes: Sequence[Prefix], *, nested: bool = False) -> Prefix | None:
+def find_escape(
+    command: str, prefixes: Sequence[Prefix], *, nested: bool = False, depth: int = 0
+) -> Prefix | None:
     """Return the gated prefix that ``command`` runs in a form its ask rule misses, if any.
 
     Inside a nested script (``eval``, a shell's ``-c``, a command substitution in a word, a
     here-document fed to a shell) every gated command escapes, since the ask rules see only
     the outer command.
     """
+    if depth > MAX_DEPTH:
+        return _named(command, prefixes)
     text, scripts = _preprocess(command)
     for script in scripts:
-        if (found := find_escape(script, prefixes, nested=True)) is not None:
+        if (found := find_escape(script, prefixes, nested=True, depth=depth + 1)) is not None:
             return found
     try:
         simple_commands = _simple_commands(text)
@@ -67,7 +68,7 @@ def find_escape(command: str, prefixes: Sequence[Prefix], *, nested: bool = Fals
         return _named(text, prefixes)
     for words in simple_commands:
         for script in _nested_scripts(words):
-            if (found := find_escape(script, prefixes, nested=True)) is not None:
+            if (found := find_escape(script, prefixes, nested=True, depth=depth + 1)) is not None:
                 return found
         for prefix in prefixes:
             if _invokes(words, prefix) and (nested or tuple(words[: len(prefix)]) != prefix):
@@ -102,10 +103,12 @@ def decide(event: Event, prefixes: Sequence[Prefix]) -> Decision | None:
 
 
 def _preprocess(command: str) -> tuple[str, list[str]]:
-    """Return the command without comments, line continuations and here-document bodies.
+    """Return the command without comment lines, line continuations and here-document bodies.
 
     Also return the bodies of the here-documents fed to a shell, which are scripts to check.
-    Any other body is data, such as a commit message, and is dropped.
+    Any other body is data, such as a commit message, and is dropped. Only whole-line
+    comments are removed: a "#" later in a line is often not a comment (``$(pwd)#``,
+    ``a\\ #b``), and leaving one in place can only make the guard stricter.
     """
     out: list[str] = []
     scripts: list[str] = []
@@ -131,17 +134,14 @@ def _preprocess(command: str) -> tuple[str, list[str]]:
             out.append(char)
             quote = char
             i += 1
-        elif char == "#" and (not out or out[-1][-1] in " \t\n;&|()"):
+        elif char == "#" and not "".join(out[line_start:]).strip():
             newline = command.find("\n", i)
             i = end if newline == -1 else newline
-        elif (
-            char == "<"
-            and (heredoc := HEREDOC.match(command, i))
-            and "$((" not in "".join(out[line_start:])
-        ):
-            pending.append((heredoc["delimiter"], heredoc["strip"] == "-"))
-            out.append(heredoc.group())
-            i = heredoc.end()
+        elif char == "<" and (heredoc := _heredoc_at(command, i, "".join(out[line_start:]))):
+            delimiter, strip_tabs, after = heredoc
+            pending.append((delimiter, strip_tabs))
+            out.append(command[i:after])
+            i = after
         elif char == "\n":
             out.append(char)
             i += 1
@@ -169,6 +169,40 @@ def _preprocess(command: str) -> tuple[str, list[str]]:
     return "".join(out), scripts
 
 
+def _heredoc_at(command: str, i: int, line: str) -> tuple[str, bool, int] | None:
+    """Read a here-document operator at ``i``: ``(delimiter, strip_tabs, end)``, or None.
+
+    The delimiter is the next word with its quotes and backslashes removed, as the shell does
+    (``E'OF'`` and ``\\EOF`` both mean ``EOF``). A here-string (``<<<``) and a shift inside
+    arithmetic (``$((1 << 4))``, ``(( x << y ))``) are not here-documents.
+    """
+    if not command.startswith("<<", i) or command.startswith("<<<", i):
+        return None
+    if (i and command[i - 1] == "<") or line.count("((") > line.count("))"):
+        return None
+    j = i + 2
+    strip_tabs = command.startswith("-", j)
+    j += strip_tabs
+    while j < len(command) and command[j] in " \t":
+        j += 1
+    word: list[str] = []
+    while j < len(command) and command[j] not in " \t\n;&|<>()":
+        if command[j] in "'\"":
+            close = command.find(command[j], j + 1)
+            if close == -1:
+                return None
+            word.append(command[j + 1 : close])
+            j = close + 1
+        elif command[j] == "\\" and j + 1 < len(command):
+            word.append(command[j + 1])
+            j += 2
+        else:
+            word.append(command[j])
+            j += 1
+    delimiter = "".join(word)
+    return (delimiter, strip_tabs, j) if delimiter else None
+
+
 def _simple_commands(command: str) -> list[list[str]]:
     """Split a command line into the words of each simple command."""
     lexer = shlex.shlex(command, posix=True, punctuation_chars=PUNCTUATION)
@@ -185,17 +219,21 @@ def _simple_commands(command: str) -> list[list[str]]:
 
 
 def _nested_scripts(words: list[str]) -> list[str]:
-    """Return the scripts that ``eval``, a shell's ``-c`` or a substitution in a word runs."""
+    """Return the scripts that ``eval``, a shell's ``-c`` or a substitution in a word runs.
+
+    A word holding ``$(`` or a backquote is read as a script of its own, so substitutions
+    nest to any depth; ``eval`` counts only where a command starts.
+    """
     scripts: list[str] = []
+    start = 0
+    while start < len(words) and ASSIGNMENT.fullmatch(words[start]):
+        start += 1
+    if start < len(words) and _program(words[start]) == "eval":
+        scripts.append(" ".join(words[start + 1 :]))
     for index, word in enumerate(words):
-        scripts.extend(
-            next(part for part in match.groups() if part is not None)
-            for match in SUBSTITUTION.finditer(word)
-        )
-        name = _program(word)
-        if name == "eval":
-            scripts.append(" ".join(words[index + 1 :]))
-        elif name in SHELLS:
+        if "$(" in word or "`" in word:
+            scripts.append(word)
+        if _program(word) in SHELLS:
             rest = words[index + 1 :]
             for position, token in enumerate(rest[:-1]):
                 if token.startswith("-") and not token.startswith("--") and "c" in token:
