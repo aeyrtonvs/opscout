@@ -132,3 +132,15 @@ injects its output; US3 before US1 because the skill calls the launcher. T014 ga
 
 Engine first (testable without a model), then the launcher, then the skill, then evals,
 which cost quota and run only with the maintainer's confirmation.
+
+---
+
+## Phase 8: Convergence
+
+- [ ] T022 Add the eval case `003-us3-s5` (an invalid configuration stops the write-up), with
+  its own invalid synthetic configuration in the case's `eval-config/`, which the runner uses
+  for that case, per FR-018 and US3/AC5 (partial)
+- [ ] T023 Add a grader to every case that allows at most one line after the block, per
+  FR-015 (partial)
+- [ ] T024 With the maintainer's agreement, validate the maintainer's own formats in the
+  private configuration and check them through the skill locally, per SC-005 (missing)

@@ -50,6 +50,7 @@ def test_no_source_or_test_file_is_git_ignored() -> None:
             "tools",
             "schemas",
             "example-config",
+            "plugins",
         ],
         cwd=root,
         capture_output=True,
@@ -58,4 +59,8 @@ def test_no_source_or_test_file_is_git_ignored() -> None:
     ).stdout.splitlines()
     kept = {".py", ".pyi", ".yaml", ".yml", ".json", ".toml", ".md", ".txt"}
 
-    assert [path for path in listed if Path(path).suffix in kept] == []
+    on_purpose = "plugins/opscout/evals/results/"  # local eval reports, never committed
+
+    assert [
+        path for path in listed if Path(path).suffix in kept and not path.startswith(on_purpose)
+    ] == []

@@ -240,3 +240,40 @@ def test_the_runner_stops_at_the_cost_ceiling(
     assert status == 2
     assert result["partial"] is True
     assert [case["name"] for case in result["cases"]] == ["003-us1-s1"]
+
+
+def test_a_case_with_its_own_configuration_runs_with_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    evals = tmp_path / "evals"
+    write_case(evals, "003-us3-s5", "Summarize.", {"absent": REGEX_ABSENT})
+    (evals / "003-us3-s5" / "eval-config").mkdir()
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "claude").write_text(
+        f"#!{sys.executable}\nimport json, os\n"
+        "print(json.dumps({'type': 'result', 'result': os.environ['OPSCOUT_CONFIG'], "
+        "'total_cost_usd': 0}))\n",
+        encoding="utf-8",
+    )
+    (fake / "claude").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ['PATH']}")
+    out = tmp_path / "result.json"
+
+    main(
+        [
+            "--plugin",
+            str(tmp_path),
+            "--evals",
+            str(evals),
+            "--config-dir",
+            str(tmp_path),
+            "--max-cost-usd",
+            "1",
+            "--out",
+            str(out),
+        ]
+    )
+
+    (case,) = json.loads(out.read_text(encoding="utf-8"))["cases"]
+    assert case["with"]["reply"] == str((evals / "003-us3-s5" / "eval-config").resolve())

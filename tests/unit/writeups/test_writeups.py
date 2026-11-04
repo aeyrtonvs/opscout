@@ -555,6 +555,8 @@ CASE_KEYS = {
 }
 # Scenarios the engine decides, proven by the unit tests above rather than by an eval.
 ENGINE_SCENARIOS = {"003-us2-s1", "003-us2-s2", "003-us2-s5", "003-us2-s6"}
+# Launcher scenarios, proven by the launcher tests above.
+LAUNCHER_SCENARIOS = {"003-us3-s1", "003-us3-s2", "003-us3-s3", "003-us3-s4"}
 
 
 def cases() -> dict[str, dict[str, object]]:
@@ -566,10 +568,10 @@ def cases() -> dict[str, dict[str, object]]:
 
 
 def scenarios() -> set[str]:
-    """Return the skill's scenarios, as eval case names (003-usN-sM), for stories 1 and 2."""
+    """Return the spec's scenarios as eval case names (003-usN-sM)."""
     text = SPEC_FILE.read_text(encoding="utf-8")
     found = set()
-    for story in (1, 2):
+    for story in (1, 2, 3):
         section = text.split(f"### User Story {story} ")[1].split("\n---\n")[0]
         found |= {
             f"003-us{story}-s{n}" for n in re.findall(r"^(\d+)\. \*\*Given\*\*", section, re.M)
@@ -581,7 +583,7 @@ def scenarios() -> set[str]:
 def test_every_skill_scenario_has_an_eval_case() -> None:
     names = set(cases())
 
-    assert scenarios() - ENGINE_SCENARIOS <= names
+    assert scenarios() - ENGINE_SCENARIOS - LAUNCHER_SCENARIOS <= names
     for name in names:
         assert name in scenarios() or re.fullmatch(r"003-edge-[a-z]+(-[a-z]+)*", name), name
 

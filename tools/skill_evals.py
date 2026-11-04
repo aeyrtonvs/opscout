@@ -58,6 +58,7 @@ class Case:
     max_turns: int
     allowed_tools: list[str]
     graders: list[Grader] = field(default_factory=list)
+    config_dir: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,9 @@ def load_cases(evals: Path) -> list[Case]:
                 max_turns=int(front.get("max_turns", 10)),
                 allowed_tools=list(front.get("allowed_tools", [])),
                 graders=graders,
+                config_dir=(prompt.parent / "eval-config").resolve()
+                if (prompt.parent / "eval-config").is_dir()
+                else None,
             )
         )
     return cases
@@ -253,9 +257,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             partial = True
             break
         record: dict[str, Any] = {"name": case.name}
+        # A case may bring its own configuration, such as an invalid one (spec 003, FR-018).
+        case_environment = environment
+        if case.config_dir is not None:
+            case_environment = {**environment, "OPSCOUT_CONFIG": str(case.config_dir)}
         for label, loaded in (("with", plugin), ("without", None)):
             notes.clear()
-            arm = _run(case, loaded, environment)
+            arm = _run(case, loaded, case_environment)
             spent.append(arm.cost)
             passed = {g.name: grade(g, arm, judge) for g in case.graders}
             record[label] = {
