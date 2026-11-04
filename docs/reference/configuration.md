@@ -94,7 +94,7 @@ These hold for each section a later spec adds. Review checks them; tests enforce
 parts marked *tested*.
 
 - **Additive change**: a new optional key or section keeps the schema version, and adds a
-  configuration that uses it to the compatibility set in `tests/unit/config/compat/`
+  configuration that uses it to the compatibility set in `tests/unit/config_contract/compat/`
   (*tested*: every configuration there must still validate).
 - **Breaking change**: removing, renaming or retyping a key, or making one required, raises
   the major version, moves the old version to `RETIRED_VERSIONS` and adds its migration

@@ -13,7 +13,7 @@ description: "Tasks for the configuration contract (spec 002)"
 (`example_section`, `example-prod`, `not-a-real-value`); nothing from the private
 configuration is ever copied here.
 
-**Files**: most tests live in `tests/unit/config/test_config_contract.py`, so few tasks
+**Files**: most tests live in `tests/unit/config_contract/test_config_contract.py`, so few tasks
 can run in parallel. `[P]` marks the ones that touch other files.
 
 ## Format: `[ID] [P?] [Story] Description`
@@ -30,14 +30,14 @@ can run in parallel. `[P]` marks the ones that touch other files.
 
 ## Phase 2: Foundational
 
-- [X] T003 Create `tests/unit/config/test_config_contract.py` with the traceability test (every `FR-0NN` of
+- [X] T003 Create `tests/unit/config_contract/test_config_contract.py` with the traceability test (every `FR-0NN` of
   `spec.md` has a `spec("002", …)` mark and every mark names a real FR, FR-034), marked
   `xfail(strict=True)` until Phase 8 removes the mark
 - [X] T004 Write failing tests for the core types: `Configuration` accepts
   `schema_version=1`, is frozen, rejects unknown keys and non-integers without coercion
   (FR-014, FR-015, FR-032); `KeychainRef` takes `service` (1–128 characters, no whitespace
   or control characters) and an optional `account` of the same shape (FR-019); `Problem`
-  orders by line then column (FR-016), in `tests/unit/config/test_config_contract.py`
+  orders by line then column (FR-016), in `tests/unit/config_contract/test_config_contract.py`
 - [X] T005 Implement `src/opscout/core/config.py`: `SCHEMA_VERSION = 1`,
   `RETIRED_VERSIONS: Mapping[int, str] = {}`, `Configuration` and `KeychainRef` as Pydantic
   models with `ConfigDict(strict=True, extra="forbid", frozen=True)` and a description on
@@ -52,13 +52,13 @@ can run in parallel. `[P]` marks the ones that touch other files.
 **Goal**: `opscout config validate` finds the directory, reads `config.yaml` safely, and
 reports every problem with file, line, column and key path, never the value.
 
-**Independent test**: `uv run just test tests/unit/config -k "resolve or read or problem or validate"`.
+**Independent test**: `uv run just test tests/unit/config_contract -k "resolve or read or problem or validate"`.
 
 ### Tests (write first, watch them fail)
 
 - [X] T006 [US1] Test `resolve_config_dir(flag, environ, home)`: the flag wins, then a
   non-empty `OPSCOUT_CONFIG`, then `home / ".config/opscout"`, each with its source
-  (FR-001, FR-002), in `tests/unit/config/test_config_contract.py`
+  (FR-001, FR-002), in `tests/unit/config_contract/test_config_contract.py`
 - [X] T007 [US1] Test `load_config` on a missing directory, a path that is a file, a
   directory without `config.yaml`, and one holding `config.yml` instead (FR-003, FR-004),
   and that other files in the directory are never read (FR-004)
@@ -106,7 +106,7 @@ reports every problem with file, line, column and key path, never the value.
 - [X] T013 [US2] Test that `example-config/config.yaml` validates, that every key in it has
   a comment, that its first line associates the schema, and that `example-config/README.md`
   exists and explains how to start a private configuration (FR-026, FR-028), in
-  `tests/unit/config/test_config_contract.py`
+  `tests/unit/config_contract/test_config_contract.py`
 - [X] T014 [US2] Test that `.pre-commit-config.yaml` has a local hook that runs `opscout
   config validate --config example-config` when `example-config/`, `schemas/` or
   `src/opscout/` change, and that CI's `gates` job runs it through `just check` without
@@ -126,7 +126,7 @@ reports every problem with file, line, column and key path, never the value.
 
 **Goal**: a generated JSON Schema, committed and kept in step with the models.
 
-**Independent test**: `uv run just test tests/unit/config -k schema`.
+**Independent test**: `uv run just test tests/unit/config_contract -k schema`.
 
 - [X] T017 [US3] Test `schema_text()`: it declares draft 2020-12, the `$id` of research.md
   R5 and a title (FR-021); the committed `schemas/config.schema.json` equals it, and the
@@ -134,7 +134,7 @@ reports every problem with file, line, column and key path, never the value.
   byte for byte (FR-023); every property at any depth has a description, and the checker
   fails on a synthetic schema with a property that lacks one (FR-024); the example
   validates against the committed file with `jsonschema.Draft202012Validator` (FR-025), in
-  `tests/unit/config/test_config_contract.py`
+  `tests/unit/config_contract/test_config_contract.py`
 - [X] T018 [US3] Implement `schema_text()` in `src/opscout/core/config.py`, the `config
   schema` subcommand in `src/opscout/entrypoints/cli.py`, and the `schema` recipe in
   `justfile`; generate `schemas/config.schema.json`; T017 passes
@@ -147,14 +147,14 @@ reports every problem with file, line, column and key path, never the value.
 
 **Goal**: other major versions fail with one clear message; breaking changes are caught.
 
-**Independent test**: `uv run just test tests/unit/config -k "version or compat or secret"`.
+**Independent test**: `uv run just test tests/unit/config_contract -k "version or compat or secret"`.
 
 - [X] T019 [US4] Test the version checks: `schema_version: 2` gives only the
   newer-opscout problem (FR-012); with `retired={0: "#from-version-0"}` passed in,
   `schema_version: 0` gives only the problem naming that note, and `-1` gives only the
-  unknown-version problem (FR-013), in `tests/unit/config/test_config_contract.py`
+  unknown-version problem (FR-013), in `tests/unit/config_contract/test_config_contract.py`
 - [X] T020 [US4] Test that the committed schema's `schema_version` is `const`
-  `SCHEMA_VERSION`, and that every file in `tests/unit/config/compat/v1/` declares that
+  `SCHEMA_VERSION`, and that every file in `tests/unit/config_contract/compat/v1/` declares that
   version (FR-029); that every one validates and the set holds at least the minimal
   configuration (FR-030); test that every entry
   of `RETIRED_VERSIONS` has its anchor in `docs/reference/configuration.md` (FR-031)
@@ -163,7 +163,7 @@ reports every problem with file, line, column and key path, never the value.
   a `KeychainRef` (FR-019, FR-020)
 - [X] T022 [US4] Implement the version steps 3–5 of research.md R4 in `parse_config`
   (`supported` and `retired` keyword arguments), the credential-name checker, and
-  `tests/unit/config/compat/v1/minimal.yaml`; T019 to T021 pass
+  `tests/unit/config_contract/compat/v1/minimal.yaml`; T019 to T021 pass
 
 **Checkpoint**: US4 works.
 
@@ -173,13 +173,13 @@ reports every problem with file, line, column and key path, never the value.
 
 **Goal**: a published pre-commit hook.
 
-**Independent test**: `uv run just test tests/unit/config -k hook`.
+**Independent test**: `uv run just test tests/unit/config_contract -k hook`.
 
 - [X] T023 [US5] Test that `.pre-commit-hooks.yaml` publishes `opscout-config-validate`
   with the entry, `language: python`, `files: ^config\.ya?ml$` and `pass_filenames: false`
   of research.md R6, and that running its entry in a scratch directory validates that
   directory even when `OPSCOUT_CONFIG` names another one (FR-033), in
-  `tests/unit/config/test_config_contract.py`
+  `tests/unit/config_contract/test_config_contract.py`
 - [X] T024 [P] [US5] Write `.pre-commit-hooks.yaml`; T023 passes
 
 **Checkpoint**: every story works.
@@ -189,7 +189,7 @@ reports every problem with file, line, column and key path, never the value.
 ## Phase 8: Polish and cross-cutting
 
 - [X] T025 Test that `python -m opscout config validate --config example-config`, run as a
-  subprocess, finishes under 2 s (SC-006), in `tests/unit/config/test_config_contract.py`
+  subprocess, finishes under 2 s (SC-006), in `tests/unit/config_contract/test_config_contract.py`
 - [X] T026 [P] Write `docs/reference/configuration.md`: where the configuration is found,
   the file format, version 1, the rules for later sections (additive and breaking changes,
   keychain references, descriptions), the private repository's hook, and an empty
@@ -233,7 +233,7 @@ reports every problem with file, line, column and key path, never the value.
 - [X] T031 Report reading problems (duplicate keys, refused tags, merge keys, complex keys)
   in the same run as the content problems, hiding only the errors of values that were
   replaced, and test a file with a duplicate key and an unknown key, in
-  `src/opscout/services/config.py` and `tests/unit/config/test_config_contract.py` per
+  `src/opscout/services/config.py` and `tests/unit/config_contract/test_config_contract.py` per
   FR-016 (partial)
 - [X] T032 Bring `data-model.md`, `contracts/cli.md`, `plan.md` and `research.md` R4 in line
   with the code: the `(document)` path, the 100-level depth limit, `parse_config` raising
@@ -261,3 +261,13 @@ FR-008, FR-015 and FR-017 now state the behavior.
   `!!python/name` cases, and test that distinct keys are never reported as duplicates
   (tests that did not prove FR-006, FR-007 and SC-004)
 - [X] T038 State the key and scalar rules in `docs/reference/configuration.md`
+
+---
+
+## Phase 11: CI fix
+
+- [X] T039 The `.gitignore` rule `config/` (real configuration never lives here) also
+  ignored `tests/unit/config/`, so the suite and the compatibility set were never committed;
+  local runs passed and CI's coverage gate failed (30 %). Move the tests to
+  `tests/unit/config_contract/`, keep the rule, and add a test in `tests/unit/test_smoke.py`
+  that fails when a source or test file on disk is git-ignored

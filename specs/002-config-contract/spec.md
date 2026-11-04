@@ -422,7 +422,7 @@ commit is refused with the problems listed.
 
 - **Effort**: one session on 2026-11-04, from specify to the pull request, the same as spec
   001.
-- **Tests**: 163 in `tests/unit/config/test_config_contract.py`, every FR traced; 40
+- **Tests**: 163 in `tests/unit/config_contract/test_config_contract.py`, every FR traced; 40
   invalid configurations in the test set, each checked at its exact line and column
   (SC-004); coverage of `core` and `services` 100 %.
 - **Timing**: validating the example takes 0.13 s end to end through `uv run` (SC-006).

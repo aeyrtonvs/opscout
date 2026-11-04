@@ -5,7 +5,7 @@ Prerequisites: a clone set up with `uv sync` and `uv run just setup` (CONTRIBUTI
 ## 1. The suite
 
 ```sh
-uv run just test tests/unit/config
+uv run just test tests/unit/config_contract
 ```
 
 Expected: every test passes, including the traceability test (every FR of

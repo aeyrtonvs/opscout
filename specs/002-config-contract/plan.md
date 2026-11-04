@@ -91,7 +91,7 @@ src/opscout/
     ├── config.py            # load_config(directory): reads the file, calls parse_config
     └── cli.py               # `config validate [--config DIR]`, `config schema`
 
-tests/unit/config/
+tests/unit/config_contract/
 ├── test_config_contract.py  # FR markers, traceability test
 └── compat/v1/*.yaml         # the compatibility set (FR-030); invalid cases are built in the test module
 
@@ -109,7 +109,7 @@ AGENTS.md, docs/PLAN.md      # repository map; Phase 0b progress, §4.4 gate row
 ```
 
 **Structure Decision**: the three package layers of ADR-0011, as R8 describes. The tests go
-in `tests/unit/config/`, the first test package for engine code with a spec.
+in `tests/unit/config_contract/`, the first test package for engine code with a spec.
 
 ## Design notes
 
