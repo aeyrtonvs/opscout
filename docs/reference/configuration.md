@@ -114,6 +114,25 @@ Whatever the configuration says, every write-up states only facts from the sessi
 lists what was evaluated and ruled out nor how the result was reached, and never holds a
 secret value. `opscout writeup formats [--config DIR]` prints the formats the skill uses.
 
+### `ship` (optional; spec 004)
+
+Conventions for the ship skill and the plugin's push guard.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `protected_branches` | `[main, master]` | branch patterns (globs such as `release/*`) that are never pushed to; `main`, `master` and the remote's default branch are protected whatever the list says |
+| `branch_pattern` | `{type}/{slug}` | how new branches are named; tokens `{type}`, `{slug}` (required) and `{ticket}` |
+| `types` | the Conventional Commit types | the types allowed in commit messages and branch names |
+| `trailer` | `Assisted-by: Claude Code` | the last line of every commit message the skill writes |
+| `pull_request.base` | the remote's default branch | the branch pull requests target |
+| `pull_request.draft` | `true` | pull requests are always drafts; `false` is refused |
+
+With the plugin enabled, a hook asks before every `git push` and `gh pr create` Claude runs,
+and refuses a push to a protected branch, whatever your own permission settings say. It
+reads only the plain form, `git [-C <dir>] push [<options>] [<remote> [<branch>...]]`, and
+refuses a push written any other way. `opscout ship rules`, `opscout ship check-branch` and
+`opscout ship check-message` print and check the conventions.
+
 ## Rules for every section
 
 These hold for each section a later spec adds. Review checks them; tests enforce the

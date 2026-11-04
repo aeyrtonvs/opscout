@@ -26,7 +26,13 @@ from opscout.core.config import (
 from opscout.core.ship import PushDecision
 from opscout.entrypoints.cli import main
 from opscout.services.config import parse_config
-from opscout.services.ship import decide_push, read_command
+from opscout.services.ship import (
+    check_branch,
+    check_message,
+    decide_push,
+    read_command,
+    render_rules,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SPEC_FILE = REPO_ROOT / "specs" / "004-ship-skill" / "spec.md"
@@ -492,6 +498,146 @@ def test_the_guard_decides_in_under_a_second(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert '"deny"' in result.stdout
     assert time.perf_counter() - started < 1.0  # SC-004
+
+
+# The conventions and the checks (User Stories 3 and 4)
+
+DEFAULT_RULES = """\
+# Ship conventions
+
+Source: example
+
+Protected branches, never pushed to: main, master, and the remote's default branch.
+Branch names: {type}/{slug}. {type} is one of: build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test. {slug} is lowercase words joined by hyphens, at most 50 characters.
+Commit messages: `<type>[(scope)][!]: <description>`, at most 72 characters, with a type from the list above; a blank line before any body; the last line is exactly: Assisted-by: Claude Code
+Pull requests: drafts, against the remote's default branch.
+"""  # noqa: E501  (the expected output, line for line)
+
+
+@spec("FR-003")
+def test_the_default_conventions_are_printed_as_instructions() -> None:
+    assert render_rules(Ship(), source="Source: example") == DEFAULT_RULES
+
+
+@spec("FR-003")
+def test_configured_conventions_are_printed() -> None:
+    ship = configuration(
+        "ship:\n"
+        "  protected_branches: [main, 'release/*']\n"
+        "  branch_pattern: '{type}/{ticket}-{slug}'\n"
+        "  types: [feat, fix]\n"
+        "  trailer: 'Assisted-by: Example Agent'\n"
+        "  pull_request: {base: develop}\n"
+    ).ship
+
+    text = render_rules(ship, source="Source: example")
+
+    assert "never pushed to: main, master, release/*, and the remote's default branch." in text
+    assert "Branch names: {type}/{ticket}-{slug}. {type} is one of: feat, fix." in text
+    assert "{ticket} is a ticket key such as EXAMPLE-123." in text
+    assert text.endswith("Pull requests: drafts, against develop.\n")
+    assert render_rules(ship, source="Source: example") == text
+
+
+@spec("FR-003")
+def test_the_rules_command_always_exits_zero(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    missing = tmp_path / "missing"
+    assert main(["ship", "rules", "--config", str(missing)]) == 0
+    assert (
+        f"Source: none, {missing}: no such directory (from --config); using the defaults"
+        in capsys.readouterr().out
+    )
+
+    invalid = tmp_path / "invalid"
+    invalid.mkdir()
+    (invalid / "config.yaml").write_text("schema_version: 1\nship: {types: []}\n", encoding="utf-8")
+    assert main(["ship", "rules", "--config", str(invalid)]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("# Ship conventions\n")
+    assert "has 1 problem(s), so no ship convention is available" in out
+    assert main(["ship", "check-branch", "feat/x", "--config", str(invalid)]) == 1
+
+
+@spec("FR-004")
+@pytest.mark.parametrize(
+    ("name", "pattern", "reasons"),
+    [
+        ("feat/add-the-guard", "{type}/{slug}", []),
+        ("fix/a", "{type}/{slug}", []),
+        ("feat/EXAMPLE-123-add-the-guard", "{type}/{ticket}-{slug}", []),
+        ("feature/add", "{type}/{slug}", ["does not follow"]),
+        ("feat/Add_Guard", "{type}/{slug}", ["does not follow"]),
+        ("feat/" + "-".join(["word"] * 12), "{type}/{slug}", ["longer than 50"]),
+        ("feat/add", "{type}/{ticket}-{slug}", ["does not follow"]),
+        ("main", "{slug}", ["main is protected"]),
+    ],
+    ids=["plain", "one-letter", "ticket", "bad-type", "case", "long", "no-ticket", "protected"],
+)
+def test_a_branch_name_is_checked(name: str, pattern: str, reasons: list[str]) -> None:
+    found = check_branch(name, Ship(branch_pattern=pattern), default="main")
+
+    assert len(found) == len(reasons)
+    for reason, expected in zip(found, reasons, strict=True):
+        assert expected in reason
+
+
+TRAILER = "Assisted-by: Claude Code"
+
+
+@spec("FR-005")
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        (f"feat: add the push guard\n\n{TRAILER}\n", []),
+        (f"fix(ship)!: refuse --mirror\n\nBody text.\n\n{TRAILER}\n", []),
+        (f"feat: add the guard\n# a comment git adds\n\n{TRAILER}\n", []),
+        (f"feature: add\n\n{TRAILER}\n", ["subject"]),
+        (f"feat: {'x' * 70}\n\n{TRAILER}\n", ["72"]),
+        (f"feat: add\nno blank line\n\n{TRAILER}\n", ["blank line"]),
+        ("feat: add the guard\n", ["trailer"]),
+        ("wip\nbody\n", ["subject", "blank line", "trailer"]),
+        (f"feat: add\n\n{TRAILER}\n\n\n", []),
+        (f"feat: add\n\n{TRAILER}\n# {'-' * 24} >8 {'-' * 24}\ndiff --git a b\n", []),
+    ],
+    ids=[
+        "valid",
+        "scope-bang-body",
+        "comments",
+        "bad-type",
+        "long",
+        "no-blank",
+        "no-trailer",
+        "all-three",
+        "trailing-blank-lines",
+        "scissors",
+    ],
+)
+def test_a_commit_message_is_checked(message: str, expected: list[str]) -> None:
+    found = check_message(message, Ship())
+
+    assert len(found) == len(expected), found
+    for reason, part in zip(found, expected, strict=True):
+        assert part in reason
+
+
+@spec("FR-004")
+@spec("FR-005")
+def test_the_check_commands_exit_with_the_result(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / "none"))
+    assert main(["ship", "check-branch", "feat/add-the-guard"]) == 0
+    assert main(["ship", "check-branch", "main"]) == 1
+    assert "main is protected" in capsys.readouterr().out
+
+    message = tmp_path / "message"
+    message.write_text(f"feat: add the guard\n\n{TRAILER}\n", encoding="utf-8")
+    assert main(["ship", "check-message", str(message)]) == 0
+    monkeypatch.setattr("sys.stdin", io.StringIO("wip\n"))
+    assert main(["ship", "check-message", "-"]) == 1
+    assert "trailer" in capsys.readouterr().out
 
 
 # Proof

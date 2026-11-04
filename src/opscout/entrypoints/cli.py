@@ -12,12 +12,14 @@ from opscout.core.config import (
     SCHEMA_VERSION,
     ConfigLocationError,
     InvalidConfigError,
+    Ship,
     Writeups,
     schema_text,
 )
 from opscout.entrypoints.config import config_file, load_config
 from opscout.entrypoints.hook import BLOCKED, HookError, pre_tool_use
 from opscout.services.config import resolve_config_dir
+from opscout.services.ship import check_branch, check_message, render_rules
 from opscout.services.writeups import render_formats, render_invalid, resolve_formats
 
 
@@ -65,6 +67,22 @@ def build_parser() -> argparse.ArgumentParser:
     formats.add_argument(
         "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
     )
+    ship = commands.add_parser(
+        "ship", help="ship conventions and checks", description="Ship conventions (spec 004)."
+    )
+    ship_commands = ship.add_subparsers(dest="ship_command", metavar="COMMAND", required=True)
+    rules = ship_commands.add_parser(
+        "rules", help="print the conventions for the ship skill; always exits 0"
+    )
+    branch = ship_commands.add_parser("check-branch", help="check a branch name")
+    branch.add_argument("name")
+    branch.add_argument("--default-branch", metavar="NAME", help="the remote's default branch")
+    message = ship_commands.add_parser("check-message", help="check a commit message")
+    message.add_argument("file", help="the message file, or - for standard input")
+    for command in (rules, branch, message):
+        command.add_argument(
+            "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
+        )
     hook = commands.add_parser(
         "hook", help="the plugin's hooks", description="The plugin's hooks (spec 004)."
     )
@@ -92,6 +110,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "writeup" and args.writeup_command == "formats":
         sys.stdout.write(_formats(_given_directory(args.config)))
         return 0
+    if args.command == "ship":
+        return _ship(args)
     if args.command == "hook" and args.hook_command == "pre-tool-use":
         location = resolve_config_dir(_given_directory(args.config), os.environ, Path.home())
         try:
@@ -102,6 +122,40 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     parser.print_help()
     return 0
+
+
+def _ship(args: argparse.Namespace) -> int:
+    """Run a ship command (spec 004)."""
+    location = resolve_config_dir(_given_directory(args.config), os.environ, Path.home())
+    try:
+        ship = load_config(location.directory).ship
+        source = f"Source: {config_file(location.directory)} ({location.source})"
+    except ConfigLocationError as error:
+        ship, source = Ship(), f"Source: none, {error} ({location.source}); using the defaults"
+    except InvalidConfigError as error:
+        if args.ship_command == "rules":
+            sys.stdout.write(
+                render_invalid(
+                    location.directory,
+                    len(error.problems),
+                    title="# Ship conventions",
+                    missing="ship convention",
+                )
+            )
+            return 0
+        print(f"opscout ship: the configuration has {len(error.problems)} problem(s)")
+        return 1
+    if args.ship_command == "rules":
+        sys.stdout.write(render_rules(ship, source=source))
+        return 0
+    if args.ship_command == "check-branch":
+        reasons = check_branch(args.name, ship, default=args.default_branch)
+    else:
+        text = sys.stdin.read() if args.file == "-" else Path(args.file).read_text("utf-8")
+        reasons = check_message(text, ship)
+    for reason in reasons:
+        print(reason)
+    return 1 if reasons else 0
 
 
 def _given_directory(value: str | None) -> Path | None:

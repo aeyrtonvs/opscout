@@ -42,13 +42,13 @@ their FRs in `tags`. Scratch repositories with a local bare remote only.
 
 ## Phase 4: User Story 3 and 4 — conventions and checks (P2, P3)
 
-- [ ] T009 [US3] Write failing tests for `render_rules` and `opscout ship rules` (FR-003): the
+- [X] T009 [US3] Write failing tests for `render_rules` and `opscout ship rules` (FR-003): the
   defaults, configured values, always exit 0, deterministic
-- [ ] T010 [US4] Write failing tests for `check_branch` and `opscout ship check-branch`
+- [X] T010 [US4] Write failing tests for `check_branch` and `opscout ship check-branch`
   (FR-004) and `check_message` and `opscout ship check-message` (FR-005)
-- [ ] T011 Implement them in `src/opscout/services/ship.py` and `src/opscout/entrypoints/cli.py`;
+- [X] T011 Implement them in `src/opscout/services/ship.py` and `src/opscout/entrypoints/cli.py`;
   T009–T010 pass; coverage of core and services stays at 100 %
-- [ ] T012 [P] Add a commented `ship` example to `example-config/config.yaml` and the section
+- [X] T012 [P] Add a commented `ship` example to `example-config/config.yaml` and the section
   to `docs/reference/configuration.md`
 
 ## Phase 5: User Story 2 — the skill (P1)

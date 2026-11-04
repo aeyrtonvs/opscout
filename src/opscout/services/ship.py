@@ -13,6 +13,7 @@ import re
 import shlex
 from collections.abc import Iterable
 
+from opscout.core.config import Ship
 from opscout.core.ship import ALWAYS_PROTECTED, DEFAULT_REMOTE, PushCommand, PushDecision
 
 _MENTIONS_PUSH = re.compile(r"(?:^|[\s;&|(`$])git\b[\s\S]*\bpush\b")
@@ -194,3 +195,84 @@ def decide_push(
     named = ", ".join([*destinations, *(f"delete {name}" for name in deleted)])
     forced = " (force)" if push.force else ""
     return PushDecision("ask", f"opscout: push to {remote}: {named}{forced}?")
+
+
+# The conventions and the checks (User Stories 3 and 4)
+
+MAX_SLUG = 50
+MAX_SUBJECT = 72
+_SLUG = r"(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)"
+_TICKET = r"[A-Z][A-Z0-9]+-[0-9]+"
+_SCISSORS = "# ------------------------ >8 ------------------------"
+
+
+def render_rules(ship: Ship, *, source: str) -> str:
+    """Return the conventions as plain instructions for the skill; deterministic (FR-003)."""
+    extra = [pattern for pattern in ship.protected_branches if pattern not in ALWAYS_PROTECTED]
+    protected_list = ", ".join([*ALWAYS_PROTECTED, *extra])
+    branch = (
+        f"Branch names: {ship.branch_pattern}. {{type}} is one of: {', '.join(ship.types)}. "
+        f"{{slug}} is lowercase words joined by hyphens, at most {MAX_SLUG} characters."
+    )
+    if "{ticket}" in ship.branch_pattern:
+        branch += " {ticket} is a ticket key such as EXAMPLE-123."
+    base = ship.pull_request.base or "the remote's default branch"
+    lines = [
+        "# Ship conventions",
+        "",
+        source,
+        "",
+        f"Protected branches, never pushed to: {protected_list}, and the remote's default branch.",
+        branch,
+        f"Commit messages: `<type>[(scope)][!]: <description>`, at most {MAX_SUBJECT} "
+        "characters, with a type from the list above; a blank line before any body; the last "
+        f"line is exactly: {ship.trailer}",
+        f"Pull requests: drafts, against {base}.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def _branch_regex(ship: Ship) -> re.Pattern[str]:
+    types = "|".join(map(re.escape, ship.types))
+    parts = re.split(r"(\{type\}|\{slug\}|\{ticket\})", ship.branch_pattern)
+    tokens = {"{type}": f"(?:{types})", "{slug}": _SLUG, "{ticket}": _TICKET}
+    return re.compile("".join(tokens.get(part, re.escape(part)) for part in parts))
+
+
+def check_branch(name: str, ship: Ship, *, default: str | None) -> list[str]:
+    """Return why a branch name is not acceptable; empty when it is (FR-004)."""
+    reasons = []
+    if protected(name, default=default, patterns=ship.protected_branches):
+        reasons.append(f"{name} is protected; ship from a feature branch")
+    match = _branch_regex(ship).fullmatch(name)
+    if match is None:
+        if not reasons:
+            reasons.append(
+                f"the name does not follow {ship.branch_pattern} (types: {', '.join(ship.types)})"
+            )
+    elif len(match.group("slug")) > MAX_SLUG:
+        reasons.append(f"the slug is longer than {MAX_SLUG} characters")
+    return reasons
+
+
+def check_message(message: str, ship: Ship) -> list[str]:
+    """Return every problem of a commit message; empty when it is acceptable (FR-005)."""
+    text = message.split(_SCISSORS, 1)[0]
+    lines = [line.rstrip() for line in text.splitlines() if not line.startswith("#")]
+    while lines and not lines[-1]:
+        lines.pop()
+    subject = lines[0] if lines else ""
+    types = "|".join(map(re.escape, ship.types))
+    reasons = []
+    if not re.fullmatch(rf"(?:{types})(?:\([a-z0-9][a-z0-9./-]*\))?!?: \S.*", subject):
+        reasons.append(
+            "the subject must read '<type>[(scope)][!]: <description>' with a type from: "
+            + ", ".join(ship.types)
+        )
+    elif len(subject) > MAX_SUBJECT:
+        reasons.append(f"the subject is longer than {MAX_SUBJECT} characters")
+    if len(lines) > 1 and lines[1]:
+        reasons.append("a blank line must separate the subject from the body")
+    if len(lines) < 2 or lines[-1] != ship.trailer:
+        reasons.append(f"the last line must be the trailer: {ship.trailer}")
+    return reasons
