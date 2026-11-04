@@ -531,5 +531,9 @@ genai.owasp.org (Top 10 for Agentic Applications).
       (`git push origin HEAD:main HEAD:refs/heads/<name>`). CI checks each pull request's
       branch name right after it is published (FR-033), and the rule-5 prompt shows every
       push command first. Close it with a pre-push hook outside pre-commit if it is ever hit.
+- [ ] Configuration contract (spec 002): after the merge, the private repository adds the
+      `opscout-config-validate` hook, pinned to the merge commit, and points its schema line
+      at that commit. Its `config.yaml` (only `schema_version: 1`) validates locally and is
+      not committed yet.
 - [ ] Leak check, annotated tags: their messages and taggers are not checked (a non-goal of
       spec 001, decided 2026-11-04). Decide before the first release tag.
