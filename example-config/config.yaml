@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=../schemas/config.schema.json
+#
+# An example opscout configuration. Every value in it is fake (Constitution Principle I).
+# To start your own, copy this directory into your private configuration repository, as
+# README.md explains. The reference is docs/reference/configuration.md.
+
+# The major version of the configuration schema this file follows. This engine reads
+# version 1; a file for another version gets one message that says what to do.
+schema_version: 1

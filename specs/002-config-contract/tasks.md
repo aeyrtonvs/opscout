@@ -103,18 +103,20 @@ reports every problem with file, line, column and key path, never the value.
 
 **Independent test**: `uv run opscout config validate --config example-config`.
 
-- [ ] T013 [US2] Test that `example-config/config.yaml` validates, that every key in it has
+- [X] T013 [US2] Test that `example-config/config.yaml` validates, that every key in it has
   a comment, that its first line associates the schema, and that `example-config/README.md`
   exists and explains how to start a private configuration (FR-026, FR-028), in
   `tests/unit/config/test_config_contract.py`
-- [ ] T014 [US2] Test that `.pre-commit-config.yaml` has a local hook that runs `opscout
+- [X] T014 [US2] Test that `.pre-commit-config.yaml` has a local hook that runs `opscout
   config validate --config example-config` when `example-config/`, `schemas/` or
-  `src/opscout/` change, and that `.github/workflows/ci.yml` runs the same command (FR-027)
-- [ ] T015 [P] [US2] Write `example-config/config.yaml` (schema association line, a comment
+  `src/opscout/` change, and that CI's `gates` job runs it through `just check` without
+  skipping it (FR-027)
+- [X] T015 [P] [US2] Write `example-config/config.yaml` (schema association line, a comment
   per key, `schema_version: 1`) and `example-config/README.md` (copy into a private
   repository, the schema URL pinned to a commit, the hook of US5); T013 passes
-- [ ] T016 [US2] Add the local hook to `.pre-commit-config.yaml` and the step to the
-  `gates` job of `.github/workflows/ci.yml`; T014 passes, and `uv run just check` passes
+- [X] T016 [US2] Add the local hook to `.pre-commit-config.yaml`; CI's `gates` job already
+  runs every pre-commit hook on every file (`just check`); T014 passes, and `uv run just
+  check` passes
 
 **Checkpoint**: US2 works: breaking the example fails the gates.
 
@@ -126,14 +128,14 @@ reports every problem with file, line, column and key path, never the value.
 
 **Independent test**: `uv run just test tests/unit/config -k schema`.
 
-- [ ] T017 [US3] Test `schema_text()`: it declares draft 2020-12, the `$id` of research.md
+- [X] T017 [US3] Test `schema_text()`: it declares draft 2020-12, the `$id` of research.md
   R5 and a title (FR-021); the committed `schemas/config.schema.json` equals it, and the
   failure message gives `uv run just schema` (FR-022); `opscout config schema` prints it
   byte for byte (FR-023); every property at any depth has a description, and the checker
   fails on a synthetic schema with a property that lacks one (FR-024); the example
   validates against the committed file with `jsonschema.Draft202012Validator` (FR-025), in
   `tests/unit/config/test_config_contract.py`
-- [ ] T018 [US3] Implement `schema_text()` in `src/opscout/core/config.py`, the `config
+- [X] T018 [US3] Implement `schema_text()` in `src/opscout/core/config.py`, the `config
   schema` subcommand in `src/opscout/entrypoints/cli.py`, and the `schema` recipe in
   `justfile`; generate `schemas/config.schema.json`; T017 passes
 
