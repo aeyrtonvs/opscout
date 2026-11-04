@@ -65,3 +65,13 @@ each message; a pre-push stage checks every commit about to leave the machine, i
 commits that skipped the other hooks. gitleaks checks staged changes at commit time and
 the whole history before a push and in CI. The tests run on both operating systems, the
 other gates once on Linux, and Dependabot also updates the pre-commit hooks.
+
+**Amended 2026-11-04.** The macOS test jobs are no longer required checks of the ruleset on
+`main`. GitHub's hosted macOS arm64 runners were twice unavailable for pull request #4: the
+jobs waited 15 minutes for a runner, were cancelled without running a step, and blocked the
+merge although every other check passed. The macOS jobs still run on every pull request and
+push, as information, and CI also runs the tests daily on `main` and on demand, so a
+macOS-only regression shows within a day. The required checks are the Linux tests (minimum
+and latest Python), the leak check, manifests and workflows job, dependency review, and
+CodeQL. The engine has no macOS-specific code yet; whether macOS should block again is
+decided with the first macOS adapter (launchd, keychain) in Phase 1.

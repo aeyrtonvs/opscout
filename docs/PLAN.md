@@ -136,7 +136,7 @@ Spec Kit gives each spec stable IDs: user stories (`US1`…), functional require
 |---|---|---|
 | Format and lint (ruff) | ✓ | ✓ |
 | Types (mypy `--strict`) | ✓ | ✓ |
-| Tests (pytest) | ✓ | ✓ macOS + Linux, Python 3.13 and latest |
+| Tests (pytest) | ✓ | ✓ Linux, Python 3.13 and latest (required); macOS on every pull request and push, and daily on `main` (information, ADR-0016 amended 2026-11-04) |
 | Coverage gate on `core` and `services` | `just coverage` | ✓ |
 | Import contracts (import-linter) | ✓ | ✓ |
 | Leak check: generic patterns / private deny-list / commit e-mail (spec 001) | ✓ / ✓ / ✓, on each commit and every pushed commit; ref names before a push | ✓ / — / ✓ |
@@ -535,5 +535,9 @@ genai.owasp.org (Top 10 for Agentic Applications).
       `opscout-config-validate` hook, pinned to the merge commit, and points its schema line
       at that commit. Its `config.yaml` (only `schema_version: 1`) validates locally and is
       not committed yet.
+- [ ] macOS in CI (ADR-0016, amended 2026-11-04): the macOS test jobs are not required
+      checks, because hosted macOS runners were sometimes unavailable and blocked merges; a
+      daily run on `main` covers macOS. Decide with daemon-core (Phase 1), the first
+      macOS-specific code, whether macOS blocks merges again.
 - [ ] Leak check, annotated tags: their messages and taggers are not checked (a non-goal of
       spec 001, decided 2026-11-04). Decide before the first release tag.

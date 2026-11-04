@@ -4,6 +4,12 @@ on:
   pull_request:
   push:
     branches: [main]
+  # macOS runners are not required checks, because GitHub sometimes has none to give. A
+  # daily run of the tests on main, which can also be started by hand, still catches a
+  # macOS-only regression within a day (ADR-0016, amended 2026-11-04).
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
 
 permissions: {}
 
@@ -42,6 +48,8 @@ jobs:
 
   gates:
     name: Leak check, manifests and workflows
+    # A scheduled or manual run tests main again; its commits were checked when pushed.
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
