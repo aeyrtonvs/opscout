@@ -54,6 +54,7 @@ required-version = ">=0.13"
 line-length = 100
 src = [".", "src", "tests"]
 extend-exclude = [".specify", ".claude/skills/speckit-*"]  # vendored by Spec Kit
+extend-include = ["plugins/opscout/bin/opscout"]  # the plugin's launcher (ADR-0022)
 
 [tool.ruff.lint]
 select = [
@@ -80,7 +81,7 @@ ban-relative-imports = "all"
 
 [tool.mypy]
 strict = true
-files = ["src", "tests", "tools"]
+files = ["src", "tests", "tools", "plugins/opscout/bin/opscout"]
 
 # The coverage gate on core and services (ADR-0016): uv run just coverage
 [tool.coverage.run]

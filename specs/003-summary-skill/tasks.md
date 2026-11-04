@@ -60,13 +60,13 @@ reserved values only.
 
 ## Phase 4: User Story 3 — the plugin runs the engine (P1)
 
-- [ ] T010 [US3] Write failing tests for `plugins/opscout/bin/opscout`, running it as a
+- [X] T010 [US3] Write failing tests for `plugins/opscout/bin/opscout`, running it as a
   subprocess: from the clone it runs this clone's engine (FR-022); from a copy of the plugin
   directory outside a clone, version `0.0.0` prints the no-release message and exits 1
   (FR-024); with a release version it would run `uvx --from opscout==<version>` (checked
   through a fake `uvx` first on PATH) (FR-023); arguments, output and exit status pass
   through (FR-025); the file is Python run through uv and executable (FR-021)
-- [ ] T011 [US3] Write `plugins/opscout/bin/opscout` (contracts/launcher.md) and
+- [X] T011 [US3] Write `plugins/opscout/bin/opscout` (contracts/launcher.md) and
   `plugins/opscout/README.md` (uv required, loading from a clone); T010 passes, and
   `uv run just plugin` passes
 

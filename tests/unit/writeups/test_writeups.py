@@ -6,7 +6,9 @@ eval cases name theirs in their ``tags``. Reserved, fake values only (Principle 
 """
 
 import json
+import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -17,6 +19,7 @@ import pydantic
 import pytest
 import yaml
 
+from opscout import __version__
 from opscout.core.config import Configuration, WriteupFormat, Writeups, schema_text
 from opscout.core.writeups import BUILT_IN_FORMATS, SHARED_RULES
 from opscout.entrypoints.cli import main
@@ -352,6 +355,113 @@ def test_printing_the_formats_takes_under_two_seconds() -> None:
 
     assert result.returncode == 0, result.stdout
     assert time.perf_counter() - started < 2.0  # SC-004
+
+
+# The launcher (User Story 3)
+
+LAUNCHER = PLUGIN / "bin" / "opscout"
+
+
+def run_launcher(
+    launcher: Path, *args: str, path: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run the launcher as Claude Code would: by its path, with PATH holding uv."""
+    environment = {**os.environ}
+    if path is not None:
+        environment["PATH"] = path
+    return subprocess.run(  # noqa: S603  (the launcher under test)
+        [str(launcher), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=environment,
+        cwd=launcher.parent,
+    )
+
+
+def copy_plugin(tmp_path: Path, version: str) -> Path:
+    """Copy the plugin outside any clone, as an install does, at a given version."""
+    copy = tmp_path / "cache" / "opscout" / version
+    shutil.copytree(PLUGIN, copy, ignore=shutil.ignore_patterns("evals"))
+    manifest = copy / ".claude-plugin" / "plugin.json"
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    manifest.write_text(json.dumps({**data, "version": version}), encoding="utf-8")
+    return copy / "bin" / "opscout"
+
+
+@spec("FR-021")
+def test_the_launcher_is_a_python_script_run_through_uv() -> None:
+    first_line = LAUNCHER.read_text(encoding="utf-8").splitlines()[0]
+
+    assert first_line == "#!/usr/bin/env -S uv run --script --quiet"
+    assert os.access(LAUNCHER, os.X_OK)
+    assert "# SPDX-License-Identifier: Apache-2.0" in LAUNCHER.read_text(encoding="utf-8")
+
+
+@spec("FR-022")
+def test_from_a_clone_the_launcher_runs_the_clone(tmp_path: Path) -> None:
+    result = run_launcher(LAUNCHER, "--version")
+
+    assert (result.returncode, result.stdout) == (0, f"opscout {__version__}\n")
+
+
+@spec("FR-025")
+def test_the_launcher_passes_arguments_output_and_status_through(tmp_path: Path) -> None:
+    missing = tmp_path / "a directory with spaces"
+
+    result = run_launcher(LAUNCHER, "config", "validate", "--config", str(missing))
+
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[-1] == f"opscout config: {missing}: no such directory"
+
+
+@spec("FR-024")
+def test_an_installed_plugin_without_a_release_says_what_to_do(tmp_path: Path) -> None:
+    result = run_launcher(copy_plugin(tmp_path, "0.0.0"), "writeup", "formats")
+
+    assert result.returncode == 1
+    assert "no release" in result.stderr
+    assert "claude --plugin-dir" in result.stderr
+
+
+@spec("FR-023")
+def test_an_installed_plugin_runs_exactly_its_release(tmp_path: Path) -> None:
+    fake = tmp_path / "fake-bin"
+    fake.mkdir()
+    (fake / "uvx").write_text(
+        f"#!{sys.executable}\nimport json, sys\nprint(json.dumps(sys.argv[1:]))\nsys.exit(7)\n",
+        encoding="utf-8",
+    )
+    (fake / "uvx").chmod(0o755)
+
+    result = run_launcher(
+        copy_plugin(tmp_path, "1.2.3"),
+        "writeup",
+        "formats",
+        "--config",
+        "two words",
+        path=f"{fake}{os.pathsep}{os.environ['PATH']}",
+    )
+
+    assert result.returncode == 7
+    assert json.loads(result.stdout) == [
+        "--quiet",
+        "--from",
+        "opscout==1.2.3",
+        "opscout",
+        "writeup",
+        "formats",
+        "--config",
+        "two words",
+    ]
+
+
+@spec("FR-024")
+def test_the_readme_states_that_uv_is_required() -> None:
+    readme = (PLUGIN / "README.md").read_text(encoding="utf-8")
+
+    assert "uv" in readme
+    assert "https://docs.astral.sh/uv/" in readme
 
 
 # Proof

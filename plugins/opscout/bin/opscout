@@ -1,0 +1,62 @@
+#!/usr/bin/env -S uv run --script --quiet
+# SPDX-License-Identifier: Apache-2.0
+# /// script
+# requires-python = ">=3.13"
+# dependencies = []
+# ///
+"""Run the opscout engine that matches this plugin (ADR-0022).
+
+Claude Code puts this directory on the Bash tool's PATH, so skills call ``opscout ...``.
+From a clone of the repository (``claude --plugin-dir <clone>/plugins/opscout``) this runs
+the clone's code; an installed plugin runs the release of exactly its own version. The
+launcher replaces itself with the engine, so arguments, streams and the exit status pass
+through unchanged.
+"""
+
+import json
+import os
+import shutil
+import sys
+from pathlib import Path
+
+PLUGIN = Path(__file__).resolve().parents[1]
+UNRELEASED = "0.0.0"
+
+
+def clone_root() -> Path | None:
+    """Return the repository root when the plugin sits in a clone, else None."""
+    root = PLUGIN.parents[1]
+    pyproject = root / "pyproject.toml"
+    in_clone = (root / "src" / "opscout").is_dir() and pyproject.is_file()
+    if in_clone and 'name = "opscout"' in pyproject.read_text(encoding="utf-8"):
+        return root
+    return None
+
+
+def main() -> None:
+    """Replace this process with the engine that matches the plugin."""
+    arguments = sys.argv[1:]
+    root = clone_root()
+    if root is not None:
+        command = ["uv", "run", "--quiet", "--frozen", "--project", str(root), "opscout"]
+    else:
+        manifest = PLUGIN / ".claude-plugin" / "plugin.json"
+        version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
+        if version == UNRELEASED:
+            sys.stderr.write(
+                f"opscout: this plugin is version {UNRELEASED}, and there is no release of it "
+                "to run. Until the first release, load the plugin from a clone:\n"
+                "  git clone https://github.com/aeyrtonvs/opscout\n"
+                "  claude --plugin-dir opscout/plugins/opscout\n"
+            )
+            sys.exit(1)
+        command = ["uvx", "--quiet", "--from", f"opscout=={version}", "opscout"]
+    program = shutil.which(command[0])
+    if program is None:
+        sys.stderr.write(f"opscout: {command[0]} is required: https://docs.astral.sh/uv/\n")
+        sys.exit(127)
+    os.execv(program, [program, *command[1:], *arguments])  # noqa: S606  (a fixed program)
+
+
+if __name__ == "__main__":
+    main()
