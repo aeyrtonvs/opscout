@@ -9,7 +9,8 @@ opscout has no release yet. Until 1.0, only the latest release receives fixes.
 Report it privately through GitHub: open the repository's **Security** tab and choose
 **Report a vulnerability**
 ([direct link](https://github.com/aeyrtonvs/opscout/security/advisories/new)). Do not open a
-public issue.
+public issue. The same form also takes Code of Conduct reports, whose titles start with
+"Code of Conduct" ([`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)).
 
 Describe what is affected, how to reproduce it with fake values, and the impact you expect.
 Do not include real secrets or real organizational data; describe them instead.

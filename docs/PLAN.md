@@ -262,7 +262,8 @@ The order matters: commit identity comes before the first commit.
 3. Repository skeleton and governance files (ADR-0016); `AGENTS.md` and `CLAUDE.md`. The pull
    request template also asks whether new host-specific code sits behind a port (ADR-0021).
    Done 2026-11-03: `NOTICE` names "The opscout Authors", and the Code of Conduct is
-   Contributor Covenant 3.0. Its contact address is still open (§9).
+   Contributor Covenant 3.0. Its reports go through GitHub's private reporting form, like
+   security reports, so no contact address is published.
 4. Python project: `pyproject.toml` (uv), the package layers of ADR-0011, one smoke test,
    `justfile`. The whole toolchain is pinned through uv (ADR-0020): a `dev` dependency group
    (ruff, mypy, pytest, import-linter, pre-commit, rust-just, zizmor),
@@ -307,15 +308,14 @@ The order matters: commit identity comes before the first commit.
    - turn on the account settings "Keep my email addresses private" and "Block command
      line pushes that expose my email", so the commits GitHub itself makes (squash merges,
      "Update branch") also carry the no-reply address;
-   - replace the Code of Conduct's placeholder with the project's contact address (§9);
    - the visibility is public, decided on 2026-11-03: on GitHub Free a private repository
      has no private vulnerability reporting, push protection or rulesets, and its macOS
      runner minutes count ten times.
    Then turn on what the repository files rely on: private vulnerability reporting
-   (`SECURITY.md`), secret scanning with push protection (ADR-0015), and the ruleset on
-   `main` (ADR-0016) without required approvals, which a single maintainer cannot give.
-   Leave CodeQL's default setup off, since `codeql.yml` replaces it. Once the repository is
-   public, add the OpenSSF Scorecard workflow (ADR-0016).
+   (`SECURITY.md` and `CODE_OF_CONDUCT.md`), secret scanning with push protection
+   (ADR-0015), and the ruleset on `main` (ADR-0016) without required approvals, which a
+   single maintainer cannot give. Leave CodeQL's default setup off, since `codeql.yml`
+   replaces it. After the first push, add the OpenSSF Scorecard workflow (ADR-0016).
 
 Exit: `just check` green on a fresh clone set up with only git, uv and Claude Code; CI green
 on the first push; the first commit reviewed for real data.
@@ -492,8 +492,6 @@ genai.owasp.org (Top 10 for Agentic Applications).
       `claude plugin validate --strict` is the gate. Decided 2026-11-03; ADR-0016 amended.
 - [x] The Claude Code CLI in CI: the `ci` dependency group installs `claude-agent-sdk`, whose
       wheels bundle the CLI, locked in `uv.lock`. Decided 2026-11-03; ADR-0020 amended.
-- [ ] Code of Conduct contact: the maintainer creates a project alias for reports, and it
-      replaces the placeholder in `CODE_OF_CONDUCT.md` before the repository is public. It
-      is project data, not personal data (Principle I); the leak check's allow-list
-      records that.
+- [x] Code of Conduct contact: reports go through GitHub's private reporting form, the same
+      channel as `SECURITY.md`, so no contact address is published. Decided 2026-11-03.
 - [ ] Re-verify §8 facts at implementation time; they change.
