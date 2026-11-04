@@ -35,6 +35,9 @@ an engine command. The decision gets its own ADR.
   launcher in the plugin's `bin/` that runs the package with uv at the plugin's version;
   the skill injects the output of an engine command that prints the formats (validated
   configuration plus built-in defaults). An ADR records it, and the MCP server reuses it.
+- Q: What threshold and cost ceiling apply when the evals run on the maintainer's login? →
+  A: Threshold 0.9 and a ceiling of USD 3 per run, each run confirmed by the maintainer
+  (FR-028).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -124,8 +127,8 @@ what message is printed.
    launcher runs, **Then** it runs the engine of exactly that version.
 3. **Given** an installed plugin whose version has no release, **When** the launcher runs,
    **Then** it prints why and how to load the plugin from a clone, and exits with failure.
-4. **Given** uv is missing, **When** the launcher runs, **Then** it says uv is required and
-   where to get it.
+4. **Given** uv is missing, **When** the launcher runs, **Then** the failure names the
+   missing `uv` command, and the plugin's README says uv is required and where to get it.
 5. **Given** the configuration directory is missing or invalid, **When** the skill loads,
    **Then** the user is told what is wrong and how to check it; a missing directory falls
    back to the built-in formats with a note, and an invalid configuration stops the
@@ -214,9 +217,11 @@ what message is printed.
 - **FR-022**: Loaded from a clone of this repository, the launcher MUST run the engine from
   that clone.
 - **FR-023**: Otherwise the launcher MUST run the engine release whose version equals the
-  plugin's version, and nothing else.
-- **FR-024**: When no such release exists, or uv is missing, the launcher MUST print why and
-  what to do, and exit with a non-zero status.
+  plugin's version, and nothing else, from the package index the releases are published to
+  (ADR-0016).
+- **FR-024**: When no such release exists, the launcher MUST print why and what to do, and
+  exit with a non-zero status. uv runs the launcher itself, so a missing uv is reported by the
+  system as a missing `uv` command; the plugin's README MUST state that uv is required.
 - **FR-025**: The launcher MUST pass its arguments, standard input, output and exit status
   through unchanged.
 
@@ -228,8 +233,8 @@ what message is printed.
 - **FR-027**: The suite MUST use deterministic graders wherever a property can be asserted
   (absence of ruled-out items, sections present, length, single block), and an LLM grader
   only for "only facts from the session".
-- **FR-028**: The suite MUST score at or above its threshold and above the no-plugin
-  baseline, and the result MUST be recorded in this spec.
+- **FR-028**: The suite MUST score at least 0.9 and above the no-plugin baseline, run with a
+  cost ceiling of USD 3, and the result MUST be recorded in this spec.
 - **FR-029**: Every functional requirement MUST be covered by a test or an eval case tied to
   it, and the suite MUST fail when one has none.
 
@@ -262,8 +267,7 @@ what message is printed.
 
 ### Measurable Outcomes
 
-- **SC-001**: The eval suite scores at or above its threshold, and above the no-plugin
-  baseline, with every acceptance scenario of User Stories 1 and 2 covered.
+- **SC-001**: The eval suite scores at least 0.9, and above the no-plugin baseline, with every acceptance scenario of User Stories 1 and 2 covered.
 - **SC-002**: 0 ruled-out hypotheses appear in any eval output.
 - **SC-003**: 100 % of eval outputs respect their format's length limit and section order.
 - **SC-004**: Printing the formats takes under two seconds from a clone, start-up included.
