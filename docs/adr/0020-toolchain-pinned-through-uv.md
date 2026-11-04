@@ -53,10 +53,11 @@ adds no new tool.
 | Tool | Pinned by |
 |---|---|
 | Python | `.python-version` (minimum supported, 3.13) and `requires-python` |
-| uv | `[tool.uv] required-version` in `pyproject.toml` |
-| ruff, mypy, pytest, import-linter, pre-commit, zizmor | `dev` dependency group, locked in `uv.lock` |
+| uv | `[tool.uv] required-version` in `pyproject.toml`; CI workflows pin the exact version |
+| ruff, mypy, pytest, coverage, import-linter, pre-commit, zizmor | `dev` dependency group, locked in `uv.lock` |
 | just | `rust-just` (PyPI wheels of the upstream binary), `dev` group |
 | gitleaks, actionlint | their upstream pre-commit hooks, pinned by `rev` (`language: golang`; pre-commit bootstraps Go if it is missing) |
+| Claude Code CLI, in CI only (contributors use their own) | `claude-agent-sdk`, whose wheels bundle it, in a `ci` dependency group that only CI installs (amended 2026-11-03) |
 
 Rule: a new development tool goes into the `dev` group or into a pre-commit hook pinned by
 revision. It is never added as a global install instruction. Non-Python binaries are taken
@@ -97,6 +98,9 @@ runs `uv sync --locked` and the same `just` recipes.
   this decision is revisited for just.
 - Bad, because the first pre-commit run downloads Go to build gitleaks and actionlint: slow
   once, and it needs the network.
+- Bad, because `claude-agent-sdk` brings about 30 transitive packages (an MCP client stack)
+  into `uv.lock`, for one binary. Only CI's gates job installs them, and the lock pins their
+  hashes.
 - Neutral: macOS-specific code is tested only on macOS hosts, which CI already includes
   (ADR-0016).
 
@@ -125,6 +129,9 @@ Checked 2026-11-03:
 - just README, installation table: `uv tool install rust-just` and `pipx install rust-just`.
 - gitleaks and actionlint `.pre-commit-hooks.yaml`: hooks `gitleaks` and `actionlint`, both
   with `language: golang`.
+- Amended 2026-11-03: `claude-agent-sdk` 0.2.178 bundles Claude Code 2.1.318 at
+  `claude_agent_sdk/_bundled/claude` (its `subprocess_cli.py` and an installed wheel), and
+  `claude plugin validate --strict` runs with an empty `HOME` and no login.
 - Docker Desktop license page (docs.docker.com/subscription/desktop-license): free for small
   businesses (fewer than 250 employees and less than $10 million in annual revenue), personal
   use, education and non-commercial open source; a paid subscription is required for

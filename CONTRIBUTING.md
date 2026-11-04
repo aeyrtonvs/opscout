@@ -30,7 +30,9 @@ uv run just check    # every local gate
 ```
 
 The first `just setup` builds gitleaks and actionlint, so it downloads Go if you do not have
-it. Later runs are fast.
+it. Later runs are fast. On macOS, if it fails with `CERTIFICATE_VERIFY_FAILED`, your Python
+from python.org lacks its certificate bundle: run its *Install Certificates* command once, or
+run `SSL_CERT_FILE=/etc/ssl/cert.pem uv run just setup`.
 
 Commit with your GitHub no-reply e-mail address, which the hooks check:
 

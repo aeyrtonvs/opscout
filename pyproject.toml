@@ -26,7 +26,13 @@ build-backend = "uv_build"
 
 # The whole development toolchain is pinned through uv.lock (ADR-0020).
 [dependency-groups]
+# Only CI installs this group (uv sync --group ci): its wheels bundle the Claude Code CLI
+# that runs claude plugin validate there (ADR-0020).
+ci = [
+    "claude-agent-sdk>=0.2.178",
+]
 dev = [
+    "coverage>=7.17.1",
     "import-linter>=2.15",
     "mypy>=2.4.1",
     "pre-commit>=4.7.0",
@@ -70,6 +76,15 @@ ban-relative-imports = "all"
 [tool.mypy]
 strict = true
 files = ["src", "tests", "tools"]
+
+# The coverage gate on core and services (ADR-0016): uv run just coverage
+[tool.coverage.run]
+source_pkgs = ["opscout.core", "opscout.services"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
 
 [tool.pytest.ini_options]
 minversion = "9.0"

@@ -24,8 +24,8 @@ missing is an open item in `docs/PLAN.md` §9.
    **private** config repo, which the engine reads from a path or `OPSCOUT_CONFIG`.
    Examples here use obviously fake values (`123456789012`, `example-prod`,
    `#alerts-example`).
-   *Gate:* the leak check in pre-commit and CI (ADR-0015). Until it exists, review the staged
-   diff by hand.
+   *Gate:* the leak check (`tools/leak_check.py`) and gitleaks, in pre-commit and CI
+   (ADR-0015).
 2. **Before every commit, check the staged diff for real data** (rule 1), commit metadata
    included. A leak in a public repo cannot be undone by deleting the commit.
    *Gate:* the same hook on every commit, plus the commit e-mail check.
@@ -86,5 +86,5 @@ Spec-Driven Development with GitHub Spec Kit (ADR-0008):
 - `docs/PLAN.md`, `docs/adr/`: plan and decisions.
 - `src/opscout/` and `tests/`: the Python package and its tests. `plugins/opscout/`: the
   plugin, listed by `.claude-plugin/marketplace.json`.
-- `tools/`: this repository's development hooks; not shipped.
+- `tools/`: this repository's development hooks and checks; not shipped.
 - Planned (PLAN.md §6): `example-config/`, `schemas/`, `specs/`, `deploy/`.

@@ -1,10 +1,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """Smoke tests: the package installs, imports, and its command line answers."""
 
+import importlib
+
 import pytest
 
 from opscout import __version__
 from opscout.entrypoints.cli import main
+
+
+@pytest.mark.parametrize("layer", ["core", "services", "adapters", "entrypoints"])
+def test_every_layer_imports_and_states_its_rule(layer: str) -> None:
+    module = importlib.import_module(f"opscout.{layer}")
+
+    assert "ADR-0011" in (module.__doc__ or "")
 
 
 def test_version_flag_prints_the_installed_version(capsys: pytest.CaptureFixture[str]) -> None:

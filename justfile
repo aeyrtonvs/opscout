@@ -34,8 +34,19 @@ plugin:
     claude plugin validate --strict .
     claude plugin validate --strict plugins/opscout
 
+# The coverage gate on core and services (ADR-0016).
+coverage:
+    coverage run -m pytest -q
+    coverage report
+
 # The fast checks, which the Stop hook runs before the agent stops (ADR-0018).
 fast: lint types imports test
 
-# Run every local gate that exists so far.
-check: fast plugin
+# Install the git hooks and build their tools. gitleaks and actionlint are built with Go,
+# which pre-commit downloads the first time if it is missing (ADR-0020).
+setup:
+    pre-commit install --install-hooks
+
+# Run every local gate on every file, as the git hooks do (ADR-0016).
+check:
+    pre-commit run --all-files

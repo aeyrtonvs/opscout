@@ -15,8 +15,8 @@ the practices reviewers look for without slowing a single maintainer down.
 
 **Local gates** (pre-commit; `just check` runs the same set): ruff format and lint, mypy
 `--strict`, pytest, import-linter, the leak check (ADR-0015), gitleaks, a Conventional Commit
-message check, JSON Schema validation of the plugin and marketplace manifests, and
-`claude plugin validate`.
+message check, and `claude plugin validate --strict` for the plugin and marketplace
+manifests (amended 2026-11-03, below).
 
 **CI** (GitHub Actions): the same gates on macOS and Linux, on the minimum supported and the
 latest stable Python; a coverage gate on `core` and `services`; CodeQL; dependency review;
@@ -48,3 +48,13 @@ Practices "passing" badge afterwards.
 ### Confirmation
 
 CI status, Scorecard results and release assets are visible in the repository.
+
+## More Information
+
+**Amended 2026-11-03.** The manifests were also to be checked against a JSON Schema, but none
+is published for `plugin.json` or `marketplace.json`: the documentation describes `$schema`
+only for editor autocomplete, and Claude Code 2.1.318 embeds none. `claude plugin validate
+--strict` is the manifest gate instead. It rejects unknown fields, unknown `userConfig` keys
+and types, a marketplace entry whose version differs from `plugin.json`, and a source path
+that leaves the repository. A schema check is added if Anthropic publishes one. CI runs the
+validator with the Claude Code CLI bundled in the `claude-agent-sdk` wheels (ADR-0020).

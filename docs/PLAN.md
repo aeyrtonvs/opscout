@@ -275,6 +275,14 @@ The order matters: commit identity comes before the first commit.
 6. Gates: pre-commit with gitleaks and actionlint (upstream hooks pinned by `rev`) and the
    generic leak patterns; CI workflows with pinned actions that install only uv and run
    `uv sync --locked` (ADR-0020).
+   Done 2026-11-03. pre-commit runs the leak check (`tools/leak_check.py`: generic patterns,
+   the private deny-list and the commit e-mail), gitleaks, actionlint, zizmor, the fast
+   checks, the manifest validation and a Conventional Commit check; `just check` runs them on
+   every file. CI runs the tests on macOS and Linux with Python 3.13 and 3.15, a coverage gate
+   of 90 % (branches) on `core` and `services`, every gate again, the leak and message
+   checks of each new commit, and gitleaks over the history; CodeQL and dependency review
+   run once the repository is public. Dependabot updates uv, the Actions and the hooks after
+   a 7-day cooldown.
 7. Development harness (ADR-0018), with hook scripts in Python run through uv (ADR-0021):
    - the rule-5 `ask` rules, already in place;
    - a PreToolUse hook for the push forms those rules miss (`git -C … push`, `git -c … push`);
@@ -288,7 +296,8 @@ The order matters: commit identity comes before the first commit.
 8. Create the GitHub remote and push, and register the SSH signing key on GitHub, each
    confirmed by the maintainer. Then turn on what the repository files rely on: private
    vulnerability reporting (`SECURITY.md`), secret scanning with push protection
-   (ADR-0015) and the ruleset on `main` (ADR-0016).
+   (ADR-0015) and the ruleset on `main` (ADR-0016). Once the repository is public, add the
+   OpenSSF Scorecard workflow (ADR-0016).
 
 Exit: `just check` green on a fresh clone set up with only git, uv and Claude Code; CI green
 on the first push; the first commit reviewed for real data.
@@ -382,6 +391,10 @@ Checked 2026-11-03 (official docs and the local CLI, Claude Code 2.1.317):
   and agents); hooks also get `CLAUDE_PLUGIN_OPTION_<KEY>`; shell-form hook commands cannot
   use the substitution. `plugin.json`'s `version` wins over a marketplace entry's, and the
   validator warns when they differ. No JSON Schema is published for either manifest.
+- **CI** (checked 2026-11-03): Dependabot supports `pre-commit` and updates SHA-pinned `rev`s
+  that carry a `# frozen:` comment; setup-uv reads `required-version` when no version is
+  given; dependency review needs a public repository or GitHub Advanced Security.
+  `claude-agent-sdk` 0.2.178 bundles Claude Code 2.1.318.
 - **Subagents shipped in a plugin** ignore `permissionMode`, `hooks` and `mcpServers`.
 - **`claude plugin eval`**: cases in the plugin's `evals/`; graders `regex`, `tool_used`,
   `tool_order`, `file_exists`, `llm`, `baseline`; a no-plugin baseline arm; MCP mocks;
@@ -451,18 +464,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
       scheduler and the secret store, matching ADR-0011 and ADR-0021. Done 2026-11-03.
 - [ ] Windows has no CI gate (ADR-0021): add a Windows job and the Task Scheduler adapter with
       the first Windows user.
-- [ ] Manifest gate: ADR-0016 lists JSON Schema validation of the manifests, but no schema is
-      published (checked 2026-11-03; CLI 2.1.318 embeds none either). In step 5,
-      `claude plugin validate --strict` rejected an unknown field, an unknown `userConfig`
-      key or type, an entry version that differs from `plugin.json`, and a source path that
-      leaves the repository. Proposal: the validator is the manifest gate, with no
-      hand-written schema. Decide in step 6.
-- [ ] CI needs the Claude Code CLI for `claude plugin validate` (ADR-0003), while ADR-0020
-      lets CI install only uv. Options: `@anthropic-ai/claude-code` from npm at an exact
-      version (Node comes with GitHub's runners, but Dependabot cannot bump the pin without a
-      `package.json` and a second lockfile); or the PyPI package `claude-agent-sdk`, whose
-      wheels bundle the CLI (about 140–150 MB each), in a dependency group only CI installs,
-      locked in `uv.lock`. Decide in step 6.
+- [x] Manifest gate: no JSON Schema is published for the manifests, so
+      `claude plugin validate --strict` is the gate. Decided 2026-11-03; ADR-0016 amended.
+- [x] The Claude Code CLI in CI: the `ci` dependency group installs `claude-agent-sdk`, whose
+      wheels bundle the CLI, locked in `uv.lock`. Decided 2026-11-03; ADR-0020 amended.
 - [ ] Code of Conduct contact: the maintainer creates a project alias for reports, and it
       replaces the placeholder in `CODE_OF_CONDUCT.md` before the repository is public. It
       is project data, not personal data (Principle I); the leak check's allow-list
