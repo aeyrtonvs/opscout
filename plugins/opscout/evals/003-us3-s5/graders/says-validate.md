@@ -1,4 +1,4 @@
 ---
 type: regex
-pattern: 'opscout config validate'
+pattern: 'opscout config validate --config'
 ---

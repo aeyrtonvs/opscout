@@ -6,7 +6,8 @@
 # ///
 """Run the opscout engine that matches this plugin (ADR-0022).
 
-Claude Code puts this directory on the Bash tool's PATH, so skills call ``opscout ...``.
+Claude Code puts this directory on the Bash tool's PATH in a session (not in an eval run),
+so skills call it by its path, ``"${CLAUDE_PLUGIN_ROOT}/bin/opscout" ...``.
 From a clone of the repository (``claude --plugin-dir <clone>/plugins/opscout``) this runs
 the clone's code; an installed plugin runs the release of exactly its own version. The
 launcher replaces itself with the engine, so arguments, streams and the exit status pass

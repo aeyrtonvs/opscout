@@ -1,4 +1,5 @@
 ---
 type: regex
-pattern: 'Done[\s\S]*Next[\s\S]*Blocked'
+pattern: '^Done[ \t]*$[\s\S]*^Next[ \t]*$[\s\S]*^Blocked[ \t]*$'
+flags: 'm'
 ---

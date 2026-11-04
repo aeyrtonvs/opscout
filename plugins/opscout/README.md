@@ -6,8 +6,9 @@ Read-only Claude Code agents for the repetitive parts of DevOps work. See the
 ## Requirements
 
 - [Claude Code](https://code.claude.com).
-- [uv](https://docs.astral.sh/uv/): the plugin runs the opscout engine through it
-  (ADR-0022). Without uv, its commands fail with `env: uv: No such file or directory`.
+- [uv](https://docs.astral.sh/uv/), with the `uvx` its installers add: the plugin runs the
+  opscout engine through it (ADR-0022). Without uv, its commands fail with
+  `env: uv: No such file or directory`.
 - A private configuration directory (asked for at install time), validated with
   `opscout config validate`. See `docs/reference/configuration.md` in the repository.
 

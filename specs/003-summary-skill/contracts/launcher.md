@@ -1,7 +1,8 @@
 # Contract: the plugin's launcher, `plugins/opscout/bin/opscout`
 
 A Python script run through uv (`#!/usr/bin/env -S uv run --script --quiet`). Claude Code
-puts the plugin's `bin/` on the Bash tool's PATH, so skills call `opscout …`.
+puts the plugin's `bin/` on the Bash tool's PATH in a session but not in an eval run, so a
+skill calls it by its path: `"${CLAUDE_PLUGIN_ROOT}/bin/opscout" …`.
 
 | Situation | What runs |
 |---|---|

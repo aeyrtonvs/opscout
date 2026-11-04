@@ -27,8 +27,8 @@ allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/opscout" writeup formats *)
 ## Procedure
 
 1. **Check the formats.** If the text above says the configuration has problems, write no
-   summary. Tell the user that their configuration has problems and to run
-   `opscout config validate`, then stop.
+   summary. Tell the user that their configuration has problems and give them the exact
+   command the text above prints to list them, then stop.
 2. **Pick the format**: the one named in "$ARGUMENTS" or in the user's request, matched by
    name or meaning (a "chat message" is `message`). With none named, use `ticket`. If the
    named format is not listed above, list the formats above in one line, ask which one to

@@ -1,4 +1,5 @@
 ---
 type: regex
-pattern: 'What happened[\s\S]*Why[\s\S]*What was done[\s\S]*What is pending'
+pattern: '^What happened[ \t]*$[\s\S]*^Why[ \t]*$[\s\S]*^What was done[ \t]*$[\s\S]*^What is pending[ \t]*$'
+flags: 'm'
 ---

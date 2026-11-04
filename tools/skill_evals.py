@@ -46,6 +46,8 @@ class Grader:
     match: str = ""
     tool: str = ""
     input_match: str = ""
+    minimum: int = 1
+    maximum: int | None = None
     criteria: str = ""
 
 
@@ -94,6 +96,8 @@ def load_cases(evals: Path) -> list[Case]:
                     match=str(keys.get("match", "")),
                     tool=keys.get("tool", ""),
                     input_match=keys.get("input_match", ""),
+                    minimum=int(keys.get("min", 1)),
+                    maximum=int(keys["max"]) if "max" in keys else None,
                     criteria=text,
                 )
             )
@@ -115,7 +119,9 @@ def load_cases(evals: Path) -> list[Case]:
 def grade(grader: Grader, arm: Arm, judge: Judge) -> bool:
     """Return whether one grader passes on one run."""
     if grader.type == "regex":
-        flags = re.IGNORECASE if "i" in grader.flags else 0
+        flags = (re.IGNORECASE if "i" in grader.flags else 0) | (
+            re.MULTILINE if "m" in grader.flags else 0
+        )
         found = re.findall(grader.pattern, arm.text, flags)
         if grader.match == "not_contains":
             return not found
@@ -123,10 +129,11 @@ def grade(grader: Grader, arm: Arm, judge: Judge) -> bool:
             return len(found) == int(grader.match.removeprefix("count:"))
         return bool(found)
     if grader.type == "tool_used":
-        return any(
-            name == grader.tool and re.search(grader.input_match or "", arguments)
+        calls = sum(
+            name == grader.tool and bool(re.search(grader.input_match or "", arguments))
             for name, arguments in arm.tools
         )
+        return calls >= grader.minimum and (grader.maximum is None or calls <= grader.maximum)
     if grader.type == "llm":
         return judge(grader.criteria, arm.prompt, arm.text)
     raise ValueError(f"grader {grader.name}: type {grader.type} is not supported")
@@ -178,9 +185,9 @@ def _claude(arguments: list[str], environment: dict[str, str]) -> str:
     return result.stdout
 
 
-def _run(case: Case, plugin: Path | None, environment: dict[str, str]) -> Arm:
+def _run(case: Case, plugin: Path | None, environment: dict[str, str], budget: float) -> Arm:
     arguments = ["-p", "--output-format", "stream-json", "--verbose", *ISOLATION]
-    arguments += ["--max-turns", str(case.max_turns), "--max-budget-usd", "0.5"]
+    arguments += ["--max-turns", str(case.max_turns), "--max-budget-usd", str(budget)]
     if case.allowed_tools:
         arguments += ["--allowedTools", *case.allowed_tools]
     if plugin is not None:
@@ -235,7 +242,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--case", default="*", help="a glob of case names")
     parser.add_argument("--threshold", type=float, default=0.9)
-    parser.add_argument("--max-cost-usd", type=float, required=True)
+    parser.add_argument("--max-cost-usd", type=float, required=True, help="for the whole run")
+    parser.add_argument(
+        "--max-run-usd", type=float, default=0.5, help="for each claude -p run (default 0.5)"
+    )
     parser.add_argument("--out", type=Path, help="write the result as JSON here")
     return parser
 
@@ -253,17 +263,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     for case in load_cases(args.evals or plugin / "evals"):
         if not fnmatch.fnmatch(case.name, args.case):
             continue
-        if sum(spent) >= args.max_cost_usd:
-            partial = True
-            break
         record: dict[str, Any] = {"name": case.name}
         # A case may bring its own configuration, such as an invalid one (spec 003, FR-018).
         case_environment = environment
         if case.config_dir is not None:
             case_environment = {**environment, "OPSCOUT_CONFIG": str(case.config_dir)}
+        # No run starts unless its own ceiling still fits under the whole run's (and three
+        # judge votes, a few cents at most).
+        if sum(spent) + 2 * args.max_run_usd + 0.05 > args.max_cost_usd:
+            partial = True
+            break
         for label, loaded in (("with", plugin), ("without", None)):
             notes.clear()
-            arm = _run(case, loaded, case_environment)
+            arm = _run(case, loaded, case_environment, args.max_run_usd)
             spent.append(arm.cost)
             passed = {g.name: grade(g, arm, judge) for g in case.graders}
             record[label] = {
@@ -279,12 +291,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"{case.name}: {record['with']['score']:.2f} with the plugin, "
             f"{record['without']['score']:.2f} without (delta {record['delta']:+.2f})"
         )
+    mean_delta = sum(r["delta"] for r in results) / len(results) if results else 0.0
     summary = {
         "cases": results,
         "partial": partial,
         "cost_usd": round(sum(spent), 6),
         "lowest_score": min((r["with"]["score"] for r in results), default=0.0),
-        "mean_delta": sum(r["delta"] for r in results) / len(results) if results else 0.0,
+        "mean_delta": mean_delta,
     }
     if args.out is not None:
         args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -296,7 +309,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     if partial:
         return 2
-    return 0 if summary["lowest_score"] >= args.threshold else 1
+    above_baseline = mean_delta > 0
+    return 0 if summary["lowest_score"] >= args.threshold and above_baseline else 1
 
 
 if __name__ == "__main__":

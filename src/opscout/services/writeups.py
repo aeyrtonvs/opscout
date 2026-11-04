@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Resolve the write-up formats and print them as instructions for the skill (spec 003)."""
 
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -69,5 +70,5 @@ def render_invalid(directory: Path, problems: int) -> str:
         f"{TITLE}\n\n"
         f"The configuration in {directory} has {problems} problem(s), so no write-up format "
         "is available.\n"
-        f"Run `opscout config validate --config {directory}` to list them.\n"
+        f"Run `opscout config validate --config {shlex.quote(str(directory))}` to list them.\n"
     )

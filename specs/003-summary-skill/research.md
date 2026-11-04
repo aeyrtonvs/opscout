@@ -71,6 +71,8 @@ non-zero status aborts the whole skill invocation.
      command treats an empty value or the unsubstituted placeholder as no directory, so the
      resolution falls back to `OPSCOUT_CONFIG` and the default (FR-009). The launcher in
      `bin/` was found on the injection's PATH, and `OPSCOUT_CONFIG` reached it.
+  Not known: whether Claude Code escapes a configured directory that contains a `'`; such a
+  path would break the single-quoted argument. Directory names with spaces work.
   4. With `OPSCOUT_CONFIG=example-config`, the write-up came out in the ticket format, eight
      lines, without the ruled-out causes, with the closing format line.
 

@@ -358,6 +358,18 @@ def _message(detail: ErrorDetails) -> str:
         return f"expected at least {context.get('min_length')} character(s)"
     if kind == "string_too_long":
         return f"expected at most {context.get('max_length')} characters"
+    bounds = {
+        "greater_than": ("more than", "gt"),
+        "greater_than_equal": ("at least", "ge"),
+        "less_than": ("less than", "lt"),
+        "less_than_equal": ("at most", "le"),
+    }
+    if kind in bounds:
+        words, key = bounds[kind]
+        return f"expected {words} {context.get(key)}"
+    if kind in ("too_long", "too_short"):
+        words, key = ("at most", "max_length") if kind == "too_long" else ("at least", "min_length")
+        return f"expected {words} {context.get(key)} item(s)"
     if kind == "string_pattern_mismatch":
         return f"expected text matching {context.get('pattern')}"
     return "not a valid value here"

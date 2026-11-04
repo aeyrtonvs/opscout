@@ -88,6 +88,20 @@ def test_regex_graders_match_the_final_reply(grader: Grader, text: str, passed: 
     )
 
 
+def test_a_tool_used_grader_counts_within_its_bounds() -> None:
+    never = Grader("g", "tool_used", tool="Bash", minimum=0, maximum=0)
+
+    assert grade(never, Arm("", [("Skill", "{}")], 0.0), lambda c, m, t: True)
+    assert not grade(never, Arm("", [("Bash", '{"command": "curl"}')], 0.0), lambda c, m, t: True)
+
+
+def test_a_multiline_regex_anchors_at_line_starts() -> None:
+    grader = Grader("g", "regex", pattern="^Why$", flags="m")
+
+    assert grade(grader, Arm("What happened\nWhy\nx", [], 0.0), lambda c, m, t: True)
+    assert not grade(grader, Arm("So, Why not", [], 0.0), lambda c, m, t: True)
+
+
 def test_a_tool_used_grader_reads_the_tool_calls() -> None:
     grader = Grader("g", "tool_used", tool="Skill", input_match="summary")
 
@@ -190,7 +204,7 @@ def test_the_runner_scores_both_arms_and_records_the_result(
             "--threshold",
             "0.9",
             "--max-cost-usd",
-            "1",
+            "2",
             "--out",
             str(out),
         ]
@@ -231,6 +245,8 @@ def test_the_runner_stops_at_the_cost_ceiling(
             str(tmp_path),
             "--max-cost-usd",
             "0.15",
+            "--max-run-usd",
+            "0.1",
             "--out",
             str(out),
         ]
@@ -239,7 +255,8 @@ def test_the_runner_stops_at_the_cost_ceiling(
     result = json.loads(out.read_text(encoding="utf-8"))
     assert status == 2
     assert result["partial"] is True
-    assert [case["name"] for case in result["cases"]] == ["003-us1-s1"]
+    assert result["cost_usd"] <= 0.15  # no run starts unless its own ceiling still fits
+    assert result["cases"] == []
 
 
 def test_a_case_with_its_own_configuration_runs_with_it(
@@ -269,7 +286,7 @@ def test_a_case_with_its_own_configuration_runs_with_it(
             "--config-dir",
             str(tmp_path),
             "--max-cost-usd",
-            "1",
+            "2",
             "--out",
             str(out),
         ]
@@ -277,3 +294,36 @@ def test_a_case_with_its_own_configuration_runs_with_it(
 
     (case,) = json.loads(out.read_text(encoding="utf-8"))["cases"]
     assert case["with"]["reply"] == str((evals / "003-us3-s5" / "eval-config").resolve())
+
+
+def test_the_runner_fails_when_the_plugin_does_not_beat_the_baseline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    evals = tmp_path / "evals"
+    write_case(
+        evals, "003-us1-s1", "Summarize.", {"present": "---\ntype: regex\npattern: 'x'\n---\n"}
+    )
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "claude").write_text(
+        f"#!{sys.executable}\nimport json\n"
+        "print(json.dumps({'type': 'result', 'result': 'x', 'total_cost_usd': 0.01}))\n",
+        encoding="utf-8",
+    )
+    (fake / "claude").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ['PATH']}")
+
+    status = main(
+        [
+            "--plugin",
+            str(tmp_path),
+            "--evals",
+            str(evals),
+            "--config-dir",
+            str(tmp_path),
+            "--max-cost-usd",
+            "2",
+        ]
+    )
+
+    assert status == 1  # both arms score 1.00: a delta of 0 is not above the baseline

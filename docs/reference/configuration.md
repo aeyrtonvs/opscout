@@ -61,7 +61,8 @@ It validates the repository it runs in, whatever `OPSCOUT_CONFIG` says.
   `2001-01-01:` are not string keys; quote them if you mean text.
 - Aliases are allowed, up to 10,000 nodes once expanded and 100 levels of nesting.
 - No value is converted to another type: `"1"` is a string, `1.0` a number, `true` a
-  boolean.
+  boolean. Write integers without a decimal point: `3.0` is refused where an integer is
+  expected, although some editors accept it.
 - Values mean the same to opscout and to an editor that follows YAML 1.2: an integer is
   written in plain decimal (`10`, not `0x0a`, `1_0` or `010`), and a boolean as `true` or
   `false` (`yes`, `no`, `on` and `off` are refused; quote them for text).

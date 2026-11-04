@@ -36,7 +36,8 @@ consumer, so the maintainer decided on 2026-11-04 to settle it there.
 
 Chosen option: the uv launcher. `plugins/opscout/bin/opscout` is a Python script whose
 shebang is `#!/usr/bin/env -S uv run --script --quiet`. Claude Code puts `bin/` on the Bash
-tool's PATH, so skills and commands call `opscout …`. The launcher:
+tool's PATH in a session, but not in an eval run, so a skill calls the launcher by its path,
+`"${CLAUDE_PLUGIN_ROOT}/bin/opscout"` (spec 003, research R5). The launcher:
 
 1. runs `uv run --frozen --project <clone> opscout …` when the plugin directory sits in a
    clone of this repository (`claude --plugin-dir <clone>/plugins/opscout`);
@@ -62,7 +63,8 @@ because it would be a second release channel next to PyPI.
 - Bad, because an installed plugin cannot run the engine until the first release; until
   then the plugin is loaded from a clone.
 - Bad, because a missing uv is reported by the system (`env: uv: No such file or
-  directory`), not by opscout; the plugin's README states the prerequisite.
+  directory`), not by opscout; the plugin's README states the prerequisite. uv's installers
+  also install `uvx`, which an installed plugin uses.
 
 ### Confirmation
 

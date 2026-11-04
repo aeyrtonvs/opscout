@@ -8,6 +8,7 @@ eval cases name theirs in their ``tags``. Reserved, fake values only (Principle 
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -321,8 +322,23 @@ def test_an_invalid_configuration_prints_no_format(
     assert capsys.readouterr().out == (
         "# Write-up formats\n\n"
         f"The configuration in {directory} has 1 problem(s), so no write-up format is available.\n"
-        f"Run `opscout config validate --config {directory}` to list them.\n"
+        f"Run `opscout config validate --config {shlex.quote(str(directory))}` to list them.\n"
     )
+
+
+@spec("FR-010")
+def test_an_unreadable_directory_still_exits_zero(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    locked = write_config(tmp_path / "locked", "")
+    locked.chmod(0)
+    try:
+        assert main(["writeup", "formats", "--config", str(locked)]) == 0
+    finally:
+        locked.chmod(0o700)
+    out = capsys.readouterr().out
+    assert "cannot be read" in out
+    assert "## ticket (built-in)" in out
 
 
 @spec("FR-009")
@@ -525,6 +541,25 @@ def test_the_skill_injects_the_formats_for_the_configured_directory() -> None:
 
     assert body.count(INJECTION) == 1
     assert [line for line in body.splitlines() if line.startswith("!`")] == [INJECTION]
+
+
+@spec("FR-020")
+@pytest.mark.parametrize("root", ["/opt/plugins/opscout", "/Users/example user/plugins/opscout"])
+def test_the_pre_approved_rule_matches_the_injected_command(root: str) -> None:
+    front, _ = skill_parts()
+    rule = str(front["allowed-tools"]).replace("${CLAUDE_PLUGIN_ROOT}", root)
+    command = INJECTION[2:-1].replace("${CLAUDE_PLUGIN_ROOT}", root)
+    inner = rule.removeprefix("Bash(").removesuffix(")")
+
+    assert re.fullmatch(".*".join(map(re.escape, inner.split("*"))), command)
+
+
+@spec("FR-019")
+def test_the_post_case_checks_that_nothing_else_ran() -> None:
+    graders = EVALS / "003-edge-post" / "graders"
+    never = yaml.safe_load((graders / "no-other-tools.md").read_text("utf-8").split("---\n")[1])
+
+    assert (never["type"], never["tool"], never["min"], never["max"]) == ("tool_used", "Bash", 0, 0)
 
 
 @spec("FR-019")

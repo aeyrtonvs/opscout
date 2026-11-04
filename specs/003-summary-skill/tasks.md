@@ -144,3 +144,25 @@ which cost quota and run only with the maintainer's confirmation.
   FR-015 (partial)
 - [X] T024 With the maintainer's agreement, validate the maintainer's own formats in the
   private configuration and check them through the skill locally, per SC-005 (missing)
+
+---
+
+## Phase 9: Independent review
+
+Findings of the review in a fresh context (2026-11-04), each reproduced or read.
+
+- [X] T025 An unreadable configuration directory crashed `writeup formats` and `config
+  validate`; OS errors are now location problems, so the formats command still exits 0
+  (FR-010, medium)
+- [X] T026 The runner's cost ceiling was checked only between cases; no run starts unless
+  its own ceiling fits, and the runner fails when the plugin does not beat the baseline
+  (FR-028, medium)
+- [X] T027 Graders passed a preamble and other tools: every block case checks that the reply
+  starts with the block and that no other tool ran; section graders are anchored at line
+  starts (FR-015, FR-019, medium and low)
+- [X] T028 The skill named `opscout config validate` without the directory; it now gives the
+  exact command the formats print, with the directory quoted (FR-018, low)
+- [X] T029 Bound problems said "not a valid value here"; they now say what was expected;
+  the FR-020 test matches the substituted rule against the injected command; docs no longer
+  say skills call the launcher through PATH (low)
+- [ ] T030 Re-run the whole suite once on the final skill and record it (low)

@@ -23,19 +23,19 @@ def load_config(directory: Path) -> Configuration:
     Raises ``ConfigLocationError`` when the directory or the file is missing or unreadable,
     and ``InvalidConfigError`` with every problem when the file is invalid.
     """
-    if not directory.exists():
-        raise ConfigLocationError(f"{directory}: no such directory")
-    if not directory.is_dir():
-        raise ConfigLocationError(f"{directory}: not a directory")
     path = config_file(directory)
-    if path.exists() and not path.is_file():
-        raise ConfigLocationError(f"{path}: not a file")
-    if not path.is_file():
-        hint = ""
-        if (directory / "config.yml").exists():
-            hint = "; found config.yml: rename it to config.yaml"
-        raise ConfigLocationError(f"{path}: no such file{hint}")
     try:
+        if not directory.exists():
+            raise ConfigLocationError(f"{directory}: no such directory")
+        if not directory.is_dir():
+            raise ConfigLocationError(f"{directory}: not a directory")
+        if path.exists() and not path.is_file():
+            raise ConfigLocationError(f"{path}: not a file")
+        if not path.is_file():
+            hint = ""
+            if (directory / "config.yml").exists():
+                hint = "; found config.yml: rename it to config.yaml"
+            raise ConfigLocationError(f"{path}: no such file{hint}")
         with path.open("rb") as stream:
             data = stream.read(MAX_BYTES + 1)
     except OSError as error:
