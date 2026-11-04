@@ -1,5 +1,7 @@
 # Real configuration never lives in this repo (AGENTS.md, rule 1)
 config/
+# The private deny-list of the leak check (spec 001, FR-012)
+leak-denylist.txt
 *.local.*
 .env
 .env.*

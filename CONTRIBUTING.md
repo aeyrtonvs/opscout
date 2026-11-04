@@ -41,7 +41,11 @@ run `SSL_CERT_FILE=/etc/ssl/cert.pem uv run just setup`.
 ### The leak check
 
 The hooks check every commit, and again every commit you push, for real data in three
-layers (ADR-0015). File names are checked as well as contents.
+layers (ADR-0015; specified in [`specs/001-leak-guard/`](specs/001-leak-guard/spec.md)).
+File names are checked as well as contents, and before a push so are the names of your
+branches and tags, which GitHub publishes with them. The hook cannot see a ref you rename on
+the way (`HEAD:refs/heads/<name>`) unless it is the first one pushed, so CI checks each pull
+request's branch name too.
 
 1. Generic patterns: secrets (gitleaks), account IDs, IP addresses outside the
    documentation ranges, chat and ticket ID shapes, internal hostnames, cloud resource
@@ -55,7 +59,10 @@ layers (ADR-0015). File names are checked as well as contents.
 3. The author and committer e-mail addresses must be GitHub no-reply addresses.
 
 A false positive from the generic patterns goes in `tools/leak_allowlist.toml`, with the
-reason it is not real data. Never put a real value there. gitleaks checks staged changes
+reason it is not real data. Never put a real value there. An entry that no pattern matches any
+more fails the tests, so remove it. Change a pattern, or the values it lets through, only on
+evidence: first add a synthetic test case that reproduces the real miss or false positive and
+fails, then make it pass (FR-027). gitleaks checks staged changes
 when you commit, and the whole history before you push and in CI.
 
 ## How work is done

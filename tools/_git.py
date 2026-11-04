@@ -65,6 +65,11 @@ def pushed_commits(environ: Mapping[str, str], *, merges: bool = True) -> list[s
     return found
 
 
+def local_ref_names() -> list[str]:
+    """Return the full names of every local branch and tag, such as ``refs/heads/main``."""
+    return git("for-each-ref", "--format=%(refname)", "refs/heads", "refs/tags").splitlines()
+
+
 def pushed_revisions(environ: Mapping[str, str]) -> list[str]:
     """Return ``[BASE] HEAD`` for the range pre-commit passes to a pre-push hook.
 
