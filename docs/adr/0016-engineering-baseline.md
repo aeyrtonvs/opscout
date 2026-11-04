@@ -13,16 +13,16 @@ the practices reviewers look for without slowing a single maintainer down.
 
 ## Decision Outcome
 
-**Local gates** (pre-commit; `just check` runs the same set): ruff format and lint, mypy
+**Local gates** (pre-commit; `just check` runs its pre-commit stage): ruff format and lint, mypy
 `--strict`, pytest, import-linter, the leak check (ADR-0015), gitleaks, a Conventional Commit
 message check, and `claude plugin validate --strict` for the plugin and marketplace
 manifests (amended 2026-11-03, below).
 
-**CI** (GitHub Actions): the same gates on macOS and Linux, on the minimum supported and the
-latest stable Python; a coverage gate on `core` and `services`; CodeQL; dependency review;
-zizmor for workflow security; OpenSSF Scorecard once the repository is public. Actions are
-pinned by commit SHA, workflow tokens are read-only by default, and Dependabot updates `uv`
-and `github-actions`.
+**CI** (GitHub Actions): the tests on macOS and Linux, on the minimum supported and the
+latest stable Python, and the other gates on Linux; a coverage gate on `core` and
+`services`; CodeQL; dependency review; zizmor for workflow security; OpenSSF Scorecard once
+the repository is public. Actions are pinned by commit SHA, workflow tokens are read-only by
+default, and Dependabot updates `uv`, `github-actions` and `pre-commit`.
 
 **Releases**: Conventional Commits drive release-please. The Python package and the plugin
 share one version (lockstep): release-please bumps `pyproject.toml` and `plugin.json` together
@@ -58,3 +58,10 @@ only for editor autocomplete, and Claude Code 2.1.318 embeds none. `claude plugi
 and types, a marketplace entry whose version differs from `plugin.json`, and a source path
 that leaves the repository. A schema check is added if Anthropic publishes one. CI runs the
 validator with the Claude Code CLI bundled in the `claude-agent-sdk` wheels (ADR-0020).
+
+**Amended 2026-11-03, after an independent review of Phase 0a.** The gates are split by
+stage: `just check` runs the pre-commit stage on every file; the commit-msg stage checks
+each message; a pre-push stage checks every commit about to leave the machine, including
+commits that skipped the other hooks. gitleaks checks staged changes at commit time and
+the whole history before a push and in CI. The tests run on both operating systems, the
+other gates once on Linux, and Dependabot also updates the pre-commit hooks.

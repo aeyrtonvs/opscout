@@ -28,7 +28,8 @@ missing is an open item in `docs/PLAN.md` §9.
    (ADR-0015).
 2. **Before every commit, check the staged diff for real data** (rule 1), commit metadata
    included. A leak in a public repo cannot be undone by deleting the commit.
-   *Gate:* the same hook on every commit, plus the commit e-mail check.
+   *Gate:* the same checks on every commit and on every commit you push, plus the commit
+   e-mail check.
 3. **Agents built here are read-only by design, enforced by permissions, not by
    instructions.** They use a read-only identity; they report whether a secret exists and
    where, never its value; on hosts they run an allow-listed command document, not an open

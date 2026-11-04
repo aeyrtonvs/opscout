@@ -40,6 +40,7 @@ in `uv.lock` or in `.pre-commit-config.yaml`, so nothing else is installed globa
 
 ```sh
 uv sync              # the toolchain, from uv.lock
+git config user.email "ID+login@users.noreply.github.com"   # the hooks accept no other
 uv run just setup    # the git hooks
 uv run just check    # every local gate
 ```

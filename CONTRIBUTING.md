@@ -25,35 +25,38 @@ globally (ADR-0020).
 git clone https://github.com/aeyrtonvs/opscout.git
 cd opscout
 uv sync              # the toolchain, from uv.lock
-uv run just setup    # the pre-commit and commit-msg hooks
+git config user.email "ID+login@users.noreply.github.com"   # your GitHub no-reply address
+uv run just setup    # the pre-commit, commit-msg and pre-push hooks
 uv run just check    # every local gate
 ```
+
+The hooks accept only a GitHub no-reply commit address, so set it before your first
+check or commit. GitHub shows it under *Settings → Emails*.
 
 The first `just setup` builds gitleaks and actionlint, so it downloads Go if you do not have
 it. Later runs are fast. On macOS, if it fails with `CERTIFICATE_VERIFY_FAILED`, your Python
 from python.org lacks its certificate bundle: run its *Install Certificates* command once, or
 run `SSL_CERT_FILE=/etc/ssl/cert.pem uv run just setup`.
 
-Commit with your GitHub no-reply e-mail address, which the hooks check:
-
-```sh
-git config user.email "ID+login@users.noreply.github.com"
-```
-
 ### The leak check
 
-The hooks check every commit for real data in three layers (ADR-0015):
+The hooks check every commit, and again every commit you push, for real data in three
+layers (ADR-0015). File names are checked as well as contents.
 
-1. Generic patterns: secrets (gitleaks), account IDs, private IP addresses, chat and ticket
-   ID shapes, internal hostnames and e-mail addresses.
+1. Generic patterns: secrets (gitleaks), account IDs, IP addresses outside the
+   documentation ranges, chat and ticket ID shapes, internal hostnames, cloud resource
+   endpoints and e-mail addresses.
 2. A private deny-list of your organization's terms. It never lives here: the hook reads
    `leak-denylist.txt` from your private configuration directory (`OPSCOUT_CONFIG`, or else
    `~/.config/opscout/`). It holds one case-insensitive regular expression per line; lines
    that start with `#` are comments. Without the file, the hook warns and runs the other
-   two layers.
+   two layers. If your clone must never commit without it, make that an error:
+   `git config opscout.requireDenylist true`.
 3. The author and committer e-mail addresses must be GitHub no-reply addresses.
 
-A false positive goes in `tools/leak_allowlist.toml`, with the reason it is not real data.
+A false positive from the generic patterns goes in `tools/leak_allowlist.toml`, with the
+reason it is not real data. Never put a real value there. gitleaks checks staged changes
+when you commit, and the whole history before you push and in CI.
 
 ## How work is done
 

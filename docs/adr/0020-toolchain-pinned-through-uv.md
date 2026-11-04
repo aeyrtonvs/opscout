@@ -53,7 +53,7 @@ adds no new tool.
 | Tool | Pinned by |
 |---|---|
 | Python | `.python-version` (minimum supported, 3.13) and `requires-python` |
-| uv | `[tool.uv] required-version` in `pyproject.toml`; CI workflows pin the exact version |
+| uv | `[tool.uv] required-version` in `pyproject.toml`; CI's setup-uv installs the newest uv that meets it |
 | ruff, mypy, pytest, coverage, import-linter, pre-commit, zizmor | `dev` dependency group, locked in `uv.lock` |
 | just | `rust-just` (PyPI wheels of the upstream binary), `dev` group |
 | gitleaks, actionlint | their upstream pre-commit hooks, pinned by `rev` (`language: golang`; pre-commit bootstraps Go if it is missing) |

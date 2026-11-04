@@ -1,4 +1,4 @@
-# Real configuration never lives in this repo (see CLAUDE.md, rule 1)
+# Real configuration never lives in this repo (AGENTS.md, rule 1)
 config/
 *.local.*
 .env

@@ -133,15 +133,18 @@ Spec Kit gives each spec stable IDs: user stories (`US1`…), functional require
 |---|---|---|
 | Format and lint (ruff) | ✓ | ✓ |
 | Types (mypy `--strict`) | ✓ | ✓ |
-| Tests (pytest), coverage gate on `core` and `services` | ✓ | ✓ macOS + Linux, Python 3.13 and latest |
+| Tests (pytest) | ✓ | ✓ macOS + Linux, Python 3.13 and latest |
+| Coverage gate on `core` and `services` | `just coverage` | ✓ |
 | Import contracts (import-linter) | ✓ | ✓ |
-| Leak check: generic patterns / private deny-list / commit e-mail | ✓ / ✓ / ✓ | ✓ / — / ✓ |
-| Secret scan (gitleaks) | ✓ | ✓ plus GitHub push protection |
+| Leak check: generic patterns / private deny-list / commit e-mail | ✓ / ✓ / ✓, on each commit and every pushed commit | ✓ / — / ✓ |
+| Conventional Commit messages | ✓ on each commit and every pushed commit | ✓ |
+| Secret scan (gitleaks) | ✓ staged changes; whole history before a push | ✓ whole history, plus GitHub push protection |
 | Plugin and marketplace validation (`claude plugin validate --strict`) | ✓ | ✓ |
 | `example-config/` against the schema | ✓ | ✓ |
 | Evals (`claude plugin eval`) | before each release | on demand, with a cost ceiling |
-| CodeQL, dependency review, zizmor, OpenSSF Scorecard | — | ✓ |
-| Outward-facing commands (rule 5): `ask` rules in `.claude/settings.json` | ✓ in place; denies in headless runs | — |
+| Workflow security (zizmor) | ✓ offline audits | ✓ with the online audits |
+| CodeQL, dependency review, OpenSSF Scorecard | — | ✓ once the repository is public |
+| Outward-facing commands (rule 5): `ask` rules in `.claude/settings.json`, and a PreToolUse guard for the forms they miss | ✓; denies in headless runs | — |
 | Dev-time sensors (Claude Code hooks): ruff after each Python edit; fast checks before the agent stops, blocking once | ✓ (Phase 0a) | — |
 
 Every hard rule is dual-encoded: stated in AGENTS.md and blocked by one of the gates above
@@ -275,14 +278,20 @@ The order matters: commit identity comes before the first commit.
 6. Gates: pre-commit with gitleaks and actionlint (upstream hooks pinned by `rev`) and the
    generic leak patterns; CI workflows with pinned actions that install only uv and run
    `uv sync --locked` (ADR-0020).
-   Done 2026-11-03. pre-commit runs the leak check (`tools/leak_check.py`: generic patterns,
-   the private deny-list and the commit e-mail), gitleaks, actionlint, zizmor, the fast
-   checks, the manifest validation and a Conventional Commit check; `just check` runs them on
-   every file. CI runs the tests on macOS and Linux with Python 3.13 and 3.15, a coverage gate
-   of 90 % (branches) on `core` and `services`, every gate again, the leak and message
-   checks of each new commit, and gitleaks over the history; CodeQL and dependency review
-   run once the repository is public. Dependabot updates uv, the Actions and the hooks after
-   a 7-day cooldown.
+   Done 2026-11-03. The maintainer agreed to bring the leak check's layers 2 and 3 forward
+   from Phase 0b. The pre-commit stage runs the leak check (`tools/leak_check.py`: generic
+   patterns, the private deny-list and the commit e-mail, on contents and file names; 0.2 s
+   for the whole repository), gitleaks on staged changes, actionlint, zizmor, the fast checks
+   and the manifest validation; `just check` runs that stage on every file. The commit-msg
+   stage runs the leak check and a Conventional Commit check of our own
+   (`tools/commit_message.py`), kept because CI also runs it on each commit of a range,
+   which an upstream hook does not do. The pre-push stage checks every commit about to
+   leave the machine, and gitleaks scans the whole history. CI runs the tests on macOS and
+   Linux with Python 3.13 and 3.15, a coverage gate of 90 % (branches) on `core` and
+   `services`, every other gate once on Linux, the leak and message checks of each new
+   commit, and gitleaks over the history; CodeQL and dependency review run once the
+   repository is public. Dependabot updates uv, the Actions and the hooks after a 7-day
+   cooldown. An independent review of the phase found gaps, fixed the same day.
 7. Development harness (ADR-0018), with hook scripts in Python run through uv (ADR-0021):
    - the rule-5 `ask` rules, already in place;
    - a PreToolUse hook for the push forms those rules miss (`git -C … push`, `git -c … push`);
@@ -294,10 +303,19 @@ The order matters: commit identity comes before the first commit.
    rules and denies the forms they miss: options before the subcommand, variables or
    wrappers before the program, and nested shells. The Stop hook runs `just fast`.
 8. Create the GitHub remote and push, and register the SSH signing key on GitHub, each
-   confirmed by the maintainer. Then turn on what the repository files rely on: private
-   vulnerability reporting (`SECURITY.md`), secret scanning with push protection
-   (ADR-0015) and the ruleset on `main` (ADR-0016). Once the repository is public, add the
-   OpenSSF Scorecard workflow (ADR-0016).
+   confirmed by the maintainer. First:
+   - turn on the account settings "Keep my email addresses private" and "Block command
+     line pushes that expose my email", so the commits GitHub itself makes (squash merges,
+     "Update branch") also carry the no-reply address;
+   - replace the Code of Conduct's placeholder with the project's contact address (§9);
+   - choose the visibility. On GitHub Free a private repository has no private
+     vulnerability reporting, push protection or rulesets, and its macOS runner minutes
+     count ten times.
+   Then turn on what the repository files rely on: private vulnerability reporting
+   (`SECURITY.md`), secret scanning with push protection (ADR-0015), and the ruleset on
+   `main` (ADR-0016) without required approvals, which a single maintainer cannot give.
+   Leave CodeQL's default setup off, since `codeql.yml` replaces it. Once the repository is
+   public, add the OpenSSF Scorecard workflow (ADR-0016).
 
 Exit: `just check` green on a fresh clone set up with only git, uv and Claude Code; CI green
 on the first push; the first commit reviewed for real data.
@@ -306,7 +324,7 @@ on the first push; the first commit reviewed for real data.
 
 | Planned spec | Need | Delivers | Exit criteria |
 |---|---|---|---|
-| leak-guard | rules 1–2 | Private deny-list and commit e-mail check on top of the generic patterns (ADR-0015) | Every synthetic leak in the test set is caught; < 1 s on a typical diff |
+| leak-guard | rules 1–2 | A spec for the leak check that Phase 0a built (its layers 2 and 3 moved forward on 2026-11-03): the synthetic-leak suite traced to it, and pattern changes driven by real misses and false positives (ADR-0015) | Every synthetic leak in the test set is caught; < 1 s on a typical diff (0.2 s for the whole repository on 2026-11-03) |
 | config-contract | all | Config models, JSON Schema, loader, `opscout config validate`, `example-config/` (ADR-0014) | Example and private configs validate; schema drift test |
 | summary-skill | 5 | Write-up formats from config: ticket, message, postmortem; a contract whose non-goals include "never list what was ruled out" | Eval suite at threshold and above the no-plugin baseline |
 | ship-skill | 6 | Branch naming, Conventional Commits, trailer, never to protected branches, draft PR; each push confirmed | `tool_order` graders: never pushes to a protected branch |
@@ -438,10 +456,14 @@ genai.owasp.org (Top 10 for Agentic Applications).
 
 - [x] Ratify the constitution (→ 1.0.0) and decide the proposed ADRs: ratified, and all
       accepted, on 2026-11-03.
-- [ ] Rule-5 gate gaps: `git -C … push`, `git -c … push` and similar forms escaped the
-      `ask` rules; the PreToolUse guard denies them since 2026-11-03 (Phase 0a step 7).
-      Still open: account connectors that also send data out (ticket and docs tools,
-      artifact publishing) are not gated in this repo; decide whether rule 5 covers them.
+- [ ] Rule-5 gate gaps: forms that escaped the `ask` rules (`git -C … push`,
+      `git -c … push` and similar) are denied by the PreToolUse guard since 2026-11-03, and
+      the `gh` commands that change things on GitHub have `ask` rules. Still open: account
+      connectors that also send data out (ticket and docs tools, artifact publishing) are
+      not gated in this repo; decide whether rule 5 covers them.
+- [ ] Rule 3's gates (the read-only identity, tool allow-lists and allow-listed host
+      documents, ADR-0010) do not exist yet. They arrive with the first skills that touch
+      live systems (Phases 1–2).
 - [x] **Before the first commit:** the global git e-mail is a work address. Done 2026-11-03:
       the repo-local `user.email` is the GitHub no-reply address.
 - [x] Name: **opscout** (ADR-0019). The working name `ops-harness` was taken on PyPI by an
