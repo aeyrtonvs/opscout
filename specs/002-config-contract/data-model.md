@@ -17,7 +17,9 @@ to the compatibility set (FR-029, FR-030).
 ## KeychainRef
 
 The only way a section may name a credential (FR-019). Not used by version 1 itself; it
-is the type later sections use, and FR-020's test enforces it.
+is the type later sections use, and FR-020's test enforces it: a key whose name contains,
+in any letter case, `token`, `password`, `passwd`, `secret`, `api_key`, `apikey`,
+`credential` or `private_key` must be a `KeychainRef`.
 
 | Field | Type | Rule |
 |---|---|---|

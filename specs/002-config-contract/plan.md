@@ -93,8 +93,7 @@ src/opscout/
 
 tests/unit/config/
 ├── test_config_contract.py  # FR markers, traceability test
-├── compat/v1/*.yaml         # the compatibility set (FR-030)
-└── invalid/                 # (cases are built in the test module, from reserved values)
+└── compat/v1/*.yaml         # the compatibility set (FR-030); invalid cases are built in the test module
 
 schemas/config.schema.json   # generated; drift test
 example-config/

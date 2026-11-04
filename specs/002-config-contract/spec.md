@@ -275,9 +275,9 @@ commit is refused with the problems listed.
 - **FR-019**: A key of the schema MUST NOT accept a secret value. A credential MUST be referred
   to only by a keychain reference: the service name, and optionally the account, under
   which the OS keychain stores it.
-- **FR-020**: The suite MUST fail when any key of the schema whose name suggests a
-  credential (such as `token`, `password`, `secret`, `api_key`, `credential` or
-  `private_key`) is not a keychain reference.
+- **FR-020**: The suite MUST fail when any key of the schema whose name contains, in any
+  letter case, `token`, `password`, `passwd`, `secret`, `api_key`, `apikey`, `credential`
+  or `private_key` is not a keychain reference.
 
 #### The schema for editors and other tools
 
@@ -303,9 +303,11 @@ commit is refused with the problems listed.
 
 #### Evolving the schema
 
-- **FR-029**: Adding an optional key or section MUST keep the schema version. Removing,
-  renaming or retyping a key, or making one required, MUST raise the major version and add
-  a migration note for the old version.
+- **FR-029**: The published schema MUST allow exactly one `schema_version`, equal to the
+  version the engine supports, and every configuration in the compatibility set MUST
+  declare that version. Review rule, stated in the configuration reference: adding an
+  optional key or section keeps the version; removing, renaming or retyping a key, or making
+  one required, raises the major version and adds a migration note for the old one.
 - **FR-030**: A compatibility set of configurations valid under the current major version
   MUST be kept with the tests; every one MUST still validate, so a breaking change fails the
   suite until FR-029 is followed. Each additive change MUST add a configuration that uses
