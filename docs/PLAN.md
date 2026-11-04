@@ -83,6 +83,7 @@ day.
 | [0019](adr/0019-project-name-opscout.md) | The project is named opscout; the working name ops-harness is retired | accepted |
 | [0020](adr/0020-toolchain-pinned-through-uv.md) | Development toolchain pinned through uv (`dev` group, pre-commit revs); prerequisites are git, uv and Claude Code; neither local use nor development needs containers | accepted |
 | [0021](adr/0021-local-first-portable-by-construction.md) | Local-first, portable by construction: host-specific code behind ports, scheduled jobs as idempotent commands; the foreseen hosted shape is a personal VM, not serverless | accepted |
+| [0022](adr/0022-plugin-runs-the-engine-through-uv.md) | The plugin runs the engine through a uv launcher in `bin/`: the clone's code, or the release matching the plugin's version (answers the §9 item on how the plugin finds the package) | accepted |
 
 ## 4. How it is built: spec-driven
 
@@ -507,8 +508,8 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [ ] Read-only identity (former item 2): the reference policies come from this repo
       (Phase 2); who applies them, and through which IaC repo, is still open.
 - [x] GitHub account (former item 3): confirmed, the remote goes in `aeyrtonvs`.
-- [ ] How the plugin finds the Python package (`uvx` with a pinned version, or `bin/`):
-      decide in the MCP server's spec.
+- [x] How the plugin finds the Python package: a uv launcher in the plugin's `bin/` (ADR-0022),
+      decided 2026-11-04 in spec 003, the first consumer.
 - [ ] Evals in CI need an API key with a cost ceiling: enable them, or keep evals local.
 - [x] The local uv was 0.6.17 (April 2025): upgraded to 0.13.7 on 2026-11-03; ADR-0020 sets
       the floor in `pyproject.toml`.

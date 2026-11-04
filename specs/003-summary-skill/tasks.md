@@ -15,8 +15,8 @@ reserved values only.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the baseline on `feat/003-summary-skill`: `uv run just fast` passes
-- [ ] T002 Write ADR-0022 (the plugin runs the engine through a uv launcher in `bin/`,
+- [X] T001 Confirm the baseline on `feat/003-summary-skill`: `uv run just fast` passes
+- [X] T002 Write ADR-0022 (the plugin runs the engine through a uv launcher in `bin/`,
   research R1) in `docs/adr/0022-plugin-runs-the-engine-through-uv.md` and list it in
   `docs/adr/README.md` and PLAN.md §3; close the §9 item on how the plugin finds the package
 
