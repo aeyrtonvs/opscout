@@ -9,6 +9,7 @@ import io
 import json
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -729,11 +730,91 @@ def test_the_ship_skill_pre_approves_its_procedure_and_nothing_broader(root: str
         assert not any(rule_matches(rule, command, root) for rule in rules), command
 
 
+# The eval suite (FR-022 to FR-024)
+
+EVALS = PLUGIN / "evals"
+# Scenarios that need a confirmed push, which no headless run can give (research R5).
+AFTER_A_CONFIRMED_PUSH = {"004-us2-s4", "004-us2-s5"}
+
+
+def ship_cases() -> dict[str, dict[str, Any]]:
+    return {
+        prompt.parent.name: yaml.safe_load(prompt.read_text(encoding="utf-8").split("---\n")[1])
+        for prompt in sorted(EVALS.glob("004-*/prompt.md"))
+    }
+
+
+def graders_of(name: str) -> dict[str, dict[str, Any]]:
+    return {
+        file.stem: yaml.safe_load(file.read_text(encoding="utf-8").split("---\n")[1])
+        for file in sorted((EVALS / name / "graders").glob("*.md"))
+    }
+
+
+@spec("FR-022")
+def test_every_skill_scenario_has_a_case_on_a_scratch_repository() -> None:
+    text = SPEC_FILE.read_text(encoding="utf-8")
+    story = text.split("### User Story 2 ")[1].split("\n---\n")[0]
+    scenarios = {f"004-us2-s{n}" for n in re.findall(r"^(\d+)\. \*\*Given\*\*", story, re.M)}
+    cases = ship_cases()
+
+    assert scenarios - AFTER_A_CONFIRMED_PUSH <= set(cases)
+    for name, front in cases.items():
+        assert (EVALS / name / "scaffold.py").is_file(), name
+        assert front["allowed_tools"] == ["Skill", "Bash(git *)"], name
+
+
+@spec("FR-022")
+def test_the_scaffold_makes_a_repository_with_a_local_remote(tmp_path: Path) -> None:
+    subprocess.run(  # noqa: S603  (a case's scaffold)
+        [sys.executable, str(EVALS / "004-us2-s1" / "scaffold.py")], cwd=tmp_path, check=True
+    )
+    remote = subprocess.run(
+        ["/usr/bin/env", "git", "remote", "get-url", "origin"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+    assert Path(remote).is_dir()  # a local bare repository, never a real remote
+    assert not Path(remote).resolve().is_relative_to(tmp_path.resolve())
+
+
+@spec("FR-023")
+def test_the_graders_check_the_order_and_that_main_is_never_pushed() -> None:
+    for name in ship_cases():
+        graders = graders_of(name)
+        assert "no-push-to-main" in graders or "no-push" in graders, name
+    assert graders_of("004-us2-s1")["branch-before-commit"]["type"] == "tool_order"
+    assert graders_of("004-us2-s3")["commit-before-push"]["type"] == "tool_order"
+
+
+@spec("FR-019")
+def test_the_skill_opens_a_draft_on_github_or_says_it_cannot() -> None:
+    _, body = ship_skill()
+
+    assert "gh pr create --draft" in body
+    assert "cannot be opened from here yet" in body
+
+
+@spec("FR-024")
+@pytest.mark.xfail(reason="removed in T017, once the eval result is recorded", strict=True)
+def test_the_recorded_ship_eval_result_meets_the_threshold() -> None:
+    actuals = SPEC_FILE.read_text(encoding="utf-8").split("## Actuals", 1)
+    assert len(actuals) == 2
+    score = re.search(r"lowest case score: ([0-9.]+)", actuals[1])
+    delta = re.search(r"delta over the no-plugin baseline: \+([0-9.]+)", actuals[1])
+    assert score is not None
+    assert float(score.group(1)) >= 0.9
+    assert delta is not None
+    assert float(delta.group(1)) > 0
+
+
 # Proof
 
 
 @spec("FR-025")
-@pytest.mark.xfail(reason="removed in T020, once every requirement has a test", strict=True)
 def test_every_requirement_has_a_test_or_an_eval_case() -> None:
     required = set(re.findall(r"\*\*(FR-\d{3})\*\*", SPEC_FILE.read_text(encoding="utf-8")))
     proven: set[str] = set()

@@ -598,7 +598,7 @@ def cases() -> dict[str, dict[str, object]]:
     """Return every eval case's frontmatter, by case name."""
     return {
         prompt.parent.name: yaml.safe_load(prompt.read_text(encoding="utf-8").split("---\n")[1])
-        for prompt in sorted(EVALS.glob("*/prompt.md"))
+        for prompt in sorted(EVALS.glob("003-*/prompt.md"))
     }
 
 

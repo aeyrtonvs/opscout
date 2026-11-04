@@ -60,9 +60,9 @@ their FRs in `tags`. Scratch repositories with a local bare remote only.
 
 ## Phase 6: Evals
 
-- [ ] T015 Write failing tests for the runner's `scaffold.py` support and `tool_order`
+- [X] T015 Write failing tests for the runner's `scaffold.py` support and `tool_order`
   graders in `tests/tools/test_skill_evals.py`; implement them in `tools/skill_evals.py`
-- [ ] T016 [US2] Write the eval cases `004-us2-s1` to `004-us2-s6` plus edge cases (nothing
+- [X] T016 [US2] Write the eval cases `004-us2-s1` to `004-us2-s6` plus edge cases (nothing
   to commit; asked to push to main) with `scaffold.py` and graders per research R5 (FR-022,
   FR-023), and the structural tests over them
 - [ ] T017 [US2] Run the suite with the maintainer's confirmation; iterate until every case
@@ -73,7 +73,7 @@ their FRs in `tags`. Scratch repositories with a local bare remote only.
 - [ ] T018 [P] Update `AGENTS.md`, `docs/PLAN.md` (status, the row, a paragraph, §9: the
   `bypassPermissions` limit of research R1)
 - [ ] T019 Run `uv run just check`, `uv run just coverage` and the quickstart
-- [ ] T020 Remove the traceability `xfail`; set the spec's status to Implemented
+- [X] T020 Remove the traceability `xfail`; set the spec's status to Implemented
 
 ## Dependencies
 
