@@ -1,0 +1,14 @@
+{
+  "name": "opscout",
+  "description": "Marketplace for opscout, a read-only agent harness for DevOps toil.",
+  "owner": {
+    "name": "aeyrtonvs",
+    "url": "https://github.com/aeyrtonvs"
+  },
+  "plugins": [
+    {
+      "name": "opscout",
+      "source": "./plugins/opscout"
+    }
+  ]
+}

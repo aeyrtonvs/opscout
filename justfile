@@ -29,5 +29,10 @@ imports:
 test *args:
     pytest {{ args }}
 
+# Validate the marketplace and plugin manifests (ADR-0003). Needs Claude Code (ADR-0020).
+plugin:
+    claude plugin validate --strict .
+    claude plugin validate --strict plugins/opscout
+
 # Run every local gate that exists so far.
-check: lint types imports test
+check: lint types imports test plugin

@@ -265,7 +265,9 @@ The order matters: commit identity comes before the first commit.
    by the composition root. Done 2026-11-03; `just setup` arrives with the git hooks in
    step 6.
 5. Plugin skeleton: marketplace and plugin manifests, with `userConfig` for the config
-   directory; `claude plugin validate --strict` passes.
+   directory; `claude plugin validate --strict` passes. Done 2026-11-03: `config_dir` is a
+   required `directory` option (ADR-0014); the version lives only in `plugin.json`, and a
+   test keeps it equal to the package's (ADR-0016); `just check` validates both manifests.
 6. Gates: pre-commit with gitleaks and actionlint (upstream hooks pinned by `rev`) and the
    generic leak patterns; CI workflows with pinned actions that install only uv and run
    `uv sync --locked` (ADR-0020).
@@ -363,6 +365,13 @@ Checked 2026-11-03 (official docs and the local CLI, Claude Code 2.1.317):
   `${CLAUDE_PLUGIN_ROOT}` changes on update, `${CLAUDE_PLUGIN_DATA}` persists;
   `claude plugin validate [--strict]`; auto-update is off by default for third-party
   marketplaces.
+- **User configuration, in detail** (CLI 2.1.318): an option needs `type`, `title` and
+  `description`, and an unknown key fails validation; the types are `string`, `number`,
+  `boolean`, `directory` and `file`. Values reach MCP server configs, exec-form hook `args`,
+  and skill and agent content as `${user_config.KEY}` (only non-sensitive values in skills
+  and agents); hooks also get `CLAUDE_PLUGIN_OPTION_<KEY>`; shell-form hook commands cannot
+  use the substitution. `plugin.json`'s `version` wins over a marketplace entry's, and the
+  validator warns when they differ. No JSON Schema is published for either manifest.
 - **Subagents shipped in a plugin** ignore `permissionMode`, `hooks` and `mcpServers`.
 - **`claude plugin eval`**: cases in the plugin's `evals/`; graders `regex`, `tool_used`,
   `tool_order`, `file_exists`, `llm`, `baseline`; a no-plugin baseline arm; MCP mocks;
@@ -432,4 +441,16 @@ genai.owasp.org (Top 10 for Agentic Applications).
       scheduler and the secret store, matching ADR-0011 and ADR-0021. Done 2026-11-03.
 - [ ] Windows has no CI gate (ADR-0021): add a Windows job and the Task Scheduler adapter with
       the first Windows user.
+- [ ] Manifest gate: ADR-0016 lists JSON Schema validation of the manifests, but no schema is
+      published (checked 2026-11-03; CLI 2.1.318 embeds none either). In step 5,
+      `claude plugin validate --strict` rejected an unknown field, an unknown `userConfig`
+      key or type, an entry version that differs from `plugin.json`, and a source path that
+      leaves the repository. Proposal: the validator is the manifest gate, with no
+      hand-written schema. Decide in step 6.
+- [ ] CI needs the Claude Code CLI for `claude plugin validate` (ADR-0003), while ADR-0020
+      lets CI install only uv. Options: `@anthropic-ai/claude-code` from npm at an exact
+      version (Node comes with GitHub's runners, but Dependabot cannot bump the pin without a
+      `package.json` and a second lockfile); or the PyPI package `claude-agent-sdk`, whose
+      wheels bundle the CLI (about 140–150 MB each), in a dependency group only CI installs,
+      locked in `uv.lock`. Decide in step 6.
 - [ ] Re-verify §8 facts at implementation time; they change.
