@@ -63,6 +63,58 @@ class KeychainRef(BaseModel):
     )
 
 
+_Line = Annotated[str, StringConstraints(min_length=1, max_length=300, pattern=r"^[^\n]*$")]
+_FormatName = Annotated[
+    str, StringConstraints(max_length=40, pattern=r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
+]
+
+
+class WriteupFormat(BaseModel):
+    """A shape for a write-up: its sections in order, its rules and its length (spec 003)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    description: Annotated[
+        str, StringConstraints(min_length=1, max_length=200, pattern=r"^[^\n]*$")
+    ] = Field(description="What this format is for, in one line.")
+    sections: list[_Line] = Field(
+        default_factory=list,
+        max_length=30,
+        description="The headings of the write-up, in order; none for free text.",
+    )
+    rules: list[_Line] = Field(
+        default_factory=list, max_length=30, description="Rules for this format only."
+    )
+    max_lines: Annotated[int, Field(ge=1, le=200)] | None = Field(
+        default=None, description="The most lines a write-up in this format may have."
+    )
+
+
+class Writeups(BaseModel):
+    """Write-up formats for the summary skill; built-in formats apply without them (spec 003)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    language: (
+        Annotated[str, StringConstraints(min_length=1, max_length=40, pattern=r"^[^\n]*$")] | None
+    ) = Field(
+        default=None,
+        description="The language to write in; without it, the language the user writes in.",
+    )
+    rules: list[_Line] = Field(
+        default_factory=list, max_length=30, description="Rules for every format."
+    )
+    formats: dict[_FormatName, WriteupFormat] = Field(
+        default_factory=dict,
+        description=(
+            "Formats by name. A name of a built-in format (ticket, message, postmortem) "
+            "replaces it; a new name adds a format."
+        ),
+        # Editors must refuse a name the loader refuses, not leave it unchecked.
+        json_schema_extra={"additionalProperties": False},
+    )
+
+
 class Configuration(BaseModel):
     """The private opscout configuration (config.yaml in the configuration directory)."""
 
@@ -78,6 +130,10 @@ class Configuration(BaseModel):
             "The major version of the configuration schema this file follows. "
             "This engine reads version 1."
         ),
+    )
+    writeups: Writeups = Field(
+        default_factory=Writeups,
+        description="Write-up formats for the summary skill (spec 003).",
     )
 
 

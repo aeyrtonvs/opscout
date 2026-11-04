@@ -24,15 +24,15 @@ reserved values only.
 
 ## Phase 2: Foundational — the `writeups` section (US2 data)
 
-- [ ] T003 Create `tests/unit/writeups/test_writeups.py` with the traceability test over
+- [X] T003 Create `tests/unit/writeups/test_writeups.py` with the traceability test over
   spec 003's FRs, counting test marks and eval cases' `tags` (an eval case names the FRs it
   proves in its `tags`, the one documented frontmatter key for it) (FR-029),
   `xfail(strict=True)` until T021
-- [ ] T004 Write failing tests: `writeups` is optional and additive (FR-001); its fields and
+- [X] T004 Write failing tests: `writeups` is optional and additive (FR-001); its fields and
   bounds per data-model.md (FR-002, FR-003); format names (FR-004); every new field has a
   description and the schema drift test still applies (spec 002); a compatibility file
   `tests/unit/config_contract/compat/v1/writeups.yaml` using every field validates
-- [ ] T005 Implement `Writeups` and `WriteupFormat` in `src/opscout/core/config.py`, add
+- [X] T005 Implement `Writeups` and `WriteupFormat` in `src/opscout/core/config.py`, add
   the compatibility file, regenerate `schemas/config.schema.json` (`uv run just schema`);
   T004 and the whole of spec 002's suite pass
 

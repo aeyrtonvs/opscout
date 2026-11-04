@@ -1,6 +1,116 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/aeyrtonvs/opscout/main/schemas/config.schema.json",
+  "$defs": {
+    "WriteupFormat": {
+      "additionalProperties": false,
+      "description": "A shape for a write-up: its sections in order, its rules and its length (spec 003).",
+      "properties": {
+        "description": {
+          "description": "What this format is for, in one line.",
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "^[^\\n]*$",
+          "title": "Description",
+          "type": "string"
+        },
+        "sections": {
+          "description": "The headings of the write-up, in order; none for free text.",
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "pattern": "^[^\\n]*$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Sections",
+          "type": "array"
+        },
+        "rules": {
+          "description": "Rules for this format only.",
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "pattern": "^[^\\n]*$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Rules",
+          "type": "array"
+        },
+        "max_lines": {
+          "anyOf": [
+            {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The most lines a write-up in this format may have.",
+          "title": "Max Lines"
+        }
+      },
+      "required": [
+        "description"
+      ],
+      "title": "WriteupFormat",
+      "type": "object"
+    },
+    "Writeups": {
+      "additionalProperties": false,
+      "description": "Write-up formats for the summary skill; built-in formats apply without them (spec 003).",
+      "properties": {
+        "language": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "pattern": "^[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The language to write in; without it, the language the user writes in.",
+          "title": "Language"
+        },
+        "rules": {
+          "description": "Rules for every format.",
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "pattern": "^[^\\n]*$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Rules",
+          "type": "array"
+        },
+        "formats": {
+          "additionalProperties": false,
+          "description": "Formats by name. A name of a built-in format (ticket, message, postmortem) replaces it; a new name adds a format.",
+          "patternProperties": {
+            "^[a-z][a-z0-9]*(-[a-z0-9]+)*$": {
+              "$ref": "#/$defs/WriteupFormat"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 40
+          },
+          "title": "Formats",
+          "type": "object"
+        }
+      },
+      "title": "Writeups",
+      "type": "object"
+    }
+  },
   "additionalProperties": false,
   "description": "The private opscout configuration (config.yaml in the configuration directory).",
   "properties": {
@@ -9,6 +119,10 @@
       "description": "The major version of the configuration schema this file follows. This engine reads version 1.",
       "title": "Schema Version",
       "type": "integer"
+    },
+    "writeups": {
+      "$ref": "#/$defs/Writeups",
+      "description": "Write-up formats for the summary skill (spec 003)."
     }
   },
   "required": [

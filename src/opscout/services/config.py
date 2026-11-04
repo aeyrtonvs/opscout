@@ -322,6 +322,9 @@ def _locate(detail: ErrorDetails, reader: Reader) -> Problem:
         message = _UNKNOWN_KEY if kind == "extra_forbidden" else "required key is missing"
         return reader.problem(reader.values[tuple(parent)], _dotted(path), message)
     path = _document_path(detail["loc"], reader, keep_last=False)
+    if detail["loc"][-1:] == ("[key]",) and path in reader.keys:
+        # A mapping key that breaks its rule (such as a format name) is located at the key.
+        return reader.problem(reader.keys[path], _dotted(path), _message(detail))
     return reader.problem(reader.values[path], _dotted(path), _message(detail))
 
 

@@ -1,0 +1,12 @@
+# Every field of the writeups section (spec 003), added to schema version 1 (spec 002, FR-030).
+schema_version: 1
+writeups:
+  language: English
+  rules:
+    - Use the team's usual names for services.
+  formats:
+    status-update:
+      description: A weekly status line for the team channel.
+      sections: [Done, Next, Blocked]
+      rules: [One line per item.]
+      max_lines: 8
