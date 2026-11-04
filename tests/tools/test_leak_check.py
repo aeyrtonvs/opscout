@@ -545,7 +545,10 @@ def test_identity_mode_passes_when_no_identity_is_configured(
 
 @pytest.mark.spec("001", "FR-010")
 def test_a_clone_can_require_the_private_denylist(
-    git: Callable[..., str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    git: Callable[..., str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
     clean = tmp_path / "clean.md"
@@ -553,7 +556,9 @@ def test_a_clone_can_require_the_private_denylist(
 
     assert main(["files", str(clean)]) == 0
     git("config", "opscout.requireDenylist", "true")
+    capsys.readouterr()
     assert main(["files", str(clean)]) == 1
+    assert str(tmp_path / NO_CONFIG / "leak-denylist.txt") in capsys.readouterr().err
 
 
 @pytest.mark.spec("001", "FR-020")

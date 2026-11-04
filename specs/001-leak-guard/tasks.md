@@ -202,3 +202,7 @@ read it.
 - **Then**: US2 (private terms), US3 (identity), US4 (the one behavior change, ref names),
   US5 (evidence rule), and the traceability gate that closes SC-005.
 - Commit after each phase; each commit passes the gates.
+
+## Phase 9: Convergence
+
+- [X] T029 Assert that the error for a required but missing deny-list names the path where it was expected, in `test_a_clone_can_require_the_private_denylist`, `tests/tools/test_leak_check.py` per US2/AC4 (partial)
