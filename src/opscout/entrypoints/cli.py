@@ -16,6 +16,7 @@ from opscout.core.config import (
     schema_text,
 )
 from opscout.entrypoints.config import config_file, load_config
+from opscout.entrypoints.hook import BLOCKED, HookError, pre_tool_use
 from opscout.services.config import resolve_config_dir
 from opscout.services.writeups import render_formats, render_invalid, resolve_formats
 
@@ -64,6 +65,18 @@ def build_parser() -> argparse.ArgumentParser:
     formats.add_argument(
         "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
     )
+    hook = commands.add_parser(
+        "hook", help="the plugin's hooks", description="The plugin's hooks (spec 004)."
+    )
+    hook_commands = hook.add_subparsers(dest="hook_command", metavar="COMMAND", required=True)
+    pre_tool_use = hook_commands.add_parser(
+        "pre-tool-use",
+        help="the push guard: read a PreToolUse event on stdin",
+        description="Ask before every git push, and deny a push to a protected branch.",
+    )
+    pre_tool_use.add_argument(
+        "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
+    )
     return parser
 
 
@@ -78,6 +91,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "writeup" and args.writeup_command == "formats":
         sys.stdout.write(_formats(_given_directory(args.config)))
+        return 0
+    if args.command == "hook" and args.hook_command == "pre-tool-use":
+        location = resolve_config_dir(_given_directory(args.config), os.environ, Path.home())
+        try:
+            sys.stdout.write(pre_tool_use(sys.stdin.read(), location))
+        except HookError as error:
+            sys.stderr.write(f"{error}\n")
+            return BLOCKED
         return 0
     parser.print_help()
     return 0

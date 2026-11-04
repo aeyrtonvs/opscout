@@ -32,12 +32,12 @@ their FRs in `tags`. Scratch repositories with a local bare remote only.
   `eval`, other global options and unsplittable text denied (FR-010); `gh pr create` asked
   and unrelated commands ignored (FR-011)
 - [X] T006 [US1] Implement `decide_push` in `src/opscout/services/ship.py`; T005 passes
-- [ ] T007 [US1] Write failing tests for `opscout hook pre-tool-use` on scratch repositories:
+- [X] T007 [US1] Write failing tests for `opscout hook pre-tool-use` on scratch repositories:
   the event on stdin, the JSON output, the current and default branches read with git in
   `cwd` or `-C` (FR-007, FR-008); configuration patterns read through the loader, and the
   fixed protections without a configuration (FR-012); an error on a push exits 2, under 1 s
   (FR-013, SC-004); `hooks/hooks.json` declares it with `onFailure: block` (FR-006)
-- [ ] T008 [US1] Implement `src/opscout/entrypoints/hook.py`, the `hook pre-tool-use` command
+- [X] T008 [US1] Implement `src/opscout/entrypoints/hook.py`, the `hook pre-tool-use` command
   and `plugins/opscout/hooks/hooks.json`; T007 passes; `uv run just plugin` passes
 
 ## Phase 4: User Story 3 and 4 — conventions and checks (P2, P3)

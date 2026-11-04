@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/opscout",
+            "args": ["hook", "pre-tool-use", "--config", "${user_config.config_dir}"],
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -5,8 +5,13 @@ Every test is tied to its requirements with ``@pytest.mark.spec("004", ...)``; e
 name theirs in their ``tags``. Scratch repositories with a local remote only.
 """
 
+import io
+import json
 import re
+import subprocess
+import time
 from pathlib import Path
+from typing import Any
 
 import pydantic
 import pytest
@@ -19,6 +24,7 @@ from opscout.core.config import (
     Ship,
 )
 from opscout.core.ship import PushDecision
+from opscout.entrypoints.cli import main
 from opscout.services.config import parse_config
 from opscout.services.ship import decide_push, read_command
 
@@ -233,6 +239,7 @@ UNREADABLE = [
     "git push origin feat/x | tee log",
     "echo git push",
     "cd sub\ngit push",
+    "git add -A && gh pr create --draft",
 ]
 
 
@@ -270,6 +277,221 @@ def test_opening_a_pull_request_is_asked() -> None:
 )
 def test_other_commands_are_left_alone(command: str) -> None:
     assert decision(command) is None
+
+
+# The hook (User Story 1)
+
+
+def git(directory: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(directory), *args], check=True, capture_output=True)  # noqa: S603, S607
+
+
+def scratch_repository(
+    tmp_path: Path, *, default: str = "main", current: str = "feat/add-guard"
+) -> Path:
+    """A repository on ``current`` whose remote ``origin`` has ``default`` as its default branch."""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    git(repository, "init", "-q", "-b", "main")
+    git(repository, "config", "user.email", "test@example.com")
+    git(repository, "config", "user.name", "Test")
+    git(repository, "commit", "-q", "--allow-empty", "-m", "chore: start")
+    git(repository, "remote", "add", "origin", str(tmp_path / "remote.git"))
+    git(repository, "update-ref", f"refs/remotes/origin/{default}", "HEAD")
+    git(repository, "symbolic-ref", "refs/remotes/origin/HEAD", f"refs/remotes/origin/{default}")
+    if current != "main":
+        git(repository, "switch", "-q", "-c", current)
+    return repository
+
+
+def hook(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    event: dict[str, object] | str,
+    *,
+    config: str = "",
+) -> tuple[int, dict[str, Any] | None, str]:
+    """Run ``opscout hook pre-tool-use`` with an event on stdin; return status, JSON, stderr."""
+    text = event if isinstance(event, str) else json.dumps(event)
+    monkeypatch.setattr("sys.stdin", io.StringIO(text))
+    try:
+        status = main(["hook", "pre-tool-use", "--config", config])
+    except SystemExit as exit_info:
+        status = int(exit_info.code or 0)
+    captured = capsys.readouterr()
+    return status, json.loads(captured.out) if captured.out.strip() else None, captured.err
+
+
+def bash(command: str, cwd: Path) -> dict[str, object]:
+    return {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(cwd)}
+
+
+@spec("FR-007")
+def test_the_hook_asks_for_a_push_of_the_current_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repository = scratch_repository(tmp_path)
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / "none"))
+
+    status, output, _ = hook(monkeypatch, capsys, bash("git push", repository))
+
+    assert status == 0
+    assert output == {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "ask",
+            "permissionDecisionReason": "opscout: push to origin: feat/add-guard?",
+        }
+    }
+
+
+@spec("FR-008")
+@pytest.mark.parametrize(
+    ("current", "default", "command", "branch"),
+    [
+        ("main", "main", "git push", "main"),
+        ("feat/x", "develop", "git push origin develop", "develop"),
+        ("develop", "develop", "git push", "develop"),
+    ],
+    ids=["current-main", "default-by-name", "current-default"],
+)
+def test_the_hook_reads_the_branches_from_the_repository(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    current: str,
+    default: str,
+    command: str,
+    branch: str,
+) -> None:
+    repository = scratch_repository(tmp_path, default=default, current=current)
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / "none"))
+
+    _, output, _ = hook(monkeypatch, capsys, bash(command, repository))
+
+    assert output is not None
+    assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert f"{branch} is protected" in output["hookSpecificOutput"]["permissionDecisionReason"]
+
+
+@spec("FR-007")
+def test_the_hook_reads_the_branch_of_the_directory_after_minus_c(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repository = scratch_repository(tmp_path, current="main")
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / "none"))
+
+    _, output, _ = hook(monkeypatch, capsys, bash(f"git -C {repository} push", tmp_path))
+
+    assert output is not None
+    assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+@spec("FR-012")
+def test_the_hook_reads_the_protected_patterns_from_the_configuration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repository = scratch_repository(tmp_path)
+    config = tmp_path / "config"
+    config.mkdir()
+    (config / "config.yaml").write_text(
+        "schema_version: 1\nship:\n  protected_branches: ['release/*']\n", encoding="utf-8"
+    )
+
+    _, output, _ = hook(
+        monkeypatch, capsys, bash("git push origin release/1.2", repository), config=str(config)
+    )
+
+    assert output is not None
+    assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+@spec("FR-012")
+@pytest.mark.parametrize(
+    "configuration_text",
+    [None, "schema_version: 1\nship: {types: []}\n"],
+    ids=["missing", "invalid"],
+)
+def test_without_a_readable_configuration_main_stays_protected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    configuration_text: str | None,
+) -> None:
+    repository = scratch_repository(tmp_path, default="trunk")
+    config = tmp_path / "config"
+    if configuration_text is not None:
+        config.mkdir()
+        (config / "config.yaml").write_text(configuration_text, encoding="utf-8")
+
+    for command in ("git push origin main", "git push origin master", "git push origin trunk"):
+        _, output, _ = hook(monkeypatch, capsys, bash(command, repository), config=str(config))
+        assert output is not None
+        assert output["hookSpecificOutput"]["permissionDecision"] == "deny", command
+
+
+@spec("FR-013")
+@pytest.mark.parametrize(
+    "event", ["not json", '{"tool_name": "Bash"}'], ids=["malformed", "no-command"]
+)
+def test_an_event_the_hook_cannot_read_blocks_the_command(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], event: str
+) -> None:
+    status, output, error = hook(monkeypatch, capsys, event)
+
+    assert (status, output) == (2, None)
+    assert "opscout push guard" in error
+
+
+@spec("FR-011")
+def test_the_hook_is_silent_for_other_tools_and_commands(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    other: dict[str, object] = {
+        "tool_name": "Read",
+        "tool_input": {"file_path": "x"},
+        "cwd": str(tmp_path),
+    }
+
+    assert hook(monkeypatch, capsys, other)[:2] == (0, None)
+    assert hook(monkeypatch, capsys, bash("git status", tmp_path))[:2] == (0, None)
+
+
+@spec("FR-006")
+def test_the_plugin_declares_the_hook_so_that_a_failure_blocks() -> None:
+    hooks = json.loads((PLUGIN / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+    (entry,) = hooks["hooks"]["PreToolUse"]
+    (command,) = entry["hooks"]
+
+    assert entry["matcher"] == "Bash"
+    assert command["type"] == "command"
+    assert command["command"] == "${CLAUDE_PLUGIN_ROOT}/bin/opscout"
+    assert command["args"] == ["hook", "pre-tool-use", "--config", "${user_config.config_dir}"]
+    assert command["onFailure"] == "block"
+
+
+@spec("FR-013")
+def test_the_guard_decides_in_under_a_second(tmp_path: Path) -> None:
+    repository = scratch_repository(tmp_path)
+    event = json.dumps(bash("git push origin HEAD:main", repository))
+    started = time.perf_counter()
+    result = subprocess.run(  # noqa: S603  (the launcher under test)
+        [
+            str(PLUGIN / "bin" / "opscout"),
+            "hook",
+            "pre-tool-use",
+            "--config",
+            "${user_config.config_dir}",
+        ],
+        input=event,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert '"deny"' in result.stdout
+    assert time.perf_counter() - started < 1.0  # SC-004
 
 
 # Proof
