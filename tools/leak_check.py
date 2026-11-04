@@ -31,7 +31,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from tools._git import commits, git, message_lines, pushed_revisions
+from tools._git import commits, git, message_lines, pushed_commits
 
 ALLOWLIST_FILE = Path(__file__).with_name("leak_allowlist.toml")
 DENYLIST_NAME = "leak-denylist.txt"
@@ -154,7 +154,7 @@ RULES = (
     Rule(  # endpoints that name a resource: databases, load balancers, APIs, buckets
         "cloud-endpoint",
         re.compile(
-            rf"\b(?:{LABEL}\.){{1,6}}(?:elb|execute-api|rds|s3)\.(?:{LABEL}\.){{0,3}}"
+            rf"\b(?:{LABEL}\.){{1,6}}(?:elb|execute-api|rds|s3(?:-[a-z0-9-]+)?)\.(?:{LABEL}\.){{0,3}}"
             r"amazonaws\.com\b",
             re.IGNORECASE,
         ),
@@ -247,7 +247,6 @@ def check_identity(email: str, role: str) -> Finding | None:
 
 
 HUNK = re.compile(r"@@ -\d+(?:,\d+)? \+(?P<start>\d+)(?:,\d+)? @@")
-DIFF_HEADER = re.compile(r"diff --git a/.* b/(?P<path>.*)")
 
 
 def added_lines(diff: str) -> Iterator[tuple[str, int, str]]:
@@ -268,24 +267,29 @@ def added_lines(diff: str) -> Iterator[tuple[str, int, str]]:
             number += 1
 
 
-def diff_files(diff: str) -> list[tuple[str, bool]]:
-    """Return ``(path, binary)`` for each file a diff adds or changes; deleted ones are left out."""
-    files: dict[str, bool] = {}
-    current: str | None = None
-    for line in diff.splitlines():
-        if header := DIFF_HEADER.match(line):
-            current = header["path"]
-            files[current] = False
-        elif current is None:
-            continue
-        elif line.startswith("deleted file mode"):
-            del files[current]
-            current = None
-        elif line.startswith("Binary files ") and line.endswith(" differ"):
-            files[current] = True
-        elif HUNK.match(line):
-            current = None
-    return list(files.items())
+def changed_files(sha: str) -> list[tuple[str, bool]]:
+    """Return ``(path, binary)`` for each file a commit adds or changes; deletions are left out.
+
+    ``--numstat -z`` gives each path unquoted and unambiguous, whatever characters it holds,
+    and marks a binary file with ``-`` counts.
+    """
+    listing = git(
+        "show",
+        "--format=",
+        "--numstat",
+        "-z",
+        "--no-renames",
+        "--diff-filter=d",
+        "--diff-merges=first-parent",
+        sha,
+    )
+    files: list[tuple[str, bool]] = []
+    for record in listing.split("\0"):
+        fields = record.lstrip("\n").split("\t", 2)
+        if len(fields) == 3:
+            added, deleted, path = fields
+            files.append((path, added == "-" and deleted == "-"))
+    return files
 
 
 def _read_text(path: Path) -> str | None:
@@ -302,8 +306,8 @@ def _shown_name(path: Path) -> str:
 
     The directories above the repository are the user's, not the repository's.
     """
-    try:
-        return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    try:  # absolute(), not resolve(): a symlink is checked by its own name
+        return path.absolute().relative_to(Path.cwd().absolute()).as_posix()
     except ValueError:
         return path.name
 
@@ -328,7 +332,7 @@ def _scan_message(
     message = path.read_text(encoding="utf-8", errors="replace")
     return [
         finding
-        for number, line in message_lines(message)
+        for number, line in message_lines(message, comments=True)
         for finding in scan_line(line, f"{path}:{number}", allowlist=allowlist, denylist=denylist)
     ]
 
@@ -347,10 +351,10 @@ def _scan_identity() -> list[Finding]:
 
 
 def _scan_commits(
-    revisions: Sequence[str], allowlist: Mapping[str, str], denylist: Sequence[re.Pattern[str]]
+    shas: Sequence[str], allowlist: Mapping[str, str], denylist: Sequence[re.Pattern[str]]
 ) -> list[Finding]:
     findings: list[Finding] = []
-    for sha in commits(revisions):
+    for sha in shas:
         commit = f"commit {sha[:12]}"
         author, committer = git("show", "-s", "--format=%ae%n%ce", sha).splitlines()
         for role, email in (("author", author), ("committer", committer)):
@@ -369,7 +373,7 @@ def _scan_commits(
             "--diff-merges=first-parent",
             sha,
         )
-        for path, binary in diff_files(diff):
+        for path, binary in changed_files(sha):
             findings += scan_line(
                 path, f"{commit} {path} (file name)", allowlist=allowlist, denylist=denylist
             )
@@ -472,9 +476,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.mode == "identity":
         findings = _scan_identity()
     elif args.mode == "commits":
-        findings = _scan_commits(args.revisions, allowlist, terms)
+        findings = _scan_commits(commits(args.revisions), allowlist, terms)
     else:
-        findings = _scan_commits(pushed_revisions(os.environ), allowlist, terms)
+        findings = _scan_commits(pushed_commits(os.environ), allowlist, terms)
 
     # CI logs are public, so a run there never prints the values it found.
     redact = args.redact or os.environ.get("CI") == "true"

@@ -14,7 +14,6 @@ from tools.leak_check import (
     DenylistError,
     added_lines,
     check_identity,
-    diff_files,
     find_config_dir,
     load_allowlist,
     load_denylist,
@@ -31,6 +30,8 @@ HOSTNAME = "db01" + ".corp"
 CONSUL_HOST = "db.service" + ".consul"
 HOME_HOST = "nas" + ".home" + ".arpa"
 RDS_ENDPOINT = "orders-db.abc123xyz.us-east-1" + ".rds" + ".amazonaws.com"
+LEGACY_S3_ENDPOINT = "logs-bucket" + ".s3-us-west-2" + ".amazonaws.com"
+S3_WEBSITE_ENDPOINT = "www-site" + ".s3-website-us-east-1" + ".amazonaws.com"
 EMAIL = "jane.doe" + "@" + "mail-provider.com"
 NO_CONFIG = "no-config"
 
@@ -52,6 +53,8 @@ def scan(text: str) -> list[str]:
         (f"resolve {CONSUL_HOST}", "hostname"),
         (f"open http://{HOME_HOST}/", "hostname"),
         (f"host: {RDS_ENDPOINT}", "cloud-endpoint"),
+        (f"bucket: {LEGACY_S3_ENDPOINT}", "cloud-endpoint"),
+        (f"site: {S3_WEBSITE_ENDPOINT}", "cloud-endpoint"),
         (f"ask {EMAIL}", "e-mail"),
     ],
 )
@@ -188,23 +191,6 @@ def test_added_lines_carry_their_path_and_line_number() -> None:
     ]
 
 
-def test_diff_files_lists_added_changed_and_binary_files_but_not_deleted_ones() -> None:
-    diff = (
-        "diff --git a/notes.md b/notes.md\n"
-        "+++ b/notes.md\n"
-        "@@ -1 +1 @@\n"
-        "+text\n"
-        "diff --git a/empty.txt b/empty.txt\n"
-        "new file mode 100644\n"
-        "diff --git a/data.csv b/data.csv\n"
-        "Binary files /dev/null and b/data.csv differ\n"
-        "diff --git a/old.txt b/old.txt\n"
-        "deleted file mode 100644\n"
-    )
-
-    assert diff_files(diff) == [("notes.md", False), ("empty.txt", False), ("data.csv", True)]
-
-
 def test_files_mode_reports_each_finding_with_its_location(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -257,7 +243,7 @@ def test_redacted_output_hides_the_value(
     assert HOSTNAME not in output
 
 
-def test_message_mode_checks_the_message_but_not_comments_or_the_diff_below_scissors(
+def test_message_mode_checks_comment_lines_but_not_the_diff_below_scissors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
@@ -266,14 +252,17 @@ def test_message_mode_checks_the_message_but_not_comments_or_the_diff_below_scis
     verbose = tmp_path / "VERBOSE_MSG"
     verbose.write_text(
         "fix: remove an address\n"
-        f"# On branch {TICKET}\n"
+        "# On branch main\n"
         "# ------------------------ >8 ------------------------\n"
         f"-host {PRIVATE_IP}\n",
         encoding="utf-8",
     )
+    kept_comment = tmp_path / "KEPT_MSG"
+    kept_comment.write_text(f"docs: add context\n\n# Context: {TICKET}\n", encoding="utf-8")
 
     assert main(["message", str(leaky)]) == 1
     assert main(["message", str(verbose)]) == 0
+    assert main(["message", str(kept_comment)]) == 1
 
 
 def test_identity_mode_names_the_fix_and_never_suggests_the_allowlist(
@@ -373,4 +362,60 @@ def test_pushed_mode_reads_the_range_pre_commit_passes(
     monkeypatch.setenv("PRE_COMMIT_TO_REF", first)
     assert main(["pushed"]) == 0
     monkeypatch.setenv("PRE_COMMIT_TO_REF", second)
+    assert main(["pushed"]) == 1
+
+
+def test_files_mode_checks_a_symlink_by_its_own_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
+    target = tmp_path / "README.md"
+    target.write_text("nothing to see\n", encoding="utf-8")
+    link = tmp_path / f"link-{TICKET}.md"
+    link.symlink_to(target)
+
+    assert main(["files", str(link)]) == 1
+    assert "(file name): ticket-key" in capsys.readouterr().out
+
+
+def test_commits_mode_reads_names_git_would_quote(
+    git: Callable[..., str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
+    repo = Path.cwd()
+    (repo / ".gitattributes").write_text("*.csv -diff\n", encoding="utf-8")
+    (repo / f'q"{TICKET}.csv').write_text(f"host,{HOSTNAME}\n", encoding="utf-8")
+    spaced = repo / f"{TICKET} b"
+    spaced.mkdir()
+    (spaced / "notes.md").write_text("nothing to see\n", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-q", "-m", "docs: add data")
+
+    assert main(["commits", "HEAD"]) == 1
+    output = capsys.readouterr().out
+    assert f'q"{TICKET}.csv (file name): ticket-key' in output
+    assert f'q"{TICKET}.csv:1: hostname' in output
+    assert f"{TICKET} b/notes.md (file name): ticket-key" in output
+
+
+def test_pushed_mode_checks_every_local_commit_the_remote_lacks(
+    git: Callable[..., str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / NO_CONFIG))
+    git("commit", "-q", "--allow-empty", "-m", "chore: start")
+    base = git("rev-parse", "HEAD").strip()
+    git("update-ref", "refs/remotes/origin/main", base)
+    git("switch", "-q", "-c", "clean")
+    git("commit", "-q", "--allow-empty", "-m", "docs: clean")
+    clean = git("rev-parse", "HEAD").strip()
+    git("switch", "-q", "-c", "leaky", base)
+    git("commit", "-q", "--allow-empty", "-m", f"fix: handle {TICKET}")
+    # pre-commit passes only the first ref of `git push origin clean leaky`.
+    monkeypatch.setenv("PRE_COMMIT_REMOTE_NAME", "origin")
+    monkeypatch.setenv("PRE_COMMIT_FROM_REF", base)
+    monkeypatch.setenv("PRE_COMMIT_TO_REF", clean)
+
     assert main(["pushed"]) == 1

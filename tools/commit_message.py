@@ -15,7 +15,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from tools._git import commits, git, message_lines, pushed_revisions
+from tools._git import commits, git, message_lines, pushed_commits
 
 TYPES = (
     "build",
@@ -67,15 +67,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     messages: list[tuple[str, str]]
     if args.range or args.pushed:
         if args.pushed:
-            revisions = pushed_revisions(os.environ)
+            shas = pushed_commits(os.environ, merges=False)
         elif 1 <= len(args.target) <= 2:
-            revisions = args.target
+            shas = commits(args.target, merges=False)
         else:
             parser.error("--range takes [BASE] HEAD")
-        messages = [
-            (f"commit {sha[:12]}", git("show", "-s", "--format=%B", sha))
-            for sha in commits(revisions, merges=False)
-        ]
+        messages = [(f"commit {sha[:12]}", git("show", "-s", "--format=%B", sha)) for sha in shas]
     elif args.target:
         messages = [(name, Path(name).read_text(encoding="utf-8")) for name in args.target]
     else:

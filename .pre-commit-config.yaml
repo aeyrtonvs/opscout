@@ -13,8 +13,7 @@ repos:
       - id: leak-check
         name: leak check, files (ADR-0015)
         entry: uv run --frozen python -m tools.leak_check files
-        language: system
-        types: [text]
+        language: system  # every file: binary files and symlinks have names to check too
       - id: leak-check-identity
         name: leak check, commit e-mail (ADR-0015)
         entry: uv run --frozen python -m tools.leak_check identity

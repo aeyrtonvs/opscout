@@ -42,7 +42,12 @@ def git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Callable[..., str]:
 
     def run(*arguments: str) -> str:
         return subprocess.run(  # noqa: S603  # fixed program; arguments come from the tests
-            [executable, *arguments], cwd=repo, check=True, capture_output=True, text=True
+            [executable, *arguments],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
         ).stdout
 
     run("init", "-q")
