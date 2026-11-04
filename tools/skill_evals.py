@@ -48,6 +48,8 @@ class Grader:
     input_match: str = ""
     minimum: int = 1
     maximum: int | None = None
+    before: tuple[str, str] = ("", "")
+    after: tuple[str, str] = ("", "")
     criteria: str = ""
 
 
@@ -61,6 +63,7 @@ class Case:
     allowed_tools: list[str]
     graders: list[Grader] = field(default_factory=list)
     config_dir: Path | None = None
+    scaffold: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -76,6 +79,13 @@ class Arm:
 def _front(path: Path) -> tuple[dict[str, Any], str]:
     _, front, body = path.read_text(encoding="utf-8").split("---\n", 2)
     return yaml.safe_load(front) or {}, body.strip()
+
+
+def _call(value: Any) -> tuple[str, str]:
+    """Read a tool_order end: a tool name, or ``{tool, input_match}``."""
+    if isinstance(value, dict):
+        return str(value.get("tool", "")), str(value.get("input_match", ""))
+    return str(value or ""), ""
 
 
 def load_cases(evals: Path) -> list[Case]:
@@ -98,6 +108,8 @@ def load_cases(evals: Path) -> list[Case]:
                     input_match=keys.get("input_match", ""),
                     minimum=int(keys.get("min", 1)),
                     maximum=int(keys["max"]) if "max" in keys else None,
+                    before=_call(keys.get("before")),
+                    after=_call(keys.get("after")),
                     criteria=text,
                 )
             )
@@ -110,6 +122,9 @@ def load_cases(evals: Path) -> list[Case]:
                 graders=graders,
                 config_dir=(prompt.parent / "eval-config").resolve()
                 if (prompt.parent / "eval-config").is_dir()
+                else None,
+                scaffold=(prompt.parent / "scaffold.py").resolve()
+                if (prompt.parent / "scaffold.py").is_file()
                 else None,
             )
         )
@@ -134,9 +149,21 @@ def grade(grader: Grader, arm: Arm, judge: Judge) -> bool:
             for name, arguments in arm.tools
         )
         return calls >= grader.minimum and (grader.maximum is None or calls <= grader.maximum)
+    if grader.type == "tool_order":
+        first_before = _first(arm.tools, grader.before)
+        first_after = _first(arm.tools, grader.after)
+        return first_before is not None and first_after is not None and first_before < first_after
     if grader.type == "llm":
         return judge(grader.criteria, arm.prompt, arm.text)
     raise ValueError(f"grader {grader.name}: type {grader.type} is not supported")
+
+
+def _first(tools: Sequence[tuple[str, str]], call: tuple[str, str]) -> int | None:
+    """Return the index of the first tool call matching ``(tool, input_match)``."""
+    for index, (name, arguments) in enumerate(tools):
+        if name == call[0] and re.search(call[1], arguments):
+            return index
+    return None
 
 
 def _with_only(grader: Grader) -> bool:
@@ -168,11 +195,16 @@ def parse_stream(stream: str) -> Arm:
     return Arm(text, tools, cost)
 
 
-def _claude(arguments: list[str], environment: dict[str, str]) -> str:
+def _claude(arguments: list[str], environment: dict[str, str], scaffold: Path | None = None) -> str:
     program = shutil.which("claude")
     if program is None:
         raise SystemExit("skill_evals: the claude command is required")
     with tempfile.TemporaryDirectory() as directory:
+        if scaffold is not None:
+            # A scratch repository or other files the case needs; never a real remote.
+            subprocess.run(  # noqa: S603  (a case's own scaffold, run by this interpreter)
+                [sys.executable, str(scaffold)], cwd=directory, check=True, capture_output=True
+            )
         result = subprocess.run(  # noqa: S603  (the user's own claude CLI)
             [program, *arguments],
             capture_output=True,
@@ -192,7 +224,7 @@ def _run(case: Case, plugin: Path | None, environment: dict[str, str], budget: f
         arguments += ["--allowedTools", *case.allowed_tools]
     if plugin is not None:
         arguments += ["--plugin-dir", str(plugin)]
-    arm = parse_stream(_claude([*arguments, "--", case.prompt], environment))
+    arm = parse_stream(_claude([*arguments, "--", case.prompt], environment, case.scaffold))
     return Arm(arm.text, arm.tools, arm.cost, case.prompt)
 
 

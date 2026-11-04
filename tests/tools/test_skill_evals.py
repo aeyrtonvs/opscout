@@ -327,3 +327,90 @@ def test_the_runner_fails_when_the_plugin_does_not_beat_the_baseline(
     )
 
     assert status == 1  # both arms score 1.00: a delta of 0 is not above the baseline
+
+
+def test_a_tool_order_grader_compares_the_first_calls() -> None:
+    order = Grader(
+        "g",
+        "tool_order",
+        before=("Bash", "git switch -c"),
+        after=("Bash", "git commit"),
+    )
+    good = Arm(
+        "",
+        [
+            ("Bash", '{"command": "git switch -c feat/x"}'),
+            ("Bash", '{"command": "git commit -m x"}'),
+        ],
+        0.0,
+    )
+    bad = Arm(
+        "",
+        [
+            ("Bash", '{"command": "git commit -m x"}'),
+            ("Bash", '{"command": "git switch -c feat/x"}'),
+        ],
+        0.0,
+    )
+    missing = Arm("", [("Bash", '{"command": "git commit -m x"}')], 0.0)
+
+    assert grade(order, good, lambda c, m, t: True)
+    assert not grade(order, bad, lambda c, m, t: True)
+    assert not grade(order, missing, lambda c, m, t: True)
+
+
+def test_tool_order_graders_are_loaded(tmp_path: Path) -> None:
+    write_case(
+        tmp_path,
+        "004-us2-s1",
+        "Ship it.",
+        {
+            "order": "---\ntype: tool_order\nbefore: {tool: Bash, input_match: 'git switch -c'}\n"
+            "after: Bash\n---\n"
+        },
+    )
+
+    (case,) = load_cases(tmp_path)
+
+    assert case.graders[0].before == ("Bash", "git switch -c")
+    assert case.graders[0].after == ("Bash", "")
+
+
+def test_a_scaffold_prepares_the_directory_of_each_arm(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    evals = tmp_path / "evals"
+    write_case(evals, "004-us2-s1", "Ship it.", {"absent": REGEX_ABSENT})
+    (evals / "004-us2-s1" / "scaffold.py").write_text(
+        "from pathlib import Path\nPath('marker').write_text('scaffolded', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "claude").write_text(
+        f"#!{sys.executable}\nimport json, pathlib\n"
+        "text = pathlib.Path('marker').read_text(encoding='utf-8')\n"
+        "print(json.dumps({'type': 'result', 'result': text, 'total_cost_usd': 0}))\n",
+        encoding="utf-8",
+    )
+    (fake / "claude").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ['PATH']}")
+    out = tmp_path / "result.json"
+
+    main(
+        [
+            "--plugin",
+            str(tmp_path),
+            "--evals",
+            str(evals),
+            "--config-dir",
+            str(tmp_path),
+            "--max-cost-usd",
+            "2",
+            "--out",
+            str(out),
+        ]
+    )
+
+    (case,) = json.loads(out.read_text(encoding="utf-8"))["cases"]
+    assert case["with"]["reply"] == case["without"]["reply"] == "scaffolded"
