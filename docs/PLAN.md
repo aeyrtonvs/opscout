@@ -308,9 +308,9 @@ The order matters: commit identity comes before the first commit.
      line pushes that expose my email", so the commits GitHub itself makes (squash merges,
      "Update branch") also carry the no-reply address;
    - replace the Code of Conduct's placeholder with the project's contact address (§9);
-   - choose the visibility. On GitHub Free a private repository has no private
-     vulnerability reporting, push protection or rulesets, and its macOS runner minutes
-     count ten times.
+   - the visibility is public, decided on 2026-11-03: on GitHub Free a private repository
+     has no private vulnerability reporting, push protection or rulesets, and its macOS
+     runner minutes count ten times.
    Then turn on what the repository files rely on: private vulnerability reporting
    (`SECURITY.md`), secret scanning with push protection (ADR-0015), and the ruleset on
    `main` (ADR-0016) without required approvals, which a single maintainer cannot give.
@@ -458,7 +458,9 @@ genai.owasp.org (Top 10 for Agentic Applications).
       accepted, on 2026-11-03.
 - [ ] Rule-5 gate gaps: forms that escaped the `ask` rules (`git -C … push`,
       `git -c … push` and similar) are denied by the PreToolUse guard since 2026-11-03, and
-      the `gh` commands that change things on GitHub have `ask` rules. Still open: account
+      the `gh` commands that change things on GitHub have `ask` rules, listed one by one from
+      gh 2.88.1. Decided 2026-11-03: new `gh` commands are added as they appear, rather than
+      asking before every `gh` command. Still open: account
       connectors that also send data out (ticket and docs tools, artifact publishing) are
       not gated in this repo; decide whether rule 5 covers them.
 - [ ] Rule 3's gates (the read-only identity, tool allow-lists and allow-listed host
