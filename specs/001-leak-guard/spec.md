@@ -200,6 +200,9 @@ pattern change in the history comes with a test case.
   cannot stall the check.
 - **No git identity**: when no identity is configured there is no commit to check, so the
   identity check passes.
+- **Redacted locations**: a value found in a file or ref name is part of the finding's
+  location too, so redaction hides it there as well; found during implementation, where a
+  file name in CI output still showed the whole value.
 - **Deletions**: removing a leak is never blocked; only added or changed content is checked.
   Likewise, pushing the deletion of a remote branch or tag is not checked.
 - **A push with no new commit**: the hook framework runs no pre-push hook when a push brings
@@ -286,7 +289,8 @@ pattern change in the history comes with a test case.
 - **FR-023**: After the findings, the check MUST print one hint for each kind of finding
   present: layer-1 patterns (one shared hint), private terms, and commit e-mail.
 - **FR-024**: When run in CI, or when asked to, the check MUST redact the matched values,
-  keeping at most their first two characters.
+  keeping at most their first two characters, wherever they appear in its output, including
+  inside the file or ref name a finding is located in.
 
 **Allow-list and pattern changes**
 

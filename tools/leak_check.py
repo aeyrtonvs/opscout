@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The leak check: real data never reaches this public repository (ADR-0015).
+"""The leak check: real data never reaches this public repository (ADR-0015, spec 001).
 
 Layer 1 looks for generic shapes: account IDs, IP addresses, chat IDs, ticket keys, internal
 hostnames, cloud resource endpoints and e-mail addresses (gitleaks covers secrets). Layer 2
@@ -12,12 +12,17 @@ File names are checked as well as contents.
     python -m tools.leak_check message FILE          # layers 1 and 2, on a commit message
     python -m tools.leak_check identity              # layer 3, on the commit being made
     python -m tools.leak_check commits [BASE] HEAD   # every layer, on each commit (CI)
-    python -m tools.leak_check pushed                # the same, on the commits being pushed
+    python -m tools.leak_check pushed                # the same, on the commits being pushed,
+                                                     # and layers 1 and 2 on the ref names
 
 A value that layer 1 flags but that is not real data goes in ``leak_allowlist.toml``, with
 the reason. Layer-2 matches cannot be allow-listed: refine the private deny-list instead. In
 a clone where ``git config opscout.requireDenylist`` is true, a missing deny-list is an error
 rather than a warning.
+
+The behavior is specified in ``specs/001-leak-guard/spec.md``. A pattern or its harmless
+values change only on evidence: first a synthetic test case that reproduces the real miss or
+false positive and fails, then the change that makes it pass (FR-027).
 """
 
 import argparse
@@ -31,7 +36,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from tools._git import commits, git, message_lines, pushed_commits
+from tools._git import commits, git, local_ref_names, message_lines, pushed_commits
 
 ALLOWLIST_FILE = Path(__file__).with_name("leak_allowlist.toml")
 DENYLIST_NAME = "leak-denylist.txt"
@@ -45,10 +50,22 @@ class Finding:
     rule: str
     value: str
 
-    def render(self, *, redact: bool) -> str:
-        """Format the finding; a redacted one keeps only the value's first two characters."""
-        shown = f"{self.value[:2]}… (redacted)" if redact else self.value
-        return f"{self.location}: {self.rule}: {shown}"
+    def render(self, *, redact: bool, hidden: Sequence[str] = ()) -> str:
+        """Format the finding.
+
+        A redacted finding keeps only the first two characters of its value, and of each
+        ``hidden`` value wherever it appears in the location, such as a file or ref name.
+        """
+        if not redact:
+            return f"{self.location}: {self.rule}: {self.value}"
+        location = self.location
+        for value in sorted({self.value, *hidden}, key=len, reverse=True):
+            location = location.replace(value, _redacted(value))
+        return f"{location}: {self.rule}: {_redacted(self.value)}"
+
+
+def _redacted(value: str) -> str:
+    return f"{value[:2]}… (redacted)"
 
 
 @dataclass(frozen=True)
@@ -390,6 +407,40 @@ def _scan_commits(
     return findings
 
 
+REF_PREFIXES = ("refs/heads/", "refs/tags/")
+
+
+def pushed_ref_names(environ: Mapping[str, str]) -> list[str]:
+    """Return the ref names a push may publish, without their prefix, each once.
+
+    pre-commit passes only the first pushed ref, by its local and its remote name. Every
+    local branch and tag is added, so the other refs of a push are covered too, at the cost
+    of also checking local refs that are not pushed (research.md R1).
+    """
+    candidates = [
+        environ.get("PRE_COMMIT_LOCAL_BRANCH", ""),
+        environ.get("PRE_COMMIT_REMOTE_BRANCH", ""),
+        *local_ref_names(),
+    ]
+    names: dict[str, None] = {}
+    for candidate in candidates:
+        for prefix in REF_PREFIXES:
+            candidate = candidate.removeprefix(prefix)
+        if candidate:
+            names[candidate] = None
+    return list(names)
+
+
+def _scan_ref_names(
+    names: Sequence[str], allowlist: Mapping[str, str], denylist: Sequence[re.Pattern[str]]
+) -> list[Finding]:
+    return [
+        finding
+        for name in names
+        for finding in scan_line(name, f"ref {name}", allowlist=allowlist, denylist=denylist)
+    ]
+
+
 def _denylist_required() -> bool:
     """Whether this clone asks for the private deny-list (``opscout.requireDenylist``)."""
     try:
@@ -437,7 +488,9 @@ def _parser() -> argparse.ArgumentParser:
     modes.add_parser("commits", help="every layer on each commit of a range").add_argument(
         "revisions", nargs="+", metavar="[BASE] HEAD"
     )
-    modes.add_parser("pushed", help="every layer on each commit being pushed (pre-push)")
+    modes.add_parser(
+        "pushed", help="every layer on each commit being pushed, and the ref names (pre-push)"
+    )
     return parser
 
 
@@ -479,11 +532,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         findings = _scan_commits(commits(args.revisions), allowlist, terms)
     else:
         findings = _scan_commits(pushed_commits(os.environ), allowlist, terms)
+        findings += _scan_ref_names(pushed_ref_names(os.environ), allowlist, terms)
 
-    # CI logs are public, so a run there never prints the values it found.
+    # CI logs are public, so a run there never prints the values it found, not even inside a
+    # file or ref name.
     redact = args.redact or os.environ.get("CI") == "true"
+    hidden = [finding.value for finding in findings]
     for finding in findings:
-        print(finding.render(redact=redact))
+        print(finding.render(redact=redact, hidden=hidden))
     if findings:
         rules = {finding.rule for finding in findings}
         hints = [HINTS[rule] for rule in sorted(rules & HINTS.keys())]
