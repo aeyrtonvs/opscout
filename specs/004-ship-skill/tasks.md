@@ -53,10 +53,10 @@ their FRs in `tags`. Scratch repositories with a local bare remote only.
 
 ## Phase 5: User Story 2 — the skill (P1)
 
-- [ ] T013 [US2] Write failing tests for `plugins/opscout/skills/ship/SKILL.md`: frontmatter,
+- [X] T013 [US2] Write failing tests for `plugins/opscout/skills/ship/SKILL.md`: frontmatter,
   contract first (FR-014), the injected conventions (FR-015), and an `allowed-tools` list that
   holds only its procedure's commands and whose rules match them after substitution (FR-021)
-- [ ] T014 [US2] Write the skill (procedure of FR-016 to FR-020); T013 passes
+- [X] T014 [US2] Write the skill (procedure of FR-016 to FR-020); T013 passes
 
 ## Phase 6: Evals
 

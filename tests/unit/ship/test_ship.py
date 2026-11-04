@@ -638,6 +638,95 @@ def test_the_check_commands_exit_with_the_result(
     monkeypatch.setattr("sys.stdin", io.StringIO("wip\n"))
     assert main(["ship", "check-message", "-"]) == 1
     assert "trailer" in capsys.readouterr().out
+    # -m paragraphs, as git commit -m takes them
+    assert (
+        main(["ship", "check-message", "-m", "feat: add the guard", "-m", "Why.", "-m", TRAILER])
+        == 0
+    )
+    assert main(["ship", "check-message", "-m", "feat: add the guard"]) == 1
+    with pytest.raises(SystemExit):
+        main(["ship", "check-message"])
+
+
+# The skill (User Story 2)
+
+SKILL = PLUGIN / "skills" / "ship" / "SKILL.md"
+LAUNCHER_CALL = '"${CLAUDE_PLUGIN_ROOT}/bin/opscout"'
+INJECTION = "!`" + LAUNCHER_CALL + " ship rules --config '${user_config.config_dir}'`"
+# Every command the procedure runs; nothing broader may be pre-approved.
+PROCEDURE = [
+    LAUNCHER_CALL + " ship rules --config ''",
+    LAUNCHER_CALL + " ship check-branch feat/add-the-guard --default-branch main",
+    LAUNCHER_CALL + " ship check-message -m 'feat: add the guard' -m 'Assisted-by: Claude Code'",
+    "git status --short --branch",
+    "git diff --stat",
+    "git diff --staged --stat",
+    "git symbolic-ref --short refs/remotes/origin/HEAD",
+    "git remote get-url origin",
+    "git switch -c feat/add-the-guard",
+    "git add src/example.py",
+    "git commit -m 'feat: add the guard' -m 'Assisted-by: Claude Code'",
+    "git push -u origin feat/add-the-guard",
+    "gh auth status",
+    "gh pr create --draft --base main --head feat/add-the-guard --title 'feat: x' --body 'x'",
+]
+TOO_BROAD = [
+    "git reset --hard",
+    "git push --force origin main",
+    "gh pr merge 1",
+    "git rebase main",
+    "rm -rf build",
+]
+
+
+def ship_skill() -> tuple[dict[str, Any], str]:
+    _, front, body = SKILL.read_text(encoding="utf-8").split("---\n", 2)
+    return yaml.safe_load(front), body
+
+
+def rule_matches(rule: str, command: str, root: str) -> bool:
+    inner = rule.replace("${CLAUDE_PLUGIN_ROOT}", root).removeprefix("Bash(").removesuffix(")")
+    if inner.endswith(" *") and command == inner[:-2]:
+        return True  # `Bash(gh auth status *)` also matches the bare command (PLAN.md §8)
+    return re.fullmatch(".*".join(map(re.escape, inner.split("*"))), command) is not None
+
+
+@spec("FR-014")
+def test_the_ship_skill_follows_the_agent_skills_specification_and_opens_with_its_contract() -> (
+    None
+):
+    front, body = ship_skill()
+    contract = body.split("## Contract\n", 1)[1].split("\n## ", 1)[0]
+
+    assert front["name"] == SKILL.parent.name == "ship"
+    assert 1 <= len(front["description"]) <= 1024
+    assert body.lstrip().startswith("# Ship\n\n## Contract\n")
+    for part in ("**Deliverable:**", "**Constraints:**", "**Non-goals:**", "**Acceptance:**"):
+        assert part in contract
+    for never in ("protected branch", "force-push", "merge", "rewrite"):
+        assert never in contract
+
+
+@spec("FR-015")
+def test_the_ship_skill_injects_the_conventions() -> None:
+    _, body = ship_skill()
+
+    assert [line for line in body.splitlines() if line.startswith("!`")] == [INJECTION]
+
+
+@spec("FR-021")
+@pytest.mark.parametrize("root", ["/opt/plugins/opscout", "/Users/example user/plugins/opscout"])
+def test_the_ship_skill_pre_approves_its_procedure_and_nothing_broader(root: str) -> None:
+    front, _ = ship_skill()
+    rules = front["allowed-tools"]
+    procedure = [command.replace("${CLAUDE_PLUGIN_ROOT}", root) for command in PROCEDURE]
+    injected = INJECTION[2:-1].replace("${CLAUDE_PLUGIN_ROOT}", root)
+
+    assert isinstance(rules, list)
+    for command in [*procedure, injected]:
+        assert any(rule_matches(rule, command, root) for rule in rules), command
+    for command in TOO_BROAD:
+        assert not any(rule_matches(rule, command, root) for rule in rules), command
 
 
 # Proof

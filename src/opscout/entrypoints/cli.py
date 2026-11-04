@@ -78,7 +78,15 @@ def build_parser() -> argparse.ArgumentParser:
     branch.add_argument("name")
     branch.add_argument("--default-branch", metavar="NAME", help="the remote's default branch")
     message = ship_commands.add_parser("check-message", help="check a commit message")
-    message.add_argument("file", help="the message file, or - for standard input")
+    message_source = message.add_mutually_exclusive_group(required=True)
+    message_source.add_argument("file", nargs="?", help="the message file, or - for standard input")
+    message_source.add_argument(
+        "-m",
+        dest="paragraphs",
+        action="append",
+        metavar="PARAGRAPH",
+        help="a paragraph, as git commit -m takes it; repeat for more",
+    )
     for command in (rules, branch, message):
         command.add_argument(
             "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
@@ -151,7 +159,12 @@ def _ship(args: argparse.Namespace) -> int:
     if args.ship_command == "check-branch":
         reasons = check_branch(args.name, ship, default=args.default_branch)
     else:
-        text = sys.stdin.read() if args.file == "-" else Path(args.file).read_text("utf-8")
+        if args.paragraphs:
+            text = "\n\n".join(args.paragraphs) + "\n"
+        elif args.file == "-":
+            text = sys.stdin.read()
+        else:
+            text = Path(args.file).read_text(encoding="utf-8")
         reasons = check_message(text, ship)
     for reason in reasons:
         print(reason)
