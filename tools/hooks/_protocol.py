@@ -21,7 +21,7 @@ class Result:
 
 def run_hook(decide: Callable[[Event], Decision | None]) -> int:
     """Read the event, write the decision if there is one, and return the exit code."""
-    event: Event = json.load(sys.stdin)
+    event: Event = json.loads(sys.stdin.buffer.read().decode("utf-8"))  # not the locale's
     decision = decide(event)
     if decision is not None:
         json.dump(decision, sys.stdout)

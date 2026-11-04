@@ -3,7 +3,8 @@
 
 ``stop_hook_active`` is true when the agent is already continuing because of a stop hook.
 The second stop is then let through, so the agent reports the failure to the maintainer
-instead of looping (AGENTS.md: "if the same check fails twice ... stop").
+instead of looping (AGENTS.md: "if the same check fails twice ... stop"). The checks run
+again on that stop, and if they still fail the maintainer sees a warning.
 """
 
 import os
@@ -18,15 +19,18 @@ MAX_REPORT_CHARS = 6000
 
 
 def decide(event: Event, checks: Callable[[], Result]) -> Decision | None:
-    """Block the first stop while the fast checks fail; let every other stop through."""
-    if event.get("stop_hook_active"):
-        return None
+    """Block the first stop while the fast checks fail; on the next one, only warn."""
     result = checks()
     if result.returncode == 0:
         return None
     report = result.output.strip()
     if len(report) > MAX_REPORT_CHARS:
         report = "...\n" + report[-MAX_REPORT_CHARS:]
+    if event.get("stop_hook_active"):
+        return {
+            "systemMessage": "The fast checks (`uv run just fast`) still fail after one retry:\n"
+            + report
+        }
     return {
         "decision": "block",
         "reason": (

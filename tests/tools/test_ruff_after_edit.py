@@ -24,17 +24,27 @@ def edit_event(path: Path) -> dict[str, object]:
     return {"tool_name": "Edit", "tool_input": {"file_path": str(path)}}
 
 
-def test_a_clean_python_file_is_fixed_formatted_and_checked(tmp_path: Path) -> None:
+def test_fixes_come_before_formatting_and_the_last_check(tmp_path: Path) -> None:
     module = tmp_path / "module.py"
     module.write_text("x = 1\n", encoding="utf-8")
     ruff = FakeRuff(remaining=Result(0, "All checks passed!"))
 
     assert decide(edit_event(module), tmp_path, ruff) is None
     assert [call[:2] for call in ruff.calls] == [
-        ["format", "--force-exclude"],
         ["check", "--fix"],
+        ["format", "--force-exclude"],
         ["check", "--force-exclude"],
     ]
+
+
+def test_an_import_added_before_its_first_use_survives(tmp_path: Path) -> None:
+    module = tmp_path / "module.py"
+    module.write_text("import os\n", encoding="utf-8")
+
+    decision = decide(edit_event(module), tmp_path, lambda args: run_ruff(args, tmp_path))
+
+    assert decision is None
+    assert module.read_text(encoding="utf-8") == "import os\n"
 
 
 def test_what_ruff_cannot_fix_is_reported_to_the_agent(tmp_path: Path) -> None:

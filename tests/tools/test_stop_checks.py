@@ -32,11 +32,19 @@ def test_failing_checks_block_the_first_stop_and_say_why() -> None:
     assert "Found 1 error" in decision["reason"]
 
 
-def test_the_stop_after_a_block_goes_through_without_running_the_checks_again() -> None:
+def test_the_stop_after_a_block_goes_through_and_warns_the_user_if_still_failing() -> None:
     checks = FakeChecks(FAILING)
 
-    assert decide(stop_event(continuing=True), checks) is None
-    assert checks.runs == 0
+    decision = decide(stop_event(continuing=True), checks)
+
+    assert decision is not None
+    assert "decision" not in decision
+    assert "Found 1 error" in decision["systemMessage"]
+    assert checks.runs == 1
+
+
+def test_the_stop_after_a_block_is_silent_once_the_checks_pass() -> None:
+    assert decide(stop_event(continuing=True), FakeChecks(PASSING)) is None
 
 
 def test_passing_checks_let_the_agent_stop() -> None:

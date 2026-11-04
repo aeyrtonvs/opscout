@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """PostToolUse hook: ruff fixes and formats each Python file the agent edits (ADR-0018).
 
-What ruff cannot fix is sent back to the agent next to the tool result. Files outside the
-project, and files the ruff configuration excludes, are left alone.
+Fixes come first and formatting second, as ruff recommends. What ruff cannot fix is sent
+back to the agent next to the tool result. An unused import is neither removed nor
+reported here, because agents often add an import one edit before its first use; the
+fast checks report it if it stays unused. Files outside the project, and files the ruff
+configuration excludes, are left alone.
 """
 
 import os
@@ -29,9 +32,11 @@ def decide(event: Event, project_dir: Path, ruff: Ruff) -> Decision | None:
         or not path.resolve().is_relative_to(project_dir.resolve())
     ):
         return None
+    ruff(["check", "--fix", "--unfixable", "F401", "--force-exclude", str(path)])
     ruff(["format", "--force-exclude", str(path)])
-    ruff(["check", "--fix", "--force-exclude", str(path)])
-    remaining = ruff(["check", "--force-exclude", "--output-format", "concise", str(path)])
+    remaining = ruff(
+        ["check", "--force-exclude", "--ignore", "F401", "--output-format", "concise", str(path)]
+    )
     if remaining.returncode == 0:
         return None
     return {
