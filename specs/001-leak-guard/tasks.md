@@ -147,6 +147,9 @@ read it.
 
 - [ ] T020 [US5] Test that an allow-list entry without a value stops the run with an error
   naming the entry (FR-025), in `tests/tools/test_leak_check.py`
+- [ ] T027 [US5] Test that every entry of `tools/leak_allowlist.toml` is still matched by a
+  layer-1 rule when the allow-list is left out, so a stale entry fails (FR-027), in
+  `tests/tools/test_leak_check.py`
 - [ ] T021 [P] [US5] State FR-027 in `CONTRIBUTING.md` ("The leak check" section): a pattern
   or harmless-value change starts from a synthetic test case that fails before it; and say
   that the push check also examines branch and tag names (FR-032)
@@ -161,8 +164,7 @@ read it.
 - [ ] T023 Traceability test (FR-030, SC-005; research.md R3): parse every `FR-0NN` in
   `specs/001-leak-guard/spec.md` and fail if any has no test in
   `tests/tools/test_leak_check.py` marked `spec("001", "FR-0NN")`, in
-  `tests/tools/test_leak_check.py`. FR-027 is a review rule (a change comes with its test
-  case), so the test exempts it explicitly, with that reason, rather than faking a test
+  `tests/tools/test_leak_check.py`, with no exemptions
 - [ ] T024 [P] Update `docs/PLAN.md`: the leak-guard row of Phase 0b points at
   `specs/001-leak-guard/` with its status; §9 records the known limit of research.md R1 (a
   push with no new commit runs no pre-commit hook, so its ref names are not checked)
@@ -190,6 +192,8 @@ read it.
 ## Implementation strategy
 
 - **MVP**: Phases 1–3 (US1): the gate is traced and every layer-1 rule proven.
+- **Note**: T027 was added by `/speckit-analyze` (finding C1); it keeps its number so the
+  other IDs stay stable.
 - **Then**: US2 (private terms), US3 (identity), US4 (the one behavior change, ref names),
   US5 (evidence rule), and the traceability gate that closes SC-005.
 - Commit after each phase; each commit passes the gates.

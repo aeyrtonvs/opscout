@@ -143,8 +143,8 @@ added with the hooks skipped, then run the push check and the range check over t
    names that commit.
 2. **Given** a push of several branches, **When** the push check runs, **Then** every local
    commit that the remote does not have is checked, not only the first branch's.
-3. **Given** a new branch whose base is unknown to the remote, **When** the range is
-   checked, **Then** every commit reachable from the head that the remote lacks is checked.
+3. **Given** a new branch whose base is unknown to the remote, **When** the push check
+   runs, **Then** every commit reachable from the head that the remote lacks is checked.
 4. **Given** a run in CI, **When** the check reports a finding, **Then** the output shows the
    rule and location but not the value.
 5. **Given** a commit that only deletes a file holding a leak, **When** the range is checked,
@@ -202,6 +202,10 @@ pattern change in the history comes with a test case.
   identity check passes.
 - **Deletions**: removing a leak is never blocked; only added or changed content is checked.
   Likewise, pushing the deletion of a remote branch or tag is not checked.
+- **A push with no new commit**: the hook framework runs no pre-push hook when a push brings
+  no commit the remote lacks (for example a new branch on a commit already pushed), so its
+  ref names are not checked; the confirmation asked before every push (AGENTS.md rule 5) is
+  the control left, and PLAN.md §9 records the limit.
 - **Ref names**: a branch or tag name is checked as a whole, so a ticket key embedded in
   `fix/<key>-summary` is found; the remote's name and URL are not checked.
 
@@ -263,9 +267,9 @@ pattern change in the history comes with a test case.
 - **FR-018**: Before each push, the check MUST examine, with every layer, every local commit
   the remote does not have: its identity, its message, the names of the files it adds or
   changes, and the lines it adds.
-- **FR-032**: Before each push, the check MUST examine the name of every branch and tag being
-  pushed with layers 1 and 2, and report a finding against the ref. Deleting a remote ref is
-  not checked.
+- **FR-032**: Whenever the pre-push hooks run, the check MUST examine, with layers 1 and 2,
+  the name of every branch and tag being pushed, and report a finding against the ref.
+  Deleting a remote ref is not checked.
 - **FR-019**: The check MUST examine a given range of commits in the same way, so CI can
   check every commit of a pull request; a range without a known base covers every commit
   reachable from its head.
@@ -279,7 +283,8 @@ pattern change in the history comes with a test case.
 - **FR-022**: Each finding MUST state its location (file and line, file name, message line,
   or commit and role), its rule and the matched value, and the check MUST exit with a failure
   status when there is at least one finding.
-- **FR-023**: After the findings, the check MUST print one hint per kind of finding.
+- **FR-023**: After the findings, the check MUST print one hint for each kind of finding
+  present: layer-1 patterns (one shared hint), private terms, and commit e-mail.
 - **FR-024**: When run in CI, or when asked to, the check MUST redact the matched values,
   keeping at most their first two characters.
 
@@ -289,8 +294,10 @@ pattern change in the history comes with a test case.
   value and a non-empty reason; an entry missing either MUST stop the check with an error
   naming the entry.
 - **FR-026**: An allow-listed value MUST NOT be reported by layer 1.
-- **FR-027**: Every change to a layer-1 pattern or to its harmless values MUST come with a
-  synthetic test case that reproduces the miss or false positive it fixes.
+- **FR-027**: Every allow-list entry MUST still be matched by a layer-1 rule; an entry that
+  no rule matches any more is stale and MUST fail the test suite. Beyond that, every change
+  to a layer-1 pattern or to its harmless values comes with a synthetic test case that
+  reproduces the miss or false positive it fixes (checked in review).
 
 **Test suite**
 
