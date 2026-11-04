@@ -235,19 +235,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run the cases; exit 1 below the threshold, 2 at the cost ceiling."""
     args = _parser().parse_args(argv)
     environment = {**os.environ, "OPSCOUT_CONFIG": str(args.config_dir.resolve())}
+    plugin = args.plugin.resolve()  # each run starts in an empty directory
     spent: list[float] = []
     judge = _judge_with(environment, spent)
     results: list[dict[str, Any]] = []
     partial = False
-    for case in load_cases(args.evals or args.plugin / "evals"):
+    for case in load_cases(args.evals or plugin / "evals"):
         if not fnmatch.fnmatch(case.name, args.case):
             continue
         if sum(spent) >= args.max_cost_usd:
             partial = True
             break
         record: dict[str, Any] = {"name": case.name}
-        for label, plugin in (("with", args.plugin), ("without", None)):
-            arm = _run(case, plugin, environment)
+        for label, loaded in (("with", plugin), ("without", None)):
+            arm = _run(case, loaded, environment)
             spent.append(arm.cost)
             passed = {g.name: grade(g, arm, judge) for g in case.graders}
             record[label] = {

@@ -146,6 +146,8 @@ if "--model" in args:  # the judge
     print(json.dumps({{"type": "result", "result": "PASS", "total_cost_usd": 0.001}}))
     sys.exit(0)
 with_plugin = "--plugin-dir" in args
+if with_plugin and not args[args.index("--plugin-dir") + 1].startswith("/"):
+    sys.exit("relative plugin path")  # each run starts in an empty directory
 events = []
 if with_plugin:
     events.append({{"type": "assistant", "message": {{"content": [
@@ -174,10 +176,11 @@ def test_the_runner_scores_both_arms_and_records_the_result(
     monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ['PATH']}")
     out = tmp_path / "result.json"
 
+    monkeypatch.chdir(tmp_path)
     status = main(
         [
             "--plugin",
-            str(tmp_path / "plugin"),
+            "plugin",
             "--evals",
             str(evals),
             "--config-dir",
@@ -215,10 +218,11 @@ def test_the_runner_stops_at_the_cost_ceiling(
     monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ['PATH']}")
     out = tmp_path / "result.json"
 
+    monkeypatch.chdir(tmp_path)
     status = main(
         [
             "--plugin",
-            str(tmp_path / "plugin"),
+            "plugin",
             "--evals",
             str(evals),
             "--config-dir",
