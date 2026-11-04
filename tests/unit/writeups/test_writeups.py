@@ -7,6 +7,9 @@ eval cases name theirs in their ``tags``. Reserved, fake values only (Principle 
 
 import json
 import re
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 import jsonschema  # type: ignore[import-untyped]
@@ -15,7 +18,11 @@ import pytest
 import yaml
 
 from opscout.core.config import Configuration, WriteupFormat, Writeups, schema_text
+from opscout.core.writeups import BUILT_IN_FORMATS, SHARED_RULES
+from opscout.entrypoints.cli import main
 from opscout.services.config import parse_config
+from opscout.services.writeups import render_formats, resolve_formats
+from tools.leak_check import scan_text
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SPEC_FILE = REPO_ROOT / "specs" / "003-summary-skill" / "spec.md"
@@ -143,6 +150,208 @@ def test_the_compatibility_file_uses_every_writeups_field() -> None:
 
     assert set(document) == set(Writeups.model_fields)
     assert format_fields == set(WriteupFormat.model_fields)
+
+
+# Resolving and printing the formats (User Story 2)
+
+BUILT_IN_TEXT = """\
+## Rules for every format
+- State only facts from the session; invent nothing: no ticket keys, names, times or figures that the session does not state.
+- Never list what was evaluated and ruled out, nor how the result was reached.
+- Never include a secret value; you may say that a secret exists and where it lives.
+- Write plain text ready to paste: no preamble, and no headings other than the format's sections.
+
+## ticket (built-in)
+A ticket update: the problem, its cause, what was done and what is left.
+Sections, in order: What happened; Why; What was done; What is pending
+At most 12 lines.
+
+## message (built-in)
+A short chat message for teammates.
+At most 5 lines.
+Rules:
+- Two to four sentences, no sections.
+
+## postmortem (built-in)
+An incident postmortem.
+Sections, in order: Cause; Impact; Fix; Follow-ups
+At most 25 lines.
+"""  # noqa: E501  (the expected output, line for line)
+
+
+@spec("FR-005")
+def test_the_built_in_formats_forbid_listing_what_was_ruled_out() -> None:
+    assert list(BUILT_IN_FORMATS) == ["ticket", "message", "postmortem"]
+    assert any(
+        "ruled out" in rule and "how the result was reached" in rule for rule in SHARED_RULES
+    )
+    assert BUILT_IN_FORMATS["ticket"].sections == [
+        "What happened",
+        "Why",
+        "What was done",
+        "What is pending",
+    ]
+    assert BUILT_IN_FORMATS["postmortem"].sections == ["Cause", "Impact", "Fix", "Follow-ups"]
+
+
+@spec("FR-007")
+def test_the_built_in_formats_hold_no_organization_term() -> None:
+    text = render_formats(resolve_formats(Writeups()), source="Source: built-in", language=None)
+
+    assert scan_text(text, "built-in formats", allowlist={}, denylist=[]) == []
+
+
+@spec("FR-006")
+def test_a_configured_format_replaces_or_adds() -> None:
+    writeups = configuration(
+        "writeups:\n"
+        "  formats:\n"
+        "    zeta-notes: {description: Added last by name.}\n"
+        "    ticket: {description: The team's own ticket shape., sections: [Summary]}\n"
+        "    alpha-notes: {description: Added first by name.}\n"
+    ).writeups
+
+    resolved = resolve_formats(writeups)
+
+    assert [(f.name, f.origin) for f in resolved] == [
+        ("ticket", "configured"),
+        ("message", "built-in"),
+        ("postmortem", "built-in"),
+        ("alpha-notes", "configured"),
+        ("zeta-notes", "configured"),
+    ]
+    assert resolved[0].format == WriteupFormat(
+        description="The team's own ticket shape.", sections=["Summary"]
+    )
+
+
+@spec("FR-008")
+def test_the_built_in_formats_are_printed_as_instructions() -> None:
+    text = render_formats(resolve_formats(Writeups()), source="Source: example", language=None)
+
+    assert text == "# Write-up formats\n\nSource: example\n\n" + BUILT_IN_TEXT
+
+
+@spec("FR-008")
+def test_the_language_and_shared_rules_come_first() -> None:
+    writeups = configuration(
+        "writeups:\n  language: Example\n  rules: [Name services as the team does.]\n"
+    ).writeups
+
+    text = render_formats(resolve_formats(writeups), source="Source: example", language="Example")
+    lines = text.splitlines()
+
+    assert lines[2:5] == ["Source: example", "Language: Example", ""]
+    rules = lines[
+        lines.index("## Rules for every format") + 1 : lines.index("## ticket (built-in)")
+    ]
+    assert rules[:4] == [f"- {rule}" for rule in SHARED_RULES]
+    assert rules[4] == "- Name services as the team does."
+    assert rule_lines(writeups) == len(SHARED_RULES) + 1
+
+
+def rule_lines(writeups: Writeups) -> int:
+    """Count the shared rules printed for a writeups section."""
+    text = render_formats(resolve_formats(writeups), source="s", language=None)
+    block = text.split("## Rules for every format\n")[1].split("\n\n")[0]
+    return len(block.splitlines())
+
+
+@spec("FR-011")
+def test_the_same_configuration_prints_the_same_text() -> None:
+    writeups = configuration(
+        "writeups:\n  formats:\n    b: {description: x}\n    a: {description: y}\n"
+    ).writeups
+
+    first = render_formats(resolve_formats(writeups), source="s", language=None)
+    assert render_formats(resolve_formats(writeups), source="s", language=None) == first
+
+
+# The formats command (User Story 2)
+
+
+def write_config(directory: Path, text: str) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "config.yaml").write_text(f"schema_version: 1\n{text}", encoding="utf-8")
+    return directory
+
+
+@spec("FR-009")
+@spec("FR-010")
+def test_the_command_prints_the_configured_formats(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    directory = write_config(
+        tmp_path, "writeups:\n  formats:\n    status-update: {description: x}\n"
+    )
+
+    assert main(["writeup", "formats", "--config", str(directory)]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith(
+        f"# Write-up formats\n\nSource: {directory / 'config.yaml'} (from --config)\n"
+    )
+    assert "## status-update (configured)\nx\n" in out
+
+
+@spec("FR-010")
+def test_a_missing_directory_falls_back_to_the_built_in_formats(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    missing = tmp_path / "missing"
+
+    assert main(["writeup", "formats", "--config", str(missing)]) == 0
+    assert capsys.readouterr().out == (
+        "# Write-up formats\n\n"
+        f"Source: none, {missing}: no such directory (from --config); "
+        "using the built-in formats\n\n" + BUILT_IN_TEXT
+    )
+
+
+@spec("FR-010")
+@spec("FR-018")
+def test_an_invalid_configuration_prints_no_format(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    directory = write_config(tmp_path, "writeups:\n  formats:\n    Bad_Name: {description: x}\n")
+
+    assert main(["writeup", "formats", "--config", str(directory)]) == 0
+    assert capsys.readouterr().out == (
+        "# Write-up formats\n\n"
+        f"The configuration in {directory} has 1 problem(s), so no write-up format is available.\n"
+        f"Run `opscout config validate --config {directory}` to list them.\n"
+    )
+
+
+@spec("FR-009")
+def test_an_empty_config_option_counts_as_absent(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    directory = write_config(tmp_path, "")
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(directory))
+
+    assert main(["writeup", "formats", "--config", ""]) == 0
+    assert f"Source: {directory / 'config.yaml'} (from OPSCOUT_CONFIG)" in capsys.readouterr().out
+
+
+def test_printing_the_formats_takes_under_two_seconds() -> None:
+    started = time.perf_counter()
+    result = subprocess.run(  # noqa: S603  (the interpreter running the tests)
+        [
+            sys.executable,
+            "-m",
+            "opscout",
+            "writeup",
+            "formats",
+            "--config",
+            str(REPO_ROOT / "example-config"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout
+    assert time.perf_counter() - started < 2.0  # SC-004
 
 
 # Proof

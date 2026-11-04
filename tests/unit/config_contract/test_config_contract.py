@@ -618,7 +618,7 @@ SCHEMA_FILE = REPO_ROOT / "schemas" / "config.schema.json"
 
 @spec("FR-026")
 def test_the_example_is_a_valid_configuration() -> None:
-    assert load_config(EXAMPLE_DIR) == Configuration(schema_version=1)
+    assert load_config(EXAMPLE_DIR).schema_version == SCHEMA_VERSION
 
 
 @spec("FR-026")

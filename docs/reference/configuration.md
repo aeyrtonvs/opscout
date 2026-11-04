@@ -85,8 +85,33 @@ can validate the file while you write it: start the file with
 |---|---|---|---|
 | `schema_version` | yes | integer, exactly `1` | the major version of the schema the file follows |
 
-That is all of version 1. Each feature that needs configuration adds its own section, in
-its own spec. [`example-config/`](../../example-config/) is a complete, valid example.
+Each feature that needs configuration adds its own section, in its own spec, as an additive
+change. [`example-config/`](../../example-config/) is a complete, valid example.
+
+### `writeups` (optional; spec 003)
+
+Write-up formats for the summary skill. Without the section, the built-in `ticket`,
+`message` and `postmortem` formats apply.
+
+| Key | Type | Meaning |
+|---|---|---|
+| `language` | text, up to 40 characters | the language to write in; without it, the language you write in |
+| `rules` | list of up to 30 lines | rules for every format, after the built-in ones |
+| `formats` | mapping of name → format | a built-in name replaces that format; a new name adds one |
+
+A format name is lowercase words joined by hyphens (`status-update`), up to 40 characters.
+A format holds:
+
+| Key | Required | Type | Meaning |
+|---|---|---|---|
+| `description` | yes | one line, up to 200 characters | what the format is for |
+| `sections` | no | list of up to 30 lines | the headings, in order; none for free text |
+| `rules` | no | list of up to 30 lines | rules for this format only |
+| `max_lines` | no | integer, 1–200 | the most lines a write-up may have |
+
+Whatever the configuration says, every write-up states only facts from the session, never
+lists what was evaluated and ruled out nor how the result was reached, and never holds a
+secret value. `opscout writeup formats [--config DIR]` prints the formats the skill uses.
 
 ## Rules for every section
 

@@ -7,3 +7,27 @@
 # The major version of the configuration schema this file follows. This engine reads
 # version 1; a file for another version gets one message that says what to do.
 schema_version: 1
+
+# Write-up formats for the summary skill (spec 003). Optional: without this section the
+# built-in ticket, message and postmortem formats apply. `opscout writeup formats` prints
+# the formats the skill will use.
+writeups:
+  # The language to write in; without it, the skill writes in the language you write in.
+  language: English
+  # Rules for every format, on top of the built-in ones (only facts; never what was ruled
+  # out; never a secret value).
+  rules:
+    - Name services the way the team does, such as example-api or example-prod.
+  # Formats by name. A built-in name (ticket, message, postmortem) replaces that format; a
+  # new name, in lowercase words joined by hyphens, adds one.
+  formats:
+    # An extra format, asked for as "a status update".
+    status-update:
+      # What the format is for, in one line.
+      description: "A weekly status line for #alerts-example."
+      # The headings, in order.
+      sections: [Done, Next, Blocked]
+      # Rules for this format only.
+      rules: [One line per item.]
+      # The most lines a write-up in this format may have.
+      max_lines: 8

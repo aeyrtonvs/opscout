@@ -31,9 +31,9 @@ Rules:
 - <rule>
 ```
 
-When the directory is missing, the source line says
-`Source: none, <dir> does not exist (default); using the built-in formats`, followed by the
-built-in formats.
+When the directory or the file is missing, the source line names the problem and its
+source, such as `Source: none, <dir>: no such directory (default); using the built-in
+formats`, followed by the built-in formats.
 
 When the configuration is invalid:
 

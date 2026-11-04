@@ -40,20 +40,20 @@ reserved values only.
 
 ## Phase 3: User Story 2 — the formats are the user's own (P1)
 
-- [ ] T006 [US2] Write failing tests: the built-in formats and shared rules (FR-005), with
+- [X] T006 [US2] Write failing tests: the built-in formats and shared rules (FR-005), with
   no organization term (FR-007, checked with the leak check's generic rules);
   `resolve_formats` replaces a built-in by name and adds new ones in order (FR-006);
   `render_formats` prints contracts/writeup-formats.md byte for byte for each of the three
   states and is deterministic (FR-008, FR-011)
-- [ ] T007 [US2] Write failing tests for `opscout writeup formats [--config DIR]`: resolves
+- [X] T007 [US2] Write failing tests for `opscout writeup formats [--config DIR]`: resolves
   the directory as spec 002 does, an empty `--config` counts as absent (FR-009); always
   exits 0 with the missing, invalid and valid outputs (FR-010); under 2 s from a clone
   (SC-004)
-- [ ] T008 [US2] Implement `src/opscout/core/writeups.py` (`BUILT_IN_FORMATS`,
+- [X] T008 [US2] Implement `src/opscout/core/writeups.py` (`BUILT_IN_FORMATS`,
   `SHARED_RULES`), `src/opscout/services/writeups.py` (`resolve_formats`,
   `render_formats`) and the `writeup formats` command in `src/opscout/entrypoints/cli.py`;
   T006–T007 pass; coverage of core and services stays at 100 %
-- [ ] T009 [P] [US2] Add a commented `writeups` example to `example-config/config.yaml`
+- [X] T009 [P] [US2] Add a commented `writeups` example to `example-config/config.yaml`
   (reserved values only) and the section to `docs/reference/configuration.md`
 
 ---
