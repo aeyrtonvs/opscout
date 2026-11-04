@@ -34,5 +34,8 @@ plugin:
     claude plugin validate --strict .
     claude plugin validate --strict plugins/opscout
 
+# The fast checks, which the Stop hook runs before the agent stops (ADR-0018).
+fast: lint types imports test
+
 # Run every local gate that exists so far.
-check: lint types imports test plugin
+check: fast plugin

@@ -39,7 +39,8 @@ missing is an open item in `docs/PLAN.md` §9.
 5. **Nothing leaves the machine without asking each time:** creating the GitHub remote,
    pushing, publishing a release or a plugin.
    *Gate:* `ask` rules in `.claude/settings.json`. They prompt even when permission prompts
-   are bypassed, and headless runs deny them.
+   are bypassed, and headless runs deny them. A PreToolUse hook denies the forms they miss,
+   such as `git -C … push`, and names the plain form to use.
 
 ## Working rules
 
@@ -80,7 +81,10 @@ Spec-Driven Development with GitHub Spec Kit (ADR-0008):
 ## Repository map
 
 - `.specify/`: Spec Kit (constitution, templates, scripts, git extension).
-- `.claude/settings.json`: project permission gates (rule 5). Do not loosen them.
+- `.claude/settings.json`: permission gates (rule 5) and development hooks (ADR-0018). Do
+  not loosen them.
 - `docs/PLAN.md`, `docs/adr/`: plan and decisions.
-- Planned (PLAN.md §6): `plugins/opscout/`, `src/opscout/`, `tests/`,
-  `example-config/`, `schemas/`, `specs/`, `deploy/`.
+- `src/opscout/` and `tests/`: the Python package and its tests. `plugins/opscout/`: the
+  plugin, listed by `.claude-plugin/marketplace.json`.
+- `tools/`: this repository's development hooks; not shipped.
+- Planned (PLAN.md §6): `example-config/`, `schemas/`, `specs/`, `deploy/`.

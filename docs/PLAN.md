@@ -236,6 +236,8 @@ opscout/
 ├── docs/                             # PLAN.md, adr/, tutorials/, how-to/, reference/, explanation/
 ├── .specify/                         # Spec Kit: constitution, templates, scripts, extensions
 ├── .claude/skills/speckit-*          # dev-time skills for working on this repo (not shipped)
+├── .claude/settings.json, rules/     # permission gates, dev hooks, path-scoped rules
+├── tools/hooks/                      # this repo's Claude Code hooks (not shipped)
 ├── .github/                          # workflows/, ISSUE_TEMPLATE/, PR template, CODEOWNERS, dependabot.yml
 ├── AGENTS.md  CLAUDE.md  README.md  CONTRIBUTING.md  SECURITY.md  CODE_OF_CONDUCT.md
 ├── LICENSE  NOTICE  CHANGELOG.md
@@ -277,6 +279,10 @@ The order matters: commit identity comes before the first commit.
    - a PostToolUse ruff hook, and a Stop hook that runs the fast checks and blocks once;
    - path-scoped `.claude/rules/` for skills, Python code and specs, so each loads only when
      its files are touched; the Python rule states ADR-0021's portability rules.
+   Done 2026-11-03: the hooks live in `tools/hooks/` with their tests, run in exec form
+   through uv, and were checked live. The guard reads the gated commands from the `ask`
+   rules and denies the forms they miss: options before the subcommand, variables or
+   wrappers before the program, and nested shells. The Stop hook runs `just fast`.
 8. Create the GitHub remote and push, and register the SSH signing key on GitHub, each
    confirmed by the maintainer.
 
@@ -415,10 +421,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
 
 - [x] Ratify the constitution (→ 1.0.0) and decide the proposed ADRs: ratified, and all
       accepted, on 2026-11-03.
-- [ ] Rule-5 gate gaps: `git -C … push` and `git -c … push` escape the `ask` rules; a
-      PreToolUse hook closes them (Phase 0a). Account connectors that also send data out
-      (ticket and docs tools, artifact publishing) are not gated in this repo; decide whether
-      rule 5 covers them.
+- [ ] Rule-5 gate gaps: `git -C … push`, `git -c … push` and similar forms escaped the
+      `ask` rules; the PreToolUse guard denies them since 2026-11-03 (Phase 0a step 7).
+      Still open: account connectors that also send data out (ticket and docs tools,
+      artifact publishing) are not gated in this repo; decide whether rule 5 covers them.
 - [x] **Before the first commit:** the global git e-mail is a work address. Done 2026-11-03:
       the repo-local `user.email` is the GitHub no-reply address.
 - [x] Name: **opscout** (ADR-0019). The working name `ops-harness` was taken on PyPI by an
