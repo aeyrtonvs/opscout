@@ -20,8 +20,8 @@ can run in parallel. `[P]` marks the ones that touch other files.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the baseline on `feat/002-config-contract`: `uv run just fast` passes
-- [ ] T002 Add the dependencies of research.md R7 with `uv add` (`pydantic>=2.14.1,<3`,
+- [X] T001 Confirm the baseline on `feat/002-config-contract`: `uv run just fast` passes
+- [X] T002 Add the dependencies of research.md R7 with `uv add` (`pydantic>=2.14.1,<3`,
   `pyyaml>=6.0.3,<7`; dev: `types-pyyaml`, `jsonschema>=4.26`), lock them at the versions
   R7 names, and confirm `uv sync --locked` and `uv run just fast` pass, in `pyproject.toml`
   and `uv.lock`
@@ -30,15 +30,15 @@ can run in parallel. `[P]` marks the ones that touch other files.
 
 ## Phase 2: Foundational
 
-- [ ] T003 Create `tests/unit/config/test_config_contract.py` with the traceability test (every `FR-0NN` of
+- [X] T003 Create `tests/unit/config/test_config_contract.py` with the traceability test (every `FR-0NN` of
   `spec.md` has a `spec("002", …)` mark and every mark names a real FR, FR-034), marked
   `xfail(strict=True)` until Phase 8 removes the mark
-- [ ] T004 Write failing tests for the core types: `Configuration` accepts
+- [X] T004 Write failing tests for the core types: `Configuration` accepts
   `schema_version=1`, is frozen, rejects unknown keys and non-integers without coercion
   (FR-014, FR-015, FR-032); `KeychainRef` takes `service` (1–128 characters, no whitespace
   or control characters) and an optional `account` of the same shape (FR-019); `Problem`
   orders by line then column (FR-016), in `tests/unit/config/test_config_contract.py`
-- [ ] T005 Implement `src/opscout/core/config.py`: `SCHEMA_VERSION = 1`,
+- [X] T005 Implement `src/opscout/core/config.py`: `SCHEMA_VERSION = 1`,
   `RETIRED_VERSIONS: Mapping[int, str] = {}`, `Configuration` and `KeychainRef` as Pydantic
   models with `ConfigDict(strict=True, extra="forbid", frozen=True)` and a description on
   every field, and the frozen `Problem` dataclass (data-model.md); T004 passes
