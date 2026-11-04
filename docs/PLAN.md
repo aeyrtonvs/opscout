@@ -1,6 +1,7 @@
 # opscout — plan
 
-> Status (2026-11-03): **Phase 0a in progress**; finished steps are marked done in §7. The
+> Status (2026-11-03): **Phase 0a done**: the repository is public at
+> `github.com/aeyrtonvs/opscout`, with CI green; Phase 0b is next (§7). The
 > constitution is ratified (1.0.2), ADRs 0001–0021 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -316,9 +317,18 @@ The order matters: commit identity comes before the first commit.
    (ADR-0015), and the ruleset on `main` (ADR-0016) without required approvals, which a
    single maintainer cannot give. Leave CodeQL's default setup off, since `codeql.yml`
    replaces it. After the first push, add the OpenSSF Scorecard workflow (ADR-0016).
+   Done 2026-11-03. `main` and the Phase 0a branch were pushed through the pre-push
+   checks, and GitHub shows every commit as verified. Turned on: private vulnerability
+   reporting and Dependabot alerts; secret scanning and push protection were already on,
+   and CodeQL's default setup is off. The ruleset on `main` blocks deletion and force
+   pushes, and requires a pull request (no approvals), the CI and CodeQL checks, linear
+   history and signed commits. Merges are squash only, titled by the pull request, and
+   merged branches are deleted. Pull request #1 merged the phase with a merge commit,
+   before the ruleset existed; the Scorecard workflow came in the pull request that
+   closed the phase.
 
 Exit: `just check` green on a fresh clone set up with only git, uv and Claude Code; CI green
-on the first push; the first commit reviewed for real data.
+on the first push; the first commit reviewed for real data. Met on 2026-11-03.
 
 ### Phase 0b — foundations
 
@@ -469,8 +479,8 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [x] **Before the first commit:** the global git e-mail is a work address. Done 2026-11-03:
       the repo-local `user.email` is the GitHub no-reply address.
 - [x] Name: **opscout** (ADR-0019). The working name `ops-harness` was taken on PyPI by an
-      unrelated project and collided with a CI/CD vendor's name. Re-check that `opscout` is
-      still free on PyPI and GitHub right before the first push.
+      unrelated project and collided with a CI/CD vendor's name. Re-checked right before the
+      first push, on 2026-11-03: still free on PyPI and GitHub.
 - [x] Runner (former item 1): ADR-0012 accepted. The user's own `claude -p` is the default
       runner; the Agent SDK is an optional API-key runner.
 - [ ] Read-only identity (former item 2): the reference policies come from this repo
