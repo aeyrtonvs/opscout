@@ -676,7 +676,7 @@ def test_every_requirement_has_a_test_or_an_eval_case() -> None:
                     for param_mark in getattr(value, "marks", ()):
                         if param_mark.name == "spec" and param_mark.args[0] == "003":
                             proven.add(param_mark.args[1])
-    for prompt in sorted((PLUGIN / "evals").glob("*/prompt.md")):
+    for prompt in sorted((PLUGIN / "evals").glob("003-*/prompt.md")):
         front = yaml.safe_load(prompt.read_text(encoding="utf-8").split("---")[1])
         proven.update(tag for tag in front.get("tags", []) if tag.startswith("FR-"))
 
