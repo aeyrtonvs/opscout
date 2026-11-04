@@ -24,11 +24,12 @@ missing is an open item in `docs/PLAN.md` §9.
    **private** config repo, which the engine reads from a path or `OPSCOUT_CONFIG`.
    Examples here use obviously fake values (`123456789012`, `example-prod`,
    `#alerts-example`).
-   *Gate:* the leak check in pre-commit and CI (ADR-0015). Until it exists, review the staged
-   diff by hand.
+   *Gate:* the leak check (`tools/leak_check.py`) and gitleaks, in pre-commit and CI
+   (ADR-0015).
 2. **Before every commit, check the staged diff for real data** (rule 1), commit metadata
    included. A leak in a public repo cannot be undone by deleting the commit.
-   *Gate:* the same hook on every commit, plus the commit e-mail check.
+   *Gate:* the same checks on every commit and on every commit you push, plus the commit
+   e-mail check.
 3. **Agents built here are read-only by design, enforced by permissions, not by
    instructions.** They use a read-only identity; they report whether a secret exists and
    where, never its value; on hosts they run an allow-listed command document, not an open
@@ -39,7 +40,8 @@ missing is an open item in `docs/PLAN.md` §9.
 5. **Nothing leaves the machine without asking each time:** creating the GitHub remote,
    pushing, publishing a release or a plugin.
    *Gate:* `ask` rules in `.claude/settings.json`. They prompt even when permission prompts
-   are bypassed, and headless runs deny them.
+   are bypassed, and headless runs deny them. A PreToolUse hook denies the forms they miss,
+   such as `git -C … push`, and names the plain form to use.
 
 ## Working rules
 
@@ -80,7 +82,10 @@ Spec-Driven Development with GitHub Spec Kit (ADR-0008):
 ## Repository map
 
 - `.specify/`: Spec Kit (constitution, templates, scripts, git extension).
-- `.claude/settings.json`: project permission gates (rule 5). Do not loosen them.
+- `.claude/settings.json`: permission gates (rule 5) and development hooks (ADR-0018). Do
+  not loosen them.
 - `docs/PLAN.md`, `docs/adr/`: plan and decisions.
-- Planned (PLAN.md §6): `plugins/opscout/`, `src/opscout/`, `tests/`,
-  `example-config/`, `schemas/`, `specs/`, `deploy/`.
+- `src/opscout/` and `tests/`: the Python package and its tests. `plugins/opscout/`: the
+  plugin, listed by `.claude-plugin/marketplace.json`.
+- `tools/`: this repository's development hooks and checks; not shipped.
+- Planned (PLAN.md §6): `example-config/`, `schemas/`, `specs/`, `deploy/`.

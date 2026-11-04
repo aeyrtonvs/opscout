@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  # Each push to main gets a group of its own, so no run on main is cancelled or replaced
+  # by a newer one: its commits are checked only by that run.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  tests:
+    name: Tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.13", "3.15"]
+    env:
+      UV_PYTHON: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          enable-cache: true  # the uv version comes from required-version (ADR-0020)
+      - name: Install the locked toolchain
+        run: uv sync --locked
+      - name: Format, lint, types, import contracts and tests
+        run: uv run --frozen just fast
+      - name: Coverage gate on core and services
+        run: uv run --frozen just coverage
+
+  gates:
+    name: Leak check, manifests and workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          enable-cache: true
+      - name: Install the locked toolchain and the Claude Code CLI (ADR-0020)
+        run: uv sync --locked --group ci
+      - name: Put the bundled Claude Code CLI on PATH
+        run: >-
+          uv run --frozen python -c "import importlib.util, pathlib;
+          spec = importlib.util.find_spec('claude_agent_sdk');
+          print(pathlib.Path(spec.origin).parent / '_bundled')" >> "$GITHUB_PATH"
+      - name: Show the Claude Code version
+        run: claude --version
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: The pre-commit gates, on every file
+        env:
+          # The tests job runs the fast checks; each commit's e-mail is checked below.
+          SKIP: fast-checks,leak-check-identity
+        run: uv run --frozen just check
+      - name: Leak check and message of each new commit
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          uv run --frozen python -m tools.leak_check commits "$BASE" "$HEAD"
+          uv run --frozen python -m tools.commit_message --range "$BASE" "$HEAD"
+      - name: gitleaks over the whole history
+        run: uv run --frozen pre-commit run gitleaks-history --hook-stage manual
+      - name: Workflow security, with the online audits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run --frozen zizmor --no-progress .github/workflows .github/dependabot.yml
+
+  dependency-review:
+    name: Dependency review
+    # The action needs a public repository, or GitHub Advanced Security for a private one.
+    if: github.event_name == 'pull_request' && !github.event.repository.private
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294  # v5.0.0

@@ -1,0 +1,112 @@
+[project]
+name = "opscout"
+version = "0.0.0"
+description = "Read-only Claude Code agents for the repetitive parts of DevOps work."
+requires-python = ">=3.13"
+license = "Apache-2.0"
+keywords = ["agents", "claude-code", "devops", "mcp", "sre"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: System Administrators",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Systems Administration",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.scripts]
+opscout = "opscout.entrypoints.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14"]
+build-backend = "uv_build"
+
+# The whole development toolchain is pinned through uv.lock (ADR-0020).
+[dependency-groups]
+# Only CI installs this group (uv sync --group ci): its wheels bundle the Claude Code CLI
+# that runs claude plugin validate there (ADR-0020).
+ci = [
+    "claude-agent-sdk>=0.2.178",
+]
+dev = [
+    "coverage>=7.17.1",
+    "import-linter>=2.15",
+    "mypy>=2.4.1",
+    "pre-commit>=4.7.0",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+    "rust-just>=1.59.0",
+    "zizmor>=1.32.0",
+]
+
+[tool.uv]
+required-version = ">=0.13"
+
+[tool.ruff]
+line-length = 100
+src = [".", "src", "tests"]
+extend-exclude = [".specify", ".claude/skills/speckit-*"]  # vendored by Spec Kit
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # import order
+    "N",       # naming
+    "UP",      # pyupgrade
+    "B",       # bugbear
+    "S",       # bandit (security)
+    "C4",      # comprehensions
+    "SIM",     # simplify
+    "PT",      # pytest style
+    "PTH",     # pathlib only, no os.path (ADR-0021)
+    "TID",     # tidy imports
+    "RUF",     # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # assert is how pytest checks
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.mypy]
+strict = true
+files = ["src", "tests", "tools"]
+
+# The coverage gate on core and services (ADR-0016): uv run just coverage
+[tool.coverage.run]
+source_pkgs = ["opscout.core", "opscout.services"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+pythonpath = ["."]  # tests import the dev tooling in tools/
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+xfail_strict = true
+filterwarnings = ["error"]
+markers = [
+    "spec(number, requirement): ties a test to a Spec Kit requirement, e.g. spec(\"003\", \"FR-002\") (PLAN.md 4.2)",
+]
+
+# Layering (ADR-0011). Adapters, including the platform-specific ones, are imported only by
+# the composition root in entrypoints (ADR-0021).
+[tool.importlinter]
+root_package = "opscout"
+
+[[tool.importlinter.contracts]]
+name = "Layers: entrypoints compose; adapters and services are independent; core is pure"
+type = "layers"
+layers = [
+    "opscout.entrypoints",
+    "opscout.adapters | opscout.services",
+    "opscout.core",
+]

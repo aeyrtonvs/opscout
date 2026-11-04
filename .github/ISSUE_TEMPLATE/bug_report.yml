@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in opscout does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This repository is public.** Do not paste real data: company or product names, account IDs, profile names, hostnames, IP addresses, channel or user IDs, ticket keys, alert texts, costs or contact details. Replace them with reserved values such as `123456789012`, `192.0.2.10`, `example.com` or `example-prod`.
+
+        Report security vulnerabilities [privately](https://github.com/aeyrtonvs/opscout/security/advisories/new), never in an issue.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `opscout --version`, or the plugin version.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Include the command or skill you ran.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use fake values only.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Redact them first.
+      render: text
+  - type: checkboxes
+    id: public
+    attributes:
+      label: Public repository
+      options:
+        - label: I removed every real value from this report.
+          required: true

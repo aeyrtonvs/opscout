@@ -1,0 +1,18 @@
+# Values the leak check flags that are not real data (ADR-0015). Every entry says why.
+# Private deny-list matches cannot be allowed here: refine the private deny-list instead.
+
+[[allow]]
+value = "1.7.12.25"
+reason = "The actionlint-py version quoted in ADR-0020, not an IP address."
+
+[[allow]]
+value = "L120-134"
+reason = "A line range in a Spec Kit skill, not a ticket key."
+
+[[allow]]
+value = "RLENGTH-1"
+reason = "An awk expression in a Spec Kit script, not a ticket key."
+
+[[allow]]
+value = "Z0-9"
+reason = "Part of the regular-expression class [A-Z0-9] in the leak check itself, not a ticket key."

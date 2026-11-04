@@ -1,0 +1,20 @@
+{
+  "name": "opscout",
+  "version": "0.0.0",
+  "description": "A read-only agent harness for DevOps toil.",
+  "author": {
+    "name": "aeyrtonvs",
+    "url": "https://github.com/aeyrtonvs"
+  },
+  "repository": "https://github.com/aeyrtonvs/opscout",
+  "license": "Apache-2.0",
+  "keywords": ["agents", "devops", "mcp", "sre"],
+  "userConfig": {
+    "config_dir": {
+      "type": "directory",
+      "title": "Configuration directory",
+      "description": "The directory that holds your private opscout configuration, usually a clone of your private configuration repository.",
+      "required": true
+    }
+  }
+}

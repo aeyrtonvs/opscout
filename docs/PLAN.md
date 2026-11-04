@@ -133,15 +133,18 @@ Spec Kit gives each spec stable IDs: user stories (`US1`…), functional require
 |---|---|---|
 | Format and lint (ruff) | ✓ | ✓ |
 | Types (mypy `--strict`) | ✓ | ✓ |
-| Tests (pytest), coverage gate on `core` and `services` | ✓ | ✓ macOS + Linux, Python 3.13 and latest |
+| Tests (pytest) | ✓ | ✓ macOS + Linux, Python 3.13 and latest |
+| Coverage gate on `core` and `services` | `just coverage` | ✓ |
 | Import contracts (import-linter) | ✓ | ✓ |
-| Leak check: generic patterns / private deny-list / commit e-mail | ✓ / ✓ / ✓ | ✓ / — / ✓ |
-| Secret scan (gitleaks) | ✓ | ✓ plus GitHub push protection |
+| Leak check: generic patterns / private deny-list / commit e-mail | ✓ / ✓ / ✓, on each commit and every pushed commit | ✓ / — / ✓ |
+| Conventional Commit messages | ✓ on each commit and every pushed commit | ✓ |
+| Secret scan (gitleaks) | ✓ staged changes; whole history before a push | ✓ whole history, plus GitHub push protection |
 | Plugin and marketplace validation (`claude plugin validate --strict`) | ✓ | ✓ |
-| `example-config/` against the schema | ✓ | ✓ |
+| `example-config/` against the schema | planned (Phase 0b) | planned (Phase 0b) |
 | Evals (`claude plugin eval`) | before each release | on demand, with a cost ceiling |
-| CodeQL, dependency review, zizmor, OpenSSF Scorecard | — | ✓ |
-| Outward-facing commands (rule 5): `ask` rules in `.claude/settings.json` | ✓ in place; denies in headless runs | — |
+| Workflow security (zizmor) | ✓ offline audits | ✓ with the online audits |
+| CodeQL, dependency review, OpenSSF Scorecard | — | ✓ once the repository is public |
+| Outward-facing commands (rule 5): `ask` rules in `.claude/settings.json`, and a PreToolUse guard for the forms they miss | ✓; denies in headless runs | — |
 | Dev-time sensors (Claude Code hooks): ruff after each Python edit; fast checks before the agent stops, blocking once | ✓ (Phase 0a) | — |
 
 Every hard rule is dual-encoded: stated in AGENTS.md and blocked by one of the gates above
@@ -236,6 +239,8 @@ opscout/
 ├── docs/                             # PLAN.md, adr/, tutorials/, how-to/, reference/, explanation/
 ├── .specify/                         # Spec Kit: constitution, templates, scripts, extensions
 ├── .claude/skills/speckit-*          # dev-time skills for working on this repo (not shipped)
+├── .claude/settings.json, rules/     # permission gates, dev hooks, path-scoped rules
+├── tools/hooks/                      # this repo's Claude Code hooks (not shipped)
 ├── .github/                          # workflows/, ISSUE_TEMPLATE/, PR template, CODEOWNERS, dependabot.yml
 ├── AGENTS.md  CLAUDE.md  README.md  CONTRIBUTING.md  SECURITY.md  CODE_OF_CONDUCT.md
 ├── LICENSE  NOTICE  CHANGELOG.md
@@ -256,26 +261,61 @@ The order matters: commit identity comes before the first commit.
 2. Ratify the constitution and accept the ADRs (done 2026-11-03).
 3. Repository skeleton and governance files (ADR-0016); `AGENTS.md` and `CLAUDE.md`. The pull
    request template also asks whether new host-specific code sits behind a port (ADR-0021).
+   Done 2026-11-03: `NOTICE` names "The opscout Authors", and the Code of Conduct is
+   Contributor Covenant 3.0. Its reports go through GitHub's private reporting form, like
+   security reports, so no contact address is published.
 4. Python project: `pyproject.toml` (uv), the package layers of ADR-0011, one smoke test,
    `justfile`. The whole toolchain is pinned through uv (ADR-0020): a `dev` dependency group
    (ruff, mypy, pytest, import-linter, pre-commit, rust-just, zizmor),
    `.python-version`, and `[tool.uv] required-version`. A clone is set up with `uv sync`
    and `uv run just setup`; nothing else is installed globally. ruff enables `PTH`, and the
    import-linter contracts include ADR-0021's rule that platform adapters are imported only
-   by the composition root.
+   by the composition root. Done 2026-11-03; `just setup` arrives with the git hooks in
+   step 6.
 5. Plugin skeleton: marketplace and plugin manifests, with `userConfig` for the config
-   directory; `claude plugin validate --strict` passes.
+   directory; `claude plugin validate --strict` passes. Done 2026-11-03: `config_dir` is a
+   required `directory` option (ADR-0014); the version lives only in `plugin.json`, and a
+   test keeps it equal to the package's (ADR-0016); `just check` validates both manifests.
 6. Gates: pre-commit with gitleaks and actionlint (upstream hooks pinned by `rev`) and the
    generic leak patterns; CI workflows with pinned actions that install only uv and run
    `uv sync --locked` (ADR-0020).
+   Done 2026-11-03. The maintainer agreed to bring the leak check's layers 2 and 3 forward
+   from Phase 0b. The pre-commit stage runs the leak check (`tools/leak_check.py`: generic
+   patterns, the private deny-list and the commit e-mail, on contents and file names; 0.2 s
+   for the whole repository), gitleaks on staged changes, actionlint, zizmor, the fast checks
+   and the manifest validation; `just check` runs that stage on every file. The commit-msg
+   stage runs the leak check and a Conventional Commit check of our own
+   (`tools/commit_message.py`), kept because CI also runs it on each commit of a range,
+   which an upstream hook does not do. The pre-push stage checks every commit about to
+   leave the machine, and gitleaks scans the whole history. CI runs the tests on macOS and
+   Linux with Python 3.13 and 3.15, a coverage gate of 90 % (branches) on `core` and
+   `services`, every other gate once on Linux, the leak and message checks of each new
+   commit, and gitleaks over the history; CodeQL and dependency review run once the
+   repository is public. Dependabot updates uv, the Actions and the hooks after a 7-day
+   cooldown. An independent review of the phase found gaps, fixed the same day.
 7. Development harness (ADR-0018), with hook scripts in Python run through uv (ADR-0021):
    - the rule-5 `ask` rules, already in place;
    - a PreToolUse hook for the push forms those rules miss (`git -C … push`, `git -c … push`);
    - a PostToolUse ruff hook, and a Stop hook that runs the fast checks and blocks once;
    - path-scoped `.claude/rules/` for skills, Python code and specs, so each loads only when
      its files are touched; the Python rule states ADR-0021's portability rules.
+   Done 2026-11-03: the hooks live in `tools/hooks/` with their tests, run in exec form
+   through uv, and were checked live. The guard reads the gated commands from the `ask`
+   rules and denies the forms they miss: options before the subcommand, variables or
+   wrappers before the program, and nested shells. The Stop hook runs `just fast`.
 8. Create the GitHub remote and push, and register the SSH signing key on GitHub, each
-   confirmed by the maintainer.
+   confirmed by the maintainer. First:
+   - turn on the account settings "Keep my email addresses private" and "Block command
+     line pushes that expose my email", so the commits GitHub itself makes (squash merges,
+     "Update branch") also carry the no-reply address;
+   - the visibility is public, decided on 2026-11-03: on GitHub Free a private repository
+     has no private vulnerability reporting, push protection or rulesets, and its macOS
+     runner minutes count ten times.
+   Then turn on what the repository files rely on: private vulnerability reporting
+   (`SECURITY.md` and `CODE_OF_CONDUCT.md`), secret scanning with push protection
+   (ADR-0015), and the ruleset on `main` (ADR-0016) without required approvals, which a
+   single maintainer cannot give. Leave CodeQL's default setup off, since `codeql.yml`
+   replaces it. After the first push, add the OpenSSF Scorecard workflow (ADR-0016).
 
 Exit: `just check` green on a fresh clone set up with only git, uv and Claude Code; CI green
 on the first push; the first commit reviewed for real data.
@@ -284,7 +324,7 @@ on the first push; the first commit reviewed for real data.
 
 | Planned spec | Need | Delivers | Exit criteria |
 |---|---|---|---|
-| leak-guard | rules 1–2 | Private deny-list and commit e-mail check on top of the generic patterns (ADR-0015) | Every synthetic leak in the test set is caught; < 1 s on a typical diff |
+| leak-guard | rules 1–2 | A spec for the leak check that Phase 0a built (its layers 2 and 3 moved forward on 2026-11-03): the synthetic-leak suite traced to it, and pattern changes driven by real misses and false positives (ADR-0015) | Every synthetic leak in the test set is caught; < 1 s on a typical diff (0.2 s for the whole repository on 2026-11-03) |
 | config-contract | all | Config models, JSON Schema, loader, `opscout config validate`, `example-config/` (ADR-0014) | Example and private configs validate; schema drift test |
 | summary-skill | 5 | Write-up formats from config: ticket, message, postmortem; a contract whose non-goals include "never list what was ruled out" | Eval suite at threshold and above the no-plugin baseline |
 | ship-skill | 6 | Branch naming, Conventional Commits, trailer, never to protected branches, draft PR; each push confirmed | `tool_order` graders: never pushes to a protected branch |
@@ -362,6 +402,17 @@ Checked 2026-11-03 (official docs and the local CLI, Claude Code 2.1.317):
   `${CLAUDE_PLUGIN_ROOT}` changes on update, `${CLAUDE_PLUGIN_DATA}` persists;
   `claude plugin validate [--strict]`; auto-update is off by default for third-party
   marketplaces.
+- **User configuration, in detail** (CLI 2.1.318): an option needs `type`, `title` and
+  `description`, and an unknown key fails validation; the types are `string`, `number`,
+  `boolean`, `directory` and `file`. Values reach MCP server configs, exec-form hook `args`,
+  and skill and agent content as `${user_config.KEY}` (only non-sensitive values in skills
+  and agents); hooks also get `CLAUDE_PLUGIN_OPTION_<KEY>`; shell-form hook commands cannot
+  use the substitution. `plugin.json`'s `version` wins over a marketplace entry's, and the
+  validator warns when they differ. No JSON Schema is published for either manifest.
+- **CI** (checked 2026-11-03): Dependabot supports `pre-commit` and updates SHA-pinned `rev`s
+  that carry a `# frozen:` comment; setup-uv reads `required-version` when no version is
+  given; dependency review needs a public repository or GitHub Advanced Security.
+  `claude-agent-sdk` 0.2.178 bundles Claude Code 2.1.318.
 - **Subagents shipped in a plugin** ignore `permissionMode`, `hooks` and `mcpServers`.
 - **`claude plugin eval`**: cases in the plugin's `evals/`; graders `regex`, `tool_used`,
   `tool_order`, `file_exists`, `llm`, `baseline`; a no-plugin baseline arm; MCP mocks;
@@ -405,10 +456,16 @@ genai.owasp.org (Top 10 for Agentic Applications).
 
 - [x] Ratify the constitution (→ 1.0.0) and decide the proposed ADRs: ratified, and all
       accepted, on 2026-11-03.
-- [ ] Rule-5 gate gaps: `git -C … push` and `git -c … push` escape the `ask` rules; a
-      PreToolUse hook closes them (Phase 0a). Account connectors that also send data out
-      (ticket and docs tools, artifact publishing) are not gated in this repo; decide whether
-      rule 5 covers them.
+- [ ] Rule-5 gate gaps: forms that escaped the `ask` rules (`git -C … push`,
+      `git -c … push` and similar) are denied by the PreToolUse guard since 2026-11-03, and
+      the `gh` commands that change things on GitHub have `ask` rules, listed one by one from
+      gh 2.88.1. Decided 2026-11-03: new `gh` commands are added as they appear, rather than
+      asking before every `gh` command. Still open: account
+      connectors that also send data out (ticket and docs tools, artifact publishing) are
+      not gated in this repo; decide whether rule 5 covers them.
+- [ ] Rule 3's gates (the read-only identity, tool allow-lists and allow-listed host
+      documents, ADR-0010) do not exist yet. They arrive with the first skills that touch
+      live systems (Phases 1–2).
 - [x] **Before the first commit:** the global git e-mail is a work address. Done 2026-11-03:
       the repo-local `user.email` is the GitHub no-reply address.
 - [x] Name: **opscout** (ADR-0019). The working name `ops-harness` was taken on PyPI by an
@@ -431,4 +488,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
       scheduler and the secret store, matching ADR-0011 and ADR-0021. Done 2026-11-03.
 - [ ] Windows has no CI gate (ADR-0021): add a Windows job and the Task Scheduler adapter with
       the first Windows user.
+- [x] Manifest gate: no JSON Schema is published for the manifests, so
+      `claude plugin validate --strict` is the gate. Decided 2026-11-03; ADR-0016 amended.
+- [x] The Claude Code CLI in CI: the `ci` dependency group installs `claude-agent-sdk`, whose
+      wheels bundle the CLI, locked in `uv.lock`. Decided 2026-11-03; ADR-0020 amended.
+- [x] Code of Conduct contact: reports go through GitHub's private reporting form, the same
+      channel as `SECURITY.md`, so no contact address is published. Decided 2026-11-03.
 - [ ] Re-verify §8 facts at implementation time; they change.
