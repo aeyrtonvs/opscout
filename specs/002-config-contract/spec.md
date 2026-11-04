@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-04
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "config-contract (Phase 0b, docs/PLAN.md §7; ADR-0014,
 ADR-0002, Constitution Principle V). The configuration contract between the public engine
@@ -407,3 +407,17 @@ commit is refused with the problems listed.
   constitution requires.
 - **Users** are the maintainer and future contributors and users, who know YAML, git and a
   command line.
+
+## Actuals
+
+- **Effort**: one session on 2026-11-04, from specify to the pull request, the same as spec
+  001.
+- **Tests**: 122 in `tests/unit/config/test_config_contract.py`, every FR traced; 25
+  invalid configurations in the test set (SC-004); coverage of `core` and `services` 100 %.
+- **Timing**: validating the example takes 0.13 s end to end through `uv run` (SC-006).
+- **Private configuration**: validated locally with `opscout config validate` (SC-002); its
+  content stays in the private repository.
+- **Found while building**: Pydantic accepts `1.0` and `true` for `Literal[1]` even in strict
+  mode, and adds a union's member type to error locations (`choice.int`); both are handled
+  and tested.
+

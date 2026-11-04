@@ -198,10 +198,10 @@ reports every problem with file, line, column and key path, never the value.
   exist), and `docs/PLAN.md`: status line, the config-contract row and a paragraph on what
   it delivered, the §4.4 row for `example-config/`, and the dependencies' reason
 - [X] T028 Remove the `xfail` mark from the traceability test (T003); every FR has a test
-- [ ] T029 Run the quickstart's steps 1–4, `uv run just check` and `uv run just coverage`;
+- [X] T029 Run the quickstart's steps 1–4, `uv run just check` and `uv run just coverage`;
   record the actuals (effort, timing) in an Actuals section of `spec.md` and set its status
   to Implemented
-- [ ] T030 With the maintainer's agreement, validate the private configuration locally
+- [X] T030 With the maintainer's agreement, validate the private configuration locally
   (quickstart step 5, SC-002); record only the outcome, never its content
 
 ---
