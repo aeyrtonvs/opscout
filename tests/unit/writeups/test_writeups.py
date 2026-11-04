@@ -534,11 +534,96 @@ def test_the_skill_pre_approves_only_the_formats_command() -> None:
     assert re.search(r"never (post|call)", body, re.IGNORECASE)
 
 
+# The eval suite (FR-026 to FR-028)
+
+EVALS = PLUGIN / "evals"
+CASE_KEYS = {
+    "name",
+    "description",
+    "tags",
+    "plugins",
+    "runs",
+    "expected_outcome",
+    "model",
+    "max_turns",
+    "timeout_seconds",
+    "allowed_tools",
+    "append_system_prompt",
+    "env",
+}
+# Scenarios the engine decides, proven by the unit tests above rather than by an eval.
+ENGINE_SCENARIOS = {"003-us2-s1", "003-us2-s2", "003-us2-s5", "003-us2-s6"}
+
+
+def cases() -> dict[str, dict[str, object]]:
+    """Return every eval case's frontmatter, by case name."""
+    return {
+        prompt.parent.name: yaml.safe_load(prompt.read_text(encoding="utf-8").split("---\n")[1])
+        for prompt in sorted(EVALS.glob("*/prompt.md"))
+    }
+
+
+def scenarios() -> set[str]:
+    """Return the skill's scenarios, as eval case names (003-usN-sM), for stories 1 and 2."""
+    text = SPEC_FILE.read_text(encoding="utf-8")
+    found = set()
+    for story in (1, 2):
+        section = text.split(f"### User Story {story} ")[1].split("\n---\n")[0]
+        found |= {
+            f"003-us{story}-s{n}" for n in re.findall(r"^(\d+)\. \*\*Given\*\*", section, re.M)
+        }
+    return found
+
+
+@spec("FR-026")
+def test_every_skill_scenario_has_an_eval_case() -> None:
+    names = set(cases())
+
+    assert scenarios() - ENGINE_SCENARIOS <= names
+    for name in names:
+        assert name in scenarios() or re.fullmatch(r"003-edge-[a-z]+(-[a-z]+)*", name), name
+
+
+@spec("FR-026")
+def test_every_case_uses_only_documented_keys_and_synthetic_data() -> None:
+    for name, front in cases().items():
+        assert set(front) <= CASE_KEYS, name
+        assert front["allowed_tools"] == ["Skill"], name
+        text = (EVALS / name / "prompt.md").read_text(encoding="utf-8")
+        assert scan_text(text, name, allowlist={}, denylist=[]) == [], name
+
+
+@spec("FR-027")
+def test_deterministic_graders_come_first() -> None:
+    for name in cases():
+        kinds = {
+            grader.stem: yaml.safe_load(grader.read_text(encoding="utf-8").split("---\n")[1])[
+                "type"
+            ]
+            for grader in sorted((EVALS / name / "graders").glob("*.md"))
+        }
+        assert "regex" in kinds.values(), name
+        assert [stem for stem, kind in kinds.items() if kind == "llm"] in ([], ["only-facts"]), name
+
+
+@spec("FR-028")
+@pytest.mark.xfail(reason="removed in T018, once the eval result is recorded", strict=True)
+def test_the_recorded_eval_result_meets_the_threshold() -> None:
+    actuals = SPEC_FILE.read_text(encoding="utf-8").split("## Actuals", 1)
+    assert len(actuals) == 2, "the eval result is not recorded in the spec yet"
+    score = re.search(r"lowest case score: ([0-9.]+)", actuals[1])
+    delta = re.search(r"delta over the no-plugin baseline: \+([0-9.]+)", actuals[1])
+
+    assert score is not None
+    assert float(score.group(1)) >= 0.9
+    assert delta is not None
+    assert float(delta.group(1)) > 0
+
+
 # Proof
 
 
 @spec("FR-029")
-@pytest.mark.xfail(reason="removed in T021, once every requirement has a test", strict=True)
 def test_every_requirement_has_a_test_or_an_eval_case() -> None:
     required = set(re.findall(r"\*\*(FR-\d{3})\*\*", SPEC_FILE.read_text(encoding="utf-8")))
     proven: set[str] = set()

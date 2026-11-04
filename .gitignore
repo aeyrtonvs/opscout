@@ -21,3 +21,6 @@ build/
 
 # OS
 .DS_Store
+
+# Eval results of the plugin (spec 003); reports stay local and are never committed
+plugins/opscout/evals/results/

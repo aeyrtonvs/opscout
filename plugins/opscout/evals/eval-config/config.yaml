@@ -1,0 +1,10 @@
+# The synthetic configuration the evals run with (OPSCOUT_CONFIG). Reserved values only.
+schema_version: 1
+writeups:
+  rules:
+    - End every write-up, inside the block, with the line "Prepared with opscout."
+  formats:
+    status-update:
+      description: A weekly status line for the team.
+      sections: [Done, Next, Blocked]
+      max_lines: 8

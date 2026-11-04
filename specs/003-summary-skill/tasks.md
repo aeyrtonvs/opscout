@@ -91,18 +91,18 @@ reserved values only.
 
 ## Phase 6: Evals (FR-026 to FR-028)
 
-- [ ] T015 [US1] Write the eval cases `003-us1-s1` to `003-us1-s6` in
+- [X] T015 [US1] Write the eval cases `003-us1-s1` to `003-us1-s6` in
   `plugins/opscout/evals/`, each with a synthetic work log and distinctive fake tokens for
   ruled-out hypotheses, and graders per research R5: `regex` `not_contains` for every
   ruled-out token (FR-016), sections in order and single block (FR-015), the length limit,
   `tool_used: Skill`, and one `llm` grader for "only facts" (FR-027); plus edge cases: an
   unknown kind (FR-017), a secret seen in the session (FR-016), and a request to post it
   (FR-019)
-- [ ] T016 [US2] Write the eval cases `003-us2-s1` to `003-us2-s5` that concern the skill,
+- [X] T016 [US2] Write the eval cases `003-us2-s1` to `003-us2-s5` that concern the skill,
   as settled in T014 (configured formats if an eval can point at a synthetic
   configuration; otherwise covered by T006–T007 and noted in research R5), and the
   invalid-configuration case of FR-018 the same way
-- [ ] T017 Test that every eval case's name matches a scenario of this spec, that every
+- [X] T017 Test that every eval case's name matches a scenario of this spec, that every
   skill scenario has a case, and that every case's frontmatter uses only documented keys
   (FR-026), in `tests/unit/writeups/test_writeups.py`
 - [ ] T018 Run the suite with the maintainer's confirmation (quickstart step 4); iterate on
