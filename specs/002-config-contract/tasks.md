@@ -56,25 +56,25 @@ reports every problem with file, line, column and key path, never the value.
 
 ### Tests (write first, watch them fail)
 
-- [ ] T006 [US1] Test `resolve_config_dir(flag, environ, home)`: the flag wins, then a
+- [X] T006 [US1] Test `resolve_config_dir(flag, environ, home)`: the flag wins, then a
   non-empty `OPSCOUT_CONFIG`, then `home / ".config/opscout"`, each with its source
   (FR-001, FR-002), in `tests/unit/config/test_config_contract.py`
-- [ ] T007 [US1] Test `load_config` on a missing directory, a path that is a file, a
+- [X] T007 [US1] Test `load_config` on a missing directory, a path that is a file, a
   directory without `config.yaml`, and one holding `config.yml` instead (FR-003, FR-004),
   and that other files in the directory are never read (FR-004)
-- [ ] T008 [US1] Test `parse_config` on bytes: invalid UTF-8, a byte-order mark, a file
+- [X] T008 [US1] Test `parse_config` on bytes: invalid UTF-8, a byte-order mark, a file
   over 1 MiB (FR-005); `!!python/object`, `!!binary`, `!!set`, a local `!tag` and a merge
   key `<<` (FR-006); a duplicate key, located at its second occurrence (FR-007); a syntax
   error with line and column (FR-008); an empty file, a comment-only file, a top-level list
   and a top-level scalar (FR-009); an alias bomb over 10,000 nodes, and a small alias that
   is accepted (FR-010)
-- [ ] T009 [US1] Test the content problems: `schema_version` missing, `"1"`, `1.0`, `true`
+- [X] T009 [US1] Test the content problems: `schema_version` missing, `"1"`, `1.0`, `true`
   (FR-011, FR-015); an unknown key at the top level and nested, with the typo-or-newer
   message (FR-014); a file with three problems reports all three in file order, each with
   file, line, column and path (FR-016); no problem message across every invalid case of
   T008 and T009 contains the offending value (FR-017, SC-005); and a test counts the
   invalid cases, at least 20 (SC-004)
-- [ ] T010 [US1] Test the command in-process: `opscout config validate --config DIR`
+- [X] T010 [US1] Test the command in-process: `opscout config validate --config DIR`
   prints the header line with the source and either `valid (schema version 1)` or the
   problem lines of contracts/cli.md; exit 0 valid, 1 invalid or missing, 2 on bad
   arguments (FR-002, FR-018); and that `load_config` returns the same frozen
@@ -82,13 +82,13 @@ reports every problem with file, line, column and key path, never the value.
 
 ### Implementation
 
-- [ ] T011 [US1] Implement `resolve_config_dir` and `parse_config` in
+- [X] T011 [US1] Implement `resolve_config_dir` and `parse_config` in
   `src/opscout/services/config.py`: decode and size check, `yaml.compose` with
   `SafeLoader`, the walker of research.md R1 (positions, duplicates, tags, merge key, node
   limit), the `schema_version` presence and type check of R4, Pydantic validation and the
   error mapping of R3 (messages from the error type, never from `input`); T006, T008, T009
   pass
-- [ ] T012 [US1] Implement `load_config(directory)` in `src/opscout/entrypoints/config.py`
+- [X] T012 [US1] Implement `load_config(directory)` in `src/opscout/entrypoints/config.py`
   (existence checks of FR-003 and FR-004, reads only `config.yaml`) and the `config
   validate` subcommand with `--config` in `src/opscout/entrypoints/cli.py`; T007 and T010
   pass, and the existing smoke tests still pass
