@@ -1,17 +1,21 @@
 # SPDX-License-Identifier: Apache-2.0
 """Commit messages follow Conventional Commits 1.0 (ADR-0016).
 
-python -m tools.commit_message FILE                 # the commit-msg hook
-python -m tools.commit_message --range [BASE] HEAD  # each commit of a range (CI)
+    python -m tools.commit_message FILE                 # the commit-msg hook
+    python -m tools.commit_message --range [BASE] HEAD  # each commit of a range (CI)
+    python -m tools.commit_message --pushed             # each commit being pushed (pre-push)
+
+Merge commits are skipped in ranges: git and GitHub write their messages.
 """
 
 import argparse
+import os
 import re
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from tools._git import commits, git
+from tools._git import commits, git, message_lines, pushed_revisions
 
 TYPES = (
     "build",
@@ -27,19 +31,13 @@ TYPES = (
     "test",
 )
 SUBJECT = re.compile(rf"(?:{'|'.join(TYPES)})(?:\([a-z0-9][a-z0-9./-]*\))?!?: \S.*")
-# Messages git writes itself, for autosquash and for reverts.
-GENERATED = ("fixup! ", "squash! ", "amend! ", 'Revert "')
-SCISSORS = "# ------------------------ >8 ------------------------"
+# Messages git writes itself: autosquash, reverts and merges.
+GENERATED = ("fixup! ", "squash! ", "amend! ", 'Revert "', "Merge ")
 
 
 def problems(message: str) -> list[str]:
     """Return what keeps ``message`` from being a Conventional Commit; empty when it is one."""
-    lines: list[str] = []
-    for line in message.splitlines():
-        if line == SCISSORS:
-            break
-        if not line.startswith("#"):
-            lines.append(line)
+    lines = [line for _, line in message_lines(message)]
     subject = lines[0] if lines else ""
     if subject.startswith(GENERATED):
         return []
@@ -60,20 +58,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         prog="python -m tools.commit_message",
         description="Check that commit messages follow Conventional Commits (ADR-0016).",
     )
-    parser.add_argument("target", nargs="+", help="a message file, or [BASE] HEAD with --range")
-    parser.add_argument("--range", action="store_true", help="check each commit of a range")
+    parser.add_argument("target", nargs="*", help="a message file, or [BASE] HEAD with --range")
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument("--range", action="store_true", help="check each commit of a range")
+    source.add_argument("--pushed", action="store_true", help="check each commit being pushed")
     args = parser.parse_args(argv)
 
     messages: list[tuple[str, str]]
-    if args.range:
-        if len(args.target) > 2:
+    if args.range or args.pushed:
+        if args.pushed:
+            revisions = pushed_revisions(os.environ)
+        elif 1 <= len(args.target) <= 2:
+            revisions = args.target
+        else:
             parser.error("--range takes [BASE] HEAD")
         messages = [
             (f"commit {sha[:12]}", git("show", "-s", "--format=%B", sha))
-            for sha in commits(args.target)
+            for sha in commits(revisions, merges=False)
         ]
-    else:
+    elif args.target:
         messages = [(name, Path(name).read_text(encoding="utf-8")) for name in args.target]
+    else:
+        parser.error("give a message file, --range [BASE] HEAD, or --pushed")
 
     failed = False
     for where, message in messages:

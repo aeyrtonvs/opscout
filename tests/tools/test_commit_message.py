@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Commit messages follow Conventional Commits 1.0 (ADR-0016)."""
 
-import shutil
-import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -20,6 +19,8 @@ from tools.commit_message import main, problems
         "docs: explain the leak check\n# Lines starting with '#' are git's comments.\n",
         "fixup! feat: add the alert triage skill",
         'Revert "feat: add the alert triage skill"',
+        "Merge branch 'main' into feat/003-alert-triage",
+        "docs: explain\n# ------------------------ >8 ------------------------\nNot a body",
     ],
 )
 def test_conventional_messages_pass(message: str) -> None:
@@ -52,18 +53,23 @@ def test_the_hook_reads_the_message_file(tmp_path: Path) -> None:
     assert main([str(bad)]) == 1
 
 
-def test_range_mode_checks_every_commit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    git = shutil.which("git")
-    assert git is not None
-    identity = ["-c", "user.name=Someone", "-c", "user.email=someone@example.com"]
-    unsigned = ["-c", "commit.gpgsign=false"]
-    for arguments in (
-        ["init", "-q"],
-        [*identity, *unsigned, "commit", "-q", "--allow-empty", "-m", "chore: start"],
-        [*identity, *unsigned, "commit", "-q", "--allow-empty", "-m", "Tweak things"],
-    ):
-        subprocess.run([git, *arguments], cwd=tmp_path, check=True)  # noqa: S603  # fixed program
-    monkeypatch.chdir(tmp_path)
+def test_range_mode_checks_every_commit(git: Callable[..., str]) -> None:
+    git("commit", "-q", "--allow-empty", "-m", "chore: start")
+    git("commit", "-q", "--allow-empty", "-m", "Tweak things")
 
     assert main(["--range", "HEAD~1"]) == 0
     assert main(["--range", "HEAD"]) == 1
+
+
+def test_pushed_mode_reads_the_range_pre_commit_passes(
+    git: Callable[..., str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    git("commit", "-q", "--allow-empty", "-m", "chore: start")
+    first = git("rev-parse", "HEAD").strip()
+    git("commit", "-q", "--allow-empty", "-m", "Tweak things")
+    monkeypatch.setenv("PRE_COMMIT_FROM_REF", first)
+
+    monkeypatch.setenv("PRE_COMMIT_TO_REF", first)
+    assert main(["--pushed"]) == 0
+    monkeypatch.setenv("PRE_COMMIT_TO_REF", git("rev-parse", "HEAD").strip())
+    assert main(["--pushed"]) == 1

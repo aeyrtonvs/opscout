@@ -2,18 +2,22 @@
 """The leak check: real data never reaches this public repository (ADR-0015).
 
 Layer 1 looks for generic shapes: account IDs, IP addresses, chat IDs, ticket keys, internal
-hostnames and e-mail addresses (gitleaks covers secrets). Layer 2 looks for the terms of a
-private deny-list, read from the private configuration directory and never kept here. Layer 3
-checks that commit e-mail addresses are GitHub no-reply addresses.
+hostnames, cloud resource endpoints and e-mail addresses (gitleaks covers secrets). Layer 2
+looks for the terms of a private deny-list, read from the private configuration directory and
+never kept here. Layer 3 checks that commit e-mail addresses are GitHub no-reply addresses.
+File names are checked as well as contents.
 
     python -m tools.leak_check files PATH...         # layers 1 and 2, on whole files
     python -m tools.leak_check tracked               # the same, on every tracked file
     python -m tools.leak_check message FILE          # layers 1 and 2, on a commit message
     python -m tools.leak_check identity              # layer 3, on the commit being made
     python -m tools.leak_check commits [BASE] HEAD   # every layer, on each commit (CI)
+    python -m tools.leak_check pushed                # the same, on the commits being pushed
 
 A value that layer 1 flags but that is not real data goes in ``leak_allowlist.toml``, with
-the reason. Layer-2 matches cannot be allow-listed: refine the private deny-list instead.
+the reason. Layer-2 matches cannot be allow-listed: refine the private deny-list instead. In
+a clone where ``git config opscout.requireDenylist`` is true, a missing deny-list is an error
+rather than a warning.
 """
 
 import argparse
@@ -27,7 +31,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from tools._git import commits, git
+from tools._git import commits, git, message_lines, pushed_revisions
 
 ALLOWLIST_FILE = Path(__file__).with_name("leak_allowlist.toml")
 DENYLIST_NAME = "leak-denylist.txt"
@@ -56,23 +60,34 @@ class Rule:
     harmless: Callable[[str], bool]
 
 
+RESERVED_ACCOUNT_IDS = frozenset({"123456789012", "1234-5678-9012"})
 DOCUMENTATION_NETWORKS = tuple(
     ipaddress.IPv4Network(network)
     for network in ("192.0.2.0/24", "198.51.100.0/24", "203.0.113.0/24", "127.0.0.0/8")
 )
 HARMLESS_ADDRESSES = frozenset({"0.0.0.0", "255.255.255.255", "169.254.169.254"})  # noqa: S104
+# Prefixes of standard names that look like ticket keys: ADR-0015, SHA-256, X86-64, Q4-2026.
 TICKET_LIKE_TERMS = frozenset(
-    {"ADR", "CVE", "CWE", "EXAMPLE", "FR", "GHSA", "ISO", "NFR", "PEP", "RFC", "SC", "SHA", "UTF"}
+    {
+        "ADR", "AES", "ARM", "CVE", "CWE", "EXAMPLE", "FR", "GHSA", "GPT", "HTTP", "IEEE", "ISO",
+        "NFR", "PEP", "Q1", "Q2", "Q3", "Q4", "RFC", "RSA", "SC", "SHA", "SHA1", "SHA2", "SHA3",
+        "SSL", "TLS", "UTF", "X86",
+    }
+)  # fmt: skip
+# Names that are the same on every machine, so they reveal nothing.
+HARMLESS_HOSTS = frozenset(
+    {"gateway.docker.internal", "host.docker.internal", "kubernetes.default.svc.cluster.local"}
 )
 RESERVED_DOMAIN = re.compile(
     r"(?:^|\.)(?:example\.(?:com|net|org)|example|invalid|localhost|test)$", re.IGNORECASE
 )
+# SSH remote URLs, web-flow commits and Dependabot's sign-off: none of them reaches a person.
+HARMLESS_EMAILS = frozenset({"git@github.com", "noreply@github.com", "support@github.com"})
+NOREPLY_DOMAIN = "users.noreply.github.com"
 NOREPLY = re.compile(
     r"(?:\d+\+)?[A-Za-z0-9-]+(?:\[bot\])?@users\.noreply\.github\.com|noreply@github\.com"
 )
-# No-reply addresses and the user of SSH remote URLs reach nobody.
-HARMLESS_EMAILS = frozenset({"git@github.com", "noreply@github.com"})
-NOREPLY_DOMAIN = "users.noreply.github.com"
+LABEL = r"[a-z0-9-]{1,63}"  # bounded, so a long dotted line cannot take quadratic time
 
 
 def _harmless_ip(value: str) -> bool:
@@ -86,7 +101,10 @@ def _harmless_ip(value: str) -> bool:
 
 
 def _harmless_host(value: str) -> bool:
-    return any(label.startswith("example") for label in value.lower().split("."))
+    lowered = value.lower()
+    return lowered in HARMLESS_HOSTS or any(
+        label.startswith("example") for label in lowered.split(".")
+    )
 
 
 def _harmless_email(value: str) -> bool:
@@ -99,15 +117,24 @@ def _harmless_email(value: str) -> bool:
 
 
 RULES = (
-    Rule("account-id", re.compile(r"\b\d{12}\b"), lambda value: value == "123456789012"),
+    Rule(
+        "account-id",
+        re.compile(r"(?<![A-Za-z0-9])\d{12}(?![A-Za-z0-9])"),
+        lambda value: value in RESERVED_ACCOUNT_IDS,
+    ),
+    Rule(  # the AWS console's own format
+        "account-id",
+        re.compile(r"(?<![\w-])\d{4}-\d{4}-\d{4}(?![\w-])"),
+        lambda value: value in RESERVED_ACCOUNT_IDS,
+    ),
     Rule(
         "ip-address",
         re.compile(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?!\.?\d)"),
         _harmless_ip,
     ),
-    Rule(
+    Rule(  # Slack IDs: a type letter, then a digit
         "chat-id",
-        re.compile(r"\b[CDGTUW](?=[A-Z0-9]*\d)[A-Z0-9]{8,10}\b"),
+        re.compile(r"\b[CDGTUW]\d[A-Z0-9]{7,9}\b"),
         lambda value: False,
     ),
     Rule(
@@ -118,14 +145,25 @@ RULES = (
     Rule(
         "hostname",
         re.compile(
-            r"\b(?:[a-z0-9-]+\.)+(?:corp|internal|intranet|lan|local)\b(?!\.?[\w-])",
+            rf"\b(?:{LABEL}\.){{1,8}}(?:consul|corp|home\.arpa|internal|intranet|lan|local)\b"
+            r"(?!\.?[\w-])",
+            re.IGNORECASE,
+        ),
+        _harmless_host,
+    ),
+    Rule(  # endpoints that name a resource: databases, load balancers, APIs, buckets
+        "cloud-endpoint",
+        re.compile(
+            rf"\b(?:{LABEL}\.){{1,6}}(?:elb|execute-api|rds|s3)\.(?:{LABEL}\.){{0,3}}"
+            r"amazonaws\.com\b",
             re.IGNORECASE,
         ),
         _harmless_host,
     ),
     Rule(
         "e-mail",
-        re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
+        # Bounded by the lengths RFC 5321 allows, so a long dotted line stays linear.
+        re.compile(r"\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,63}\b"),
         _harmless_email,
     ),
 )
@@ -209,6 +247,7 @@ def check_identity(email: str, role: str) -> Finding | None:
 
 
 HUNK = re.compile(r"@@ -\d+(?:,\d+)? \+(?P<start>\d+)(?:,\d+)? @@")
+DIFF_HEADER = re.compile(r"diff --git a/.* b/(?P<path>.*)")
 
 
 def added_lines(diff: str) -> Iterator[tuple[str, int, str]]:
@@ -229,6 +268,26 @@ def added_lines(diff: str) -> Iterator[tuple[str, int, str]]:
             number += 1
 
 
+def diff_files(diff: str) -> list[tuple[str, bool]]:
+    """Return ``(path, binary)`` for each file a diff adds or changes; deleted ones are left out."""
+    files: dict[str, bool] = {}
+    current: str | None = None
+    for line in diff.splitlines():
+        if header := DIFF_HEADER.match(line):
+            current = header["path"]
+            files[current] = False
+        elif current is None:
+            continue
+        elif line.startswith("deleted file mode"):
+            del files[current]
+            current = None
+        elif line.startswith("Binary files ") and line.endswith(" differ"):
+            files[current] = True
+        elif HUNK.match(line):
+            current = None
+    return list(files.items())
+
+
 def _read_text(path: Path) -> str | None:
     """Return a file's text, or None for a binary or missing file."""
     try:
@@ -238,15 +297,40 @@ def _read_text(path: Path) -> str | None:
     return None if b"\0" in data else data.decode("utf-8", errors="replace")
 
 
+def _shown_name(path: Path) -> str:
+    """The name to check for a file: relative to the working directory, else its base name.
+
+    The directories above the repository are the user's, not the repository's.
+    """
+    try:
+        return path.resolve().relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return path.name
+
+
 def _scan_files(
     paths: Sequence[Path], allowlist: Mapping[str, str], denylist: Sequence[re.Pattern[str]]
 ) -> list[Finding]:
     findings: list[Finding] = []
     for path in paths:
+        findings += scan_line(
+            _shown_name(path), f"{path} (file name)", allowlist=allowlist, denylist=denylist
+        )
         text = _read_text(path)
         if text is not None:
             findings += scan_text(text, str(path), allowlist=allowlist, denylist=denylist)
     return findings
+
+
+def _scan_message(
+    path: Path, allowlist: Mapping[str, str], denylist: Sequence[re.Pattern[str]]
+) -> list[Finding]:
+    message = path.read_text(encoding="utf-8", errors="replace")
+    return [
+        finding
+        for number, line in message_lines(message)
+        for finding in scan_line(line, f"{path}:{number}", allowlist=allowlist, denylist=denylist)
+    ]
 
 
 def _scan_identity() -> list[Finding]:
@@ -280,14 +364,53 @@ def _scan_commits(
             "--unified=0",
             "--no-color",
             "--no-ext-diff",
+            "--no-textconv",
+            "--no-renames",
             "--diff-merges=first-parent",
             sha,
         )
+        for path, binary in diff_files(diff):
+            findings += scan_line(
+                path, f"{commit} {path} (file name)", allowlist=allowlist, denylist=denylist
+            )
+            if binary:  # git does not show it, so read it; a NUL byte means truly binary
+                blob = git("show", "--no-textconv", f"{sha}:{path}")
+                if "\0" not in blob:
+                    findings += scan_text(
+                        blob, f"{commit} {path}", allowlist=allowlist, denylist=denylist
+                    )
         for path, number, text in added_lines(diff):
             findings += scan_line(
                 text, f"{commit} {path}:{number}", allowlist=allowlist, denylist=denylist
             )
     return findings
+
+
+def _denylist_required() -> bool:
+    """Whether this clone asks for the private deny-list (``opscout.requireDenylist``)."""
+    try:
+        setting = git("config", "--type=bool", "--default=false", "opscout.requireDenylist")
+    except (subprocess.CalledProcessError, RuntimeError):
+        return False
+    return setting.strip() == "true"
+
+
+HINTS = {
+    "commit-e-mail": (
+        "Commit with your GitHub no-reply address: "
+        'git config user.email "ID+login@users.noreply.github.com". '
+        "Never add a real address to the allow-list."
+    ),
+    "private-term": (
+        "A term from your private deny-list: remove it. It cannot be allow-listed; if it is a "
+        "false positive, refine the deny-list."
+    ),
+}
+DEFAULT_HINT = (
+    "This looks like real data, which this public repository must never hold (AGENTS.md, "
+    "rule 1). Replace it with a reserved value. If it is not real data, add it to "
+    "tools/leak_allowlist.toml with the reason."
+)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -310,6 +433,7 @@ def _parser() -> argparse.ArgumentParser:
     modes.add_parser("commits", help="every layer on each commit of a range").add_argument(
         "revisions", nargs="+", metavar="[BASE] HEAD"
     )
+    modes.add_parser("pushed", help="every layer on each commit being pushed (pre-push)")
     return parser
 
 
@@ -326,11 +450,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as error:
         parser.error(str(error))
     if denylist is None and args.mode != "identity":
-        print(
-            f"leak check: no private deny-list at {config_dir / DENYLIST_NAME}; "
-            "layer 2 was skipped (CONTRIBUTING.md)",
-            file=sys.stderr,
-        )
+        missing = f"no private deny-list at {config_dir / DENYLIST_NAME}"
+        if _denylist_required():
+            print(
+                f"leak check: {missing}, and this clone requires one "
+                "(git config opscout.requireDenylist). See CONTRIBUTING.md.",
+                file=sys.stderr,
+            )
+            return 1
+        print(f"leak check: {missing}; layer 2 was skipped (CONTRIBUTING.md)", file=sys.stderr)
     terms = denylist or []
 
     findings: list[Finding]
@@ -340,23 +468,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         tracked = [Path(name) for name in git("ls-files", "-z").split("\0") if name]
         findings = _scan_files(tracked, allowlist, terms)
     elif args.mode == "message":
-        findings = _scan_files([args.path], allowlist, terms)
+        findings = _scan_message(args.path, allowlist, terms)
     elif args.mode == "identity":
         findings = _scan_identity()
-    else:
+    elif args.mode == "commits":
         findings = _scan_commits(args.revisions, allowlist, terms)
+    else:
+        findings = _scan_commits(pushed_revisions(os.environ), allowlist, terms)
 
+    # CI logs are public, so a run there never prints the values it found.
+    redact = args.redact or os.environ.get("CI") == "true"
     for finding in findings:
-        # CI logs are public, so a run there never prints the values it found.
-        print(finding.render(redact=args.redact or os.environ.get("CI") == "true"))
+        print(finding.render(redact=redact))
     if findings:
-        print(
-            "\nThis looks like real data, which this public repository must never hold "
-            "(AGENTS.md, rule 1). Replace it with a reserved value. If it is not real data, add "
-            "it to tools/leak_allowlist.toml with the reason (private terms cannot be "
-            "allow-listed).",
-            file=sys.stderr,
-        )
+        rules = {finding.rule for finding in findings}
+        hints = [HINTS[rule] for rule in sorted(rules & HINTS.keys())]
+        if rules - HINTS.keys():
+            hints.append(DEFAULT_HINT)
+        print("\n" + "\n".join(hints), file=sys.stderr)
     return 1 if findings else 0
 
 
