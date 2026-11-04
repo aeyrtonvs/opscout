@@ -12,15 +12,15 @@ their FRs in `tags`. Scratch repositories with a local bare remote only.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the baseline on `feat/004-ship-skill`: `uv run just fast` passes
+- [X] T001 Confirm the baseline on `feat/004-ship-skill`: `uv run just fast` passes
 
 ## Phase 2: Foundational — the `ship` section (US3 data)
 
-- [ ] T002 Create `tests/unit/ship/test_ship.py` with the traceability test (FR-025),
+- [X] T002 Create `tests/unit/ship/test_ship.py` with the traceability test (FR-025),
   `xfail(strict=True)` until T020
-- [ ] T003 Write failing tests for `Ship` and its bounds per data-model.md (FR-001, FR-002),
+- [X] T003 Write failing tests for `Ship` and its bounds per data-model.md (FR-001, FR-002),
   a compatibility file using every field, and `draft: false` refused
-- [ ] T004 Implement `Ship` and `PullRequestConventions` in `src/opscout/core/config.py`,
+- [X] T004 Implement `Ship` and `PullRequestConventions` in `src/opscout/core/config.py`,
   defaults in `src/opscout/core/ship.py`, the compatibility file, and regenerate the schema
 
 ## Phase 3: User Story 1 — the push guard (P1) 🎯 MVP

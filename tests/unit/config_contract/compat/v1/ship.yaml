@@ -1,0 +1,10 @@
+# Every field of the ship section (spec 004), added to schema version 1 (spec 002, FR-030).
+schema_version: 1
+ship:
+  protected_branches: [main, "release/*"]
+  branch_pattern: "{type}/{ticket}-{slug}"
+  types: [feat, fix, chore]
+  trailer: "Assisted-by: Claude Code"
+  pull_request:
+    base: develop
+    draft: true

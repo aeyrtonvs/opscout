@@ -372,6 +372,8 @@ def _message(detail: ErrorDetails) -> str:
         return f"expected {words} {context.get(key)} item(s)"
     if kind == "string_pattern_mismatch":
         return f"expected text matching {context.get('pattern')}"
+    if kind.startswith("opscout_"):
+        return detail["msg"]  # our own messages, which never hold the value
     return "not a valid value here"
 
 
