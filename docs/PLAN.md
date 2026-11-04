@@ -140,7 +140,7 @@ Spec Kit gives each spec stable IDs: user stories (`US1`…), functional require
 | Conventional Commit messages | ✓ on each commit and every pushed commit | ✓ |
 | Secret scan (gitleaks) | ✓ staged changes; whole history before a push | ✓ whole history, plus GitHub push protection |
 | Plugin and marketplace validation (`claude plugin validate --strict`) | ✓ | ✓ |
-| `example-config/` against the schema | ✓ | ✓ |
+| `example-config/` against the schema | planned (Phase 0b) | planned (Phase 0b) |
 | Evals (`claude plugin eval`) | before each release | on demand, with a cost ceiling |
 | Workflow security (zizmor) | ✓ offline audits | ✓ with the online audits |
 | CodeQL, dependency review, OpenSSF Scorecard | — | ✓ once the repository is public |

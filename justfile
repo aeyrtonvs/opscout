@@ -47,6 +47,7 @@ fast: lint types imports test
 setup:
     pre-commit install --install-hooks
 
-# Run every local gate on every file, as the git hooks do (ADR-0016).
+# Run the pre-commit stage of the gates on every file (ADR-0016). The commit-msg and
+# pre-push stages run when you commit and when you push.
 check:
     pre-commit run --all-files

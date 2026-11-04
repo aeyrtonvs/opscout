@@ -42,7 +42,7 @@ in `uv.lock` or in `.pre-commit-config.yaml`, so nothing else is installed globa
 uv sync              # the toolchain, from uv.lock
 git config user.email "ID+login@users.noreply.github.com"   # the hooks accept no other
 uv run just setup    # the git hooks
-uv run just check    # every local gate
+uv run just check    # the pre-commit gates, on every file
 ```
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before your first change.

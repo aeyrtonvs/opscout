@@ -27,7 +27,7 @@ cd opscout
 uv sync              # the toolchain, from uv.lock
 git config user.email "ID+login@users.noreply.github.com"   # your GitHub no-reply address
 uv run just setup    # the pre-commit, commit-msg and pre-push hooks
-uv run just check    # every local gate
+uv run just check    # the pre-commit gates, on every file
 ```
 
 The hooks accept only a GitHub no-reply commit address, so set it before your first
