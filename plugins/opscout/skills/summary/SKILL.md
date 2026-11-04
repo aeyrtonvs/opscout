@@ -2,7 +2,7 @@
 name: summary
 description: Writes a short summary of this session's work, ready to paste into a ticket, a chat message or a postmortem, in the user's configured write-up formats. Use when the user asks for a summary, a write-up, a ticket update, a message for the team or a postmortem of what was done.
 argument-hint: "[format]"
-allowed-tools: Bash(opscout writeup formats *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/opscout" writeup formats *)
 ---
 
 # Summary
@@ -22,7 +22,7 @@ allowed-tools: Bash(opscout writeup formats *)
 
 ## The formats
 
-!`opscout writeup formats --config '${user_config.config_dir}'`
+!`"${CLAUDE_PLUGIN_ROOT}/bin/opscout" writeup formats --config '${user_config.config_dir}'`
 
 ## Procedure
 

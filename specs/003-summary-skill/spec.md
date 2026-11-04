@@ -234,7 +234,9 @@ what message is printed.
   (absence of ruled-out items, sections present, length, single block), and an LLM grader
   only for "only facts from the session".
 - **FR-028**: The suite MUST score at least 0.9 and above the no-plugin baseline, run with a
-  cost ceiling of USD 3, and the result MUST be recorded in this spec.
+  cost ceiling of USD 3, and the result MUST be recorded in this spec. Until the first
+  release, the suite runs through the headless runner of ADR-0013's amendment, because the
+  official harness cannot run the engine from a clone.
 - **FR-029**: Every functional requirement MUST be covered by a test or an eval case tied to
   it, and the suite MUST fail when one has none.
 

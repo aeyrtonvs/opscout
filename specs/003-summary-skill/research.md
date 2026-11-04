@@ -149,9 +149,18 @@ the exit code. Reports publish to claude.ai unless `--no-publish` is passed. A s
   way, an eval never reads the maintainer's real configuration.
 - An empty `--config ""` (an unset option substituted as empty) counts as not given, so the
   command falls back to `OPSCOUT_CONFIG` and the default, as spec 002 resolves it.
-- Command: `claude plugin eval plugins/opscout --no-publish --runs 1 --threshold 0.9
-  --max-cost-usd 3 --allow-tools "Bash(opscout writeup formats *)"`, each run confirmed by
-  the maintainer.
+- **First run through `claude plugin eval` (2026-11-04, USD 1.79)**: every case failed
+  because the plugin's `bin/` is not on an eval run's PATH (`command not found: opscout`).
+  With the launcher called by its path (`"${CLAUDE_PLUGIN_ROOT}/bin/opscout"`), the run's
+  sandbox refused to read the clone outside the plugin directory (`pyproject.toml:
+  Operation not permitted`), and a case's `add_dirs` cannot leave the case directory. Each
+  run's HOME is also a sealed temporary directory, so an eval can never read the real
+  configuration.
+- **Decision (maintainer, 2026-11-04)**: until the first release, `tools/skill_evals.py`
+  plays the same cases through `claude -p` (ADR-0013, amended), each run confirmed:
+  `uv run python -m tools.skill_evals --plugin plugins/opscout --config-dir
+  plugins/opscout/evals/eval-config --threshold 0.9 --max-cost-usd 3 --out
+  plugins/opscout/evals/results/runner.json`.
 
 ## R6. Skill frontmatter (FR-012)
 

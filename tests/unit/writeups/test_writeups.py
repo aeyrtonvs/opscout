@@ -487,7 +487,9 @@ CLAUDE_CODE_FIELDS = {
     "context",
     "agent",
 }
-INJECTION = "!`opscout writeup formats --config '${user_config.config_dir}'`"
+INJECTION = (
+    "!`\"${CLAUDE_PLUGIN_ROOT}/bin/opscout\" writeup formats --config '${user_config.config_dir}'`"
+)
 
 
 def skill_parts() -> tuple[dict[str, object], str]:
@@ -530,7 +532,7 @@ def test_the_skill_injects_the_formats_for_the_configured_directory() -> None:
 def test_the_skill_pre_approves_only_the_formats_command() -> None:
     front, body = skill_parts()
 
-    assert front["allowed-tools"] == "Bash(opscout writeup formats *)"
+    assert front["allowed-tools"] == 'Bash("${CLAUDE_PLUGIN_ROOT}/bin/opscout" writeup formats *)'
     assert re.search(r"never (post|call)", body, re.IGNORECASE)
 
 

@@ -26,11 +26,14 @@ claude --plugin-dir plugins/opscout
 Then ask, after some work in the session: "give me a short summary for the ticket".
 Expected: one block in the ticket format, without what was ruled out.
 
-## 4. The evals (each run confirmed; never published)
+## 4. The evals (each run confirmed; reports stay local)
+
+Until the first release (ADR-0013, amended):
 
 ```sh
-claude plugin eval plugins/opscout --no-publish --runs 1 --threshold 0.9 \
-  --max-cost-usd 3 --allow-tools "Bash(opscout writeup formats *)"
+uv run python -m tools.skill_evals --plugin plugins/opscout \
+  --config-dir plugins/opscout/evals/eval-config --threshold 0.9 --max-cost-usd 3 \
+  --out plugins/opscout/evals/results/runner.json
 ```
 
 Expected: every case at or above 0.9, and a positive delta over the no-plugin baseline.

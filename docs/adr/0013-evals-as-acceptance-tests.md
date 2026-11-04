@@ -46,3 +46,17 @@ API key or cloud-provider credentials.
 
 The release checklist includes the eval report. A skill pull request without its eval cases
 does not pass review.
+
+## More Information
+
+**Amended 2026-11-04 (spec 003).** `claude plugin eval` confines each run to the plugin
+directory: a case cannot read the rest of the repository (its `add_dirs` must stay inside the
+case directory), and the plugin's `bin/` is not on the run's PATH. Before the first release
+the engine exists only in the clone, so the official harness cannot run a skill that calls
+it (ADR-0022). Until the first release, `tools/skill_evals.py` plays the same eval cases
+through `claude -p`, with and without `--plugin-dir`, isolated from the user's settings and
+MCP servers, and grades them as `claude plugin eval` documents: regex graders on the final
+reply, the Skill indicator left out of the two-arm score, and an LLM grader as a majority of
+three Haiku votes. The cases stay in the official format, so the suite moves to
+`claude plugin eval` unchanged once an installed plugin can run its released engine.
+
