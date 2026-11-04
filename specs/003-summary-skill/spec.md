@@ -297,11 +297,13 @@ what message is printed.
 
 - **Effort**: one session on 2026-11-04, from specify to the pull request.
 - **Eval result (FR-028, SC-001 to SC-003)**: final run on 2026-11-04 through
-  `tools/skill_evals.py` (ADR-0013, amended), 10 cases, one run each: lowest case score: 1.00;
-  delta over the no-plugin baseline: +0.82 (mean); cost USD 1.55. Every case scored 1.00:
-  no ruled-out cause appeared, and every reply kept its format's sections and limit. The
-  baseline arm scored 0.00 to 0.50.
-- **Total eval spend**: about USD 7.50, including three headless checks, one run of
+  `tools/skill_evals.py` (ADR-0013, amended), 11 cases, one run each, USD 1.61: ten at 1.00;
+  `003-edge-post` at 0.83, because two lines followed the closing line. With step 6 of the
+  skill fixed, that case and `003-us1-s2` (also a message) were re-run at 1.00 (USD 0.28).
+  Latest result per case: lowest case score: 1.00; delta over the no-plugin baseline: +0.81
+  (mean). No ruled-out cause appeared in any reply, and every reply kept its format's
+  sections and limit. The baseline arm scored 0.00 to 0.50.
+- **Total eval spend**: about USD 9.40, including three headless checks, one run of
   `claude plugin eval` that could not reach the engine, and two runner runs spoiled by runner
   bugs (a relative plugin path; a judge that did not see the user's message), both fixed and
   tested.

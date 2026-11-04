@@ -115,10 +115,10 @@ reserved values only.
 
 - [X] T019 [P] Update `AGENTS.md` (repository map: `plugins/opscout/bin/`, skills, evals) and
   `docs/PLAN.md` (status line, the summary-skill row and a paragraph, §9)
-- [ ] T020 With the maintainer's agreement, add the maintainer's own formats to the private
+- [X] T020 With the maintainer's agreement, add the maintainer's own formats to the private
   configuration and check that it validates and drives the skill locally (SC-005); record
   only the outcome
-- [ ] T021 Remove the `xfail` mark from the traceability test (T003); run `uv run just
+- [X] T021 Remove the `xfail` mark from the traceability test (T003); run `uv run just
   check`, `uv run just coverage` and the quickstart; set the spec's status to Implemented
 
 ---
@@ -137,10 +137,10 @@ which cost quota and run only with the maintainer's confirmation.
 
 ## Phase 8: Convergence
 
-- [ ] T022 Add the eval case `003-us3-s5` (an invalid configuration stops the write-up), with
+- [X] T022 Add the eval case `003-us3-s5` (an invalid configuration stops the write-up), with
   its own invalid synthetic configuration in the case's `eval-config/`, which the runner uses
   for that case, per FR-018 and US3/AC5 (partial)
-- [ ] T023 Add a grader to every case that allows at most one line after the block, per
+- [X] T023 Add a grader to every case that allows at most one line after the block, per
   FR-015 (partial)
-- [ ] T024 With the maintainer's agreement, validate the maintainer's own formats in the
+- [X] T024 With the maintainer's agreement, validate the maintainer's own formats in the
   private configuration and check them through the skill locally, per SC-005 (missing)

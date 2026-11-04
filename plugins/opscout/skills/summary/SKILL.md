@@ -49,7 +49,9 @@ allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/opscout" writeup formats *)
    the block, headings included, and stay within the format's limit: cut detail, never
    facts the reader needs. Follow the rules for every format and the format's own rules.
 6. **Close** with one line after the block: `Format: <name>`, then, if none was named, the
-   other formats listed above; and if the formats above say none were found in the
-   configuration, add that the built-in formats were used and why.
+   other formats listed above; if the formats above say none were found in the
+   configuration, that the built-in formats were used and why; and if the user asked to
+   post, send or save the write-up, that you only write the text for them to paste. Nothing
+   follows that line.
 
 Never call a tool while doing this: everything needed is in this session and above.
