@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Ships the current change by the user's conventions - creates a conventionally named branch when the work is on a protected branch, commits with a Conventional Commit message and the configured trailer, pushes the branch with the user's confirmation, and opens a draft pull request on GitHub. Use when the user asks to commit and push, ship, or open a pull request for their change.
+description: Ships the current change by the user's conventions - creates a conventionally named branch when the work is on a protected branch, commits with a Conventional Commit message and the configured trailer, pushes the branch with the user's confirmation, and opens a draft pull request on GitHub. Use whenever the user asks to commit, push, ship, or open a pull request for their change, including when they ask to push straight to main or another protected branch.
 argument-hint: "[what to ship]"
 allowed-tools:
   - Bash("${CLAUDE_PLUGIN_ROOT}/bin/opscout" ship *)
