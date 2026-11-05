@@ -333,8 +333,10 @@ class PersonalContext(BaseModel):
 JOB_NAMES: Final = ("check",)
 """The jobs the engine defines (spec 007); the configuration schedules them."""
 
-SECRET_NAMES: Final = ("claude_token",)
-"""The harness's own secrets the engine uses (spec 007): the fallback Claude Code token."""
+KEYCHAIN_ITEMS: Final = ("claude_token",)
+"""The names of the harness's own keychain items (spec 007): the fallback Claude Code token.
+
+Names only; a value never passes through the engine's output (FR-024)."""
 
 _Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 

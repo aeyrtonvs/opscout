@@ -26,7 +26,7 @@ from opscout.adapters.launchd import Launchctl, LaunchdScheduler
 from opscout.adapters.run_files import FileRunStore, LocalOutbox
 from opscout.core.config import (
     JOB_NAMES,
-    SECRET_NAMES,
+    KEYCHAIN_ITEMS,
     ConfigError,
     ConfigLocationError,
     Configuration,
@@ -364,8 +364,8 @@ def secret_set_command(name: str, flag: Path | None) -> int:
     """Store a configured secret, read without echo (FR-024)."""
     command = "secret set"
     wired = wiring()
-    if name not in SECRET_NAMES:
-        return _fail(command, f'unknown secret "{name}"; known: {", ".join(SECRET_NAMES)}')
+    if name not in KEYCHAIN_ITEMS:
+        return _fail(command, f'unknown secret "{name}"; known: {", ".join(KEYCHAIN_ITEMS)}')
     try:
         configuration, _ = _configuration(flag, wired.environ)
     except CommandError as error:
@@ -399,26 +399,26 @@ def secret_check_command(name: str | None, flag: Path | None) -> int:
     """Say whether each configured secret is in the keychain, never its value (FR-024)."""
     command = "secret check"
     wired = wiring()
-    if name is not None and name not in SECRET_NAMES:
-        return _fail(command, f'unknown secret "{name}"; known: {", ".join(SECRET_NAMES)}')
+    if name is not None and name not in KEYCHAIN_ITEMS:
+        return _fail(command, f'unknown secret "{name}"; known: {", ".join(KEYCHAIN_ITEMS)}')
     try:
         configuration, _ = _configuration(flag, wired.environ)
     except CommandError as error:
         return _fail(command, str(error))
-    secrets = {str(k): v for k, v in configuration.daemon.secrets.items()}
-    if name is not None and name not in secrets:
+    references = {str(k): v for k, v in configuration.daemon.secrets.items()}
+    if name is not None and name not in references:
         return _fail(command, f"{name} is not in daemon.secrets in the configuration")
-    chosen = [name] if name is not None else sorted(secrets)
+    chosen = [name] if name is not None else sorted(references)
     if not chosen:
         print("No secrets are configured.")
         return 0
     found = True
-    for secret in chosen:
-        ref = secrets[secret]
-        status = wired.secrets.status(secret, ref)
+    for item in chosen:
+        ref = references[item]
+        status = wired.secrets.status(item, ref)
         detail = f"{status.reason}; " if status.reason else ""
         print(
-            f"{secret}: {status.state} ({detail}keychain service {ref.service}, "
+            f"{item}: {status.state} ({detail}keychain service {ref.service}, "
             f"account {_account(ref)})"
         )
         found = found and status.state == "present"
