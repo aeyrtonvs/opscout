@@ -1,0 +1,9 @@
+# Every field of the personal_context section (spec 006), added to schema version 1
+# (spec 002, FR-030).
+schema_version: 1
+personal_context:
+  language: English
+  timezone: UTC
+  sections:
+    Working rules:
+      - Before any live fix in example-prod, list the changes and wait.
