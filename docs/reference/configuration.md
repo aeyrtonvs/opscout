@@ -173,6 +173,38 @@ At least one key is present, and no value holds a line break or `opscout:persona
 Only the lines between the markers change; everything else in the file stays as you wrote
 it. Applying again changes nothing. To remove the block, delete it by hand.
 
+### `daemon` (optional; spec 007)
+
+Scheduled jobs, the Claude Code executable they use, and the harness's own secrets. The
+engine defines the jobs; this section schedules them and may lower or raise their limits.
+
+```yaml
+daemon:
+  jobs:
+    check:
+      at: "09:30"
+      weekdays: [mon, tue, wed, thu, fri]
+  claude_path: /opt/example/bin/claude
+  secrets:
+    claude_token:
+      service: opscout-example
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `jobs` | none | the jobs to schedule, by name; the engine knows `check` |
+| `jobs.<name>.enabled` | `true` | whether `opscout daemon install` schedules the job |
+| `jobs.<name>.at` | required | the time of day, `HH:MM` from `00:00` to `23:59`, in the machine's local time; quote it |
+| `jobs.<name>.weekdays` | every day | the days it runs: 1–7 unique values from `mon` to `sun` |
+| `jobs.<name>.model` | the job's own (`haiku` for `check`) | an alias (`haiku`, `sonnet`, `opus`, `fable`) or a full `claude-…` id |
+| `jobs.<name>.budget_usd` | the job's own (0.05 for `check`) | the most one run may cost, above 0 and at most 5 |
+| `jobs.<name>.max_turns` | the job's own (3 for `check`) | the most turns one run may take, 1–50 |
+| `claude_path` | `claude` on `PATH` | the Claude Code executable, as an absolute path |
+| `secrets` | none | keychain references by name; the engine knows `claude_token`, a token from `claude setup-token` for jobs that cannot use your login |
+
+`opscout daemon install` schedules the enabled jobs, and `opscout secret set claude_token`
+stores the token; [daemon.md](daemon.md) covers the commands, the files and the outcomes.
+
 ## Rules for every section
 
 These hold for each section a later spec adds. Review checks them; tests enforce the

@@ -75,3 +75,13 @@ macOS-only regression shows within a day. The required checks are the Linux test
 and latest Python), the leak check, manifests and workflows job, dependency review, and
 CodeQL. The engine has no macOS-specific code yet; whether macOS should block again is
 decided with the first macOS adapter (launchd, keychain) in Phase 1.
+
+**Amended 2026-11-05 (spec 007, daemon-core).** The macOS test jobs stay informational. The
+first macOS-specific code, the launchd adapter, reaches launchd through a seam
+(`ServiceManager`), so its logic is tested on every operating system with a fake; the
+keychain adapter is tested on an in-memory `keyring` backend. One test runs against the
+real launchd: it is marked `launchd` and runs only on macOS in a GUI session, that is on
+the maintainer's machine with every `just fast`, and in CI's macOS jobs (every pull request,
+informational, and daily on `main`) when the runner has a GUI session; elsewhere it is
+skipped and says why. A launchd regression thus shows before a merge or within a day,
+without letting a missing hosted runner block a merge.

@@ -1,0 +1,15 @@
+# Every field of the daemon section (spec 007), added to schema version 1 (spec 002, FR-030).
+schema_version: 1
+daemon:
+  jobs:
+    check:
+      at: "09:30"
+      weekdays: [mon, tue, wed, thu, fri]
+      model: haiku
+      budget_usd: 0.05
+      max_turns: 3
+  claude_path: /opt/example/bin/claude
+  secrets:
+    claude_token:
+      service: opscout-example
+      account: opscout

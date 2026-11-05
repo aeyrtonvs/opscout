@@ -16,10 +16,12 @@ opscout hook session-start [--config DIR] # a SessionStart event on stdin (not n
    "additionalContext": "…"}}
   ```
 
-  with the same text in both. Always exit 0. Any error: a `systemMessage` only, starting
-  `opscout: the SSO check could not run`, with the reason for an AWS config that cannot be
-  read and only the error's type otherwise. The launcher answers the same way, exit 0, when
-  it cannot start the engine (no release, no `uvx`, an exit other than 0, over 8 s).
+  with the same text in both. Always exit 0. Any error: a `systemMessage` only:
+  `opscout: the SSO check could not run: <reason>` for an AWS config that cannot be read,
+  else `opscout: the session checks could not run (<error type>)`. The launcher answers
+  `opscout: the session checks could not run: <reason>`, exit 0, when it cannot start the
+  engine (no release, no `uvx`, an exit other than 0, over 8 s). Spec 007 appends its job
+  notices to the same output, after the SSO warning.
 
 The warning text:
 

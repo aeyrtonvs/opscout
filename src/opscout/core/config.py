@@ -330,6 +330,90 @@ class PersonalContext(BaseModel):
         return self
 
 
+JOB_NAMES: Final = ("check",)
+"""The jobs the engine defines (spec 007); the configuration schedules them."""
+
+KEYCHAIN_ITEMS: Final = ("claude_token",)
+"""The names of the harness's own keychain items (spec 007): the fallback Claude Code token.
+
+Names only; a value never passes through the engine's output (FR-024)."""
+
+_Weekday = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+WEEKDAYS: Final[tuple[_Weekday, ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+
+def _unique_days(days: list[str]) -> list[str]:
+    """Refuse a weekday listed twice."""
+    if len(set(days)) != len(days):
+        raise PydanticCustomError("unique_weekdays", "Each weekday may be listed only once")
+    return days
+
+
+class JobSettings(BaseModel):
+    """When a job runs and the limits of its model run (spec 007)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    enabled: bool = Field(
+        default=True, description="Whether opscout daemon install schedules this job."
+    )
+    at: Annotated[str, StringConstraints(pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")] = Field(
+        description='The time of day, HH:MM in the machine\'s local time; quote it ("09:30").'
+    )
+    weekdays: Annotated[
+        list[_Weekday],
+        Field(min_length=1, max_length=7, json_schema_extra={"uniqueItems": True}),
+        AfterValidator(_unique_days),
+    ] = Field(
+        default_factory=lambda: list(WEEKDAYS),
+        description="The days it runs, from mon to sun; without it, every day.",
+    )
+    model: (
+        Annotated[
+            str,
+            StringConstraints(
+                max_length=100, pattern=r"^(haiku|sonnet|opus|fable|claude-[a-z0-9][a-z0-9.-]*)$"
+            ),
+        ]
+        | None
+    ) = Field(
+        default=None,
+        description="The model: an alias (haiku, sonnet, opus, fable) or a full claude-… id.",
+    )
+    budget_usd: Annotated[float, Field(gt=0, le=5)] | None = Field(
+        default=None, description="The most one run may cost, in US dollars."
+    )
+    max_turns: Annotated[int, Field(ge=1, le=50)] | None = Field(
+        default=None, description="The most turns one run may take."
+    )
+
+
+class Daemon(BaseModel):
+    """Scheduled jobs and what their runs need (spec 007)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    jobs: Annotated[dict[Literal["check"], JobSettings], Field(max_length=20)] = Field(
+        default_factory=dict,
+        description="The jobs to schedule, by name; the engine defines them (now only check).",
+    )
+    claude_path: (
+        Annotated[str, StringConstraints(min_length=2, max_length=1024, pattern=r"^/[^\n]*$")]
+        | None
+    ) = Field(
+        default=None,
+        description="The Claude Code executable, as an absolute path; without it, PATH.",
+    )
+    secrets: dict[Literal["claude_token"], KeychainRef] = Field(
+        default_factory=dict,
+        description=(
+            "The harness's own secrets, by name, each a keychain reference; claude_token is "
+            "a token from claude setup-token, for jobs that cannot use your login."
+        ),
+    )
+
+
 class Configuration(BaseModel):
     """The private opscout configuration (config.yaml in the configuration directory)."""
 
@@ -363,6 +447,11 @@ class Configuration(BaseModel):
         description=(
             "The facts opscout context apply writes into your Claude Code CLAUDE.md (spec 006)."
         ),
+    )
+    daemon: Daemon = Field(
+        default_factory=Daemon,
+        description="Scheduled jobs, the Claude Code executable and the harness's secrets "
+        "(spec 007).",
     )
 
 

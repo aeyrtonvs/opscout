@@ -845,6 +845,10 @@ def unreferenced_credentials(schema: dict[str, Any]) -> list[str]:
         where, current = objects.pop()
         for name, value in current.get("properties", {}).items():
             refs = [value.get("$ref"), *(option.get("$ref") for option in value.get("anyOf", []))]
+            # A mapping of credentials by name (spec 007's daemon.secrets): each value.
+            values = value.get("additionalProperties")
+            if isinstance(values, dict) and "propertyNames" in value:
+                refs.append(values.get("$ref"))
             if any(word in name.lower() for word in CREDENTIAL_WORDS) and (
                 "#/$defs/KeychainRef" not in refs
             ):

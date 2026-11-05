@@ -75,3 +75,16 @@ personal_context:
     # Another heading.
     Environment:
       - example-prod is AWS account 123456789012, profile example-prod.
+
+# Scheduled jobs (spec 007). Optional: without this section nothing is scheduled.
+# `opscout daemon install` installs the enabled jobs after you confirm; `opscout run check`
+# runs the check job by hand, once per day unless --force is given.
+daemon:
+  # The jobs to schedule, by name; the engine defines them.
+  jobs:
+    # The diagnostic job: one tool-less model run whose report lands in the outbox.
+    check:
+      # The time of day, in the machine's local time; quote it.
+      at: "09:30"
+      # The days it runs; without it, every day.
+      weekdays: [mon, tue, wed, thu, fri]
