@@ -826,7 +826,6 @@ def test_the_skill_opens_a_draft_on_github_or_says_it_cannot() -> None:
 
 
 @spec("FR-024")
-@pytest.mark.xfail(reason="removed in T017, once the eval result is recorded", strict=True)
 def test_the_recorded_ship_eval_result_meets_the_threshold() -> None:
     actuals = SPEC_FILE.read_text(encoding="utf-8").split("## Actuals", 1)
     assert len(actuals) == 2

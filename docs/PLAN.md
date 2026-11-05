@@ -2,8 +2,8 @@
 
 > Status (2026-11-04): **Phase 0a done**: the repository is public at
 > `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b in progress** (§7): spec 001,
-> leak-guard, and spec 002, config-contract, are merged; spec 003, summary-skill, is
-> implemented on `feat/003-summary-skill`. The
+> leak-guard, spec 002, config-contract, and spec 003, summary-skill, are merged; spec 004,
+> ship-skill, is implemented on `feat/004-ship-skill`. The
 > constitution is ratified (1.0.2), ADRs 0001–0022 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -341,7 +341,7 @@ on the first push; the first commit reviewed for real data. Met on 2026-11-03.
 | leak-guard ([001](../specs/001-leak-guard/spec.md)) | rules 1–2 | A spec for the leak check that Phase 0a built (its layers 2 and 3 moved forward on 2026-11-03): the synthetic-leak suite traced to it, and pattern changes driven by real misses and false positives (ADR-0015) | Every synthetic leak in the test set is caught; < 1 s on a typical diff (0.2 s for the whole repository on 2026-11-03) |
 | config-contract ([002](../specs/002-config-contract/spec.md)) | all | Config models, JSON Schema, loader, `opscout config validate`, `example-config/` (ADR-0014) | Example and private configs validate; schema drift test |
 | summary-skill ([003](../specs/003-summary-skill/spec.md)) | 5 | Write-up formats from config: ticket, message, postmortem; a contract whose non-goals include "never list what was ruled out" | Eval suite at threshold and above the no-plugin baseline |
-| ship-skill | 6 | Branch naming, Conventional Commits, trailer, never to protected branches, draft PR; each push confirmed | `tool_order` graders: never pushes to a protected branch |
+| ship-skill ([004](../specs/004-ship-skill/spec.md)) | 6 | Branch naming, Conventional Commits, trailer, never to protected branches, draft PR; each push confirmed | `tool_order` graders: never pushes to a protected branch |
 | sso-check-hook | 6 | SessionStart warning from the local SSO token cache, no network | Tests for valid, expired and missing cache; p95 < 100 ms |
 | personal-context | 6 | Renders a marked section of `~/.claude/CLAUDE.md` from config; shows a diff and writes only on confirmation | Idempotent; content outside the markers untouched |
 
@@ -371,6 +371,15 @@ clone's engine or the matching release (ADR-0022, which answers the §9 item on 
 finds the package), and the `summary` skill. `claude plugin eval` cannot run the engine from a
 clone, so until the first release the eval cases run through `tools/skill_evals.py`
 (ADR-0013, amended).
+
+Spec 004 (ship-skill), implemented 2026-11-04: the configuration gains an optional `ship`
+section (protected patterns, branch pattern, types, trailer, pull request base; pull requests
+are always drafts); the engine gains `opscout ship rules`, `ship check-branch` and
+`ship check-message`; the plugin ships a PreToolUse push guard (`hooks/hooks.json`,
+`onFailure: block`) that asks before every plain `git push` and `gh pr create` and denies a
+push to a protected branch, with `main`, `master` and the remote's default branch always
+protected, in every session with the plugin enabled; and the `ship` skill. Its evals run on
+scratch repositories with a local remote.
 
 Outside this repo (private runbook): consolidate the SSO sessions into one (back up first,
 show the diff, wait for approval).
@@ -554,5 +563,11 @@ genai.owasp.org (Top 10 for Agentic Applications).
       `tools/skill_evals.py` runs the same cases through `claude -p` until then. Move the
       suites back to `claude plugin eval` after the first release, and check that an
       installed plugin's eval run can reach PyPI for `uvx`.
+- [ ] Push guard and `bypassPermissions` (spec 004, research R1): the docs do not say whether a
+      hook's `ask` still prompts in that mode; a push to a protected branch is denied either
+      way. Check it in the first session that runs in that mode.
+- [ ] Ship skill, draft pull request (spec 004, US2 scenarios 4 and 5): they follow a
+      confirmed push, which no headless eval can give; check them on the first real use and
+      record the outcome in the spec.
 - [ ] Leak check, annotated tags: their messages and taggers are not checked (a non-goal of
       spec 001, decided 2026-11-04). Decide before the first release tag.
