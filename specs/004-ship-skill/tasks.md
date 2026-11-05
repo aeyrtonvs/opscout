@@ -78,3 +78,9 @@ their FRs in `tags`. Scratch repositories with a local bare remote only.
 ## Dependencies
 
 1 → 2 → 3 (the guard, MVP) → 4 → 5 → 6 → 7.
+
+---
+
+## Phase 8: Convergence
+
+- [X] T021 Document `ship check-message -m` in `contracts/commands.md`, per FR-005 (partial)

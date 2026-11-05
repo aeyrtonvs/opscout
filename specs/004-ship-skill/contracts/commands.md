@@ -3,11 +3,13 @@
 ```text
 opscout ship rules [--config DIR]            # always exits 0; Markdown for the skill
 opscout ship check-branch NAME [--config DIR] [--default-branch NAME]
-opscout ship check-message FILE|- [--config DIR]
+opscout ship check-message (FILE|- | -m PARAGRAPH...) [--config DIR]
 opscout hook pre-tool-use [--config DIR]     # a PreToolUse event on stdin
 ```
 
 - `check-branch` and `check-message`: exit 0 when valid; 1 with one reason per line.
+  `-m` takes the paragraphs the way `git commit -m` does, so the skill checks exactly what it
+  commits.
 - `hook pre-tool-use`: prints nothing for a command that is not its business; otherwise
   `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask"|"deny",
   "permissionDecisionReason": "…"}}`; exit 0. An error while deciding about a command that
