@@ -31,3 +31,21 @@ writeups:
       rules: [One line per item.]
       # The most lines a write-up in this format may have.
       max_lines: 8
+
+# Conventions for the ship skill and the plugin's push guard (spec 004). Optional: without
+# this section, main and master are protected, branches are named <type>/<slug>, and
+# commits end with "Assisted-by: Claude Code". `opscout ship rules` prints them.
+ship:
+  # Branch patterns that are never pushed to. main, master and the remote's default branch
+  # are protected whatever this list says.
+  protected_branches: [main, "release/*"]
+  # How new branches are named: {type}, {slug} and, optionally, {ticket}.
+  branch_pattern: "{type}/{slug}"
+  # The Conventional Commit types allowed in messages and branch names.
+  types: [feat, fix, docs, chore, refactor, test, ci, build, perf]
+  # The last line of every commit message the skill writes.
+  trailer: "Assisted-by: Claude Code"
+  # How pull requests are opened: always drafts.
+  pull_request:
+    # The target branch; without it, the remote's default branch.
+    base: main

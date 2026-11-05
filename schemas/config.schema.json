@@ -2,6 +2,87 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/aeyrtonvs/opscout/main/schemas/config.schema.json",
   "$defs": {
+    "PullRequestConventions": {
+      "additionalProperties": false,
+      "description": "How the ship skill opens a pull request (spec 004).",
+      "properties": {
+        "base": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "pattern": "^\\S+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The branch the pull request targets; without it, the remote's default.",
+          "title": "Base"
+        },
+        "draft": {
+          "const": true,
+          "default": true,
+          "description": "Pull requests are always drafts for a person to finish.",
+          "title": "Draft",
+          "type": "boolean"
+        }
+      },
+      "title": "PullRequestConventions",
+      "type": "object"
+    },
+    "Ship": {
+      "additionalProperties": false,
+      "description": "Conventions for the ship skill and its push guard (spec 004).",
+      "properties": {
+        "protected_branches": {
+          "description": "Branch name patterns (globs such as release/*) that are never pushed to. main, master and the remote's default branch are protected whatever this says.",
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^\\S+$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Protected Branches",
+          "type": "array"
+        },
+        "branch_pattern": {
+          "default": "{type}/{slug}",
+          "description": "How new branches are named, with the tokens {type}, {slug} and {ticket}.",
+          "maxLength": 100,
+          "title": "Branch Pattern",
+          "type": "string"
+        },
+        "types": {
+          "description": "The Conventional Commit types allowed in commit messages and branch names.",
+          "items": {
+            "pattern": "^[a-z]{1,20}$",
+            "type": "string"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Types",
+          "type": "array"
+        },
+        "trailer": {
+          "default": "Assisted-by: Claude Code",
+          "description": "The trailer that ends every commit message the skill writes.",
+          "maxLength": 100,
+          "pattern": "^[A-Za-z][A-Za-z-]*: [^\\n]*\\S$",
+          "title": "Trailer",
+          "type": "string"
+        },
+        "pull_request": {
+          "$ref": "#/$defs/PullRequestConventions",
+          "description": "How pull requests are opened."
+        }
+      },
+      "title": "Ship",
+      "type": "object"
+    },
     "WriteupFormat": {
       "additionalProperties": false,
       "description": "A shape for a write-up: its sections in order, its rules and its length (spec 003).",
@@ -123,6 +204,10 @@
     "writeups": {
       "$ref": "#/$defs/Writeups",
       "description": "Write-up formats for the summary skill (spec 003)."
+    },
+    "ship": {
+      "$ref": "#/$defs/Ship",
+      "description": "Branch, commit and pull request conventions, and the protected branches."
     }
   },
   "required": [

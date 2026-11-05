@@ -444,6 +444,26 @@ def test_an_installed_plugin_without_a_release_says_what_to_do(tmp_path: Path) -
     assert "claude --plugin-dir" in result.stderr
 
 
+@spec("FR-024")
+def test_without_a_release_the_guard_only_blocks_pushes(tmp_path: Path) -> None:
+    launcher = copy_plugin(tmp_path, "0.0.0")
+
+    def guard(command: str) -> subprocess.CompletedProcess[str]:
+        event = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}, "cwd": "."})
+        return subprocess.run(  # noqa: S603  (the launcher under test)
+            [str(launcher), "hook", "pre-tool-use"],
+            input=event,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert (guard("ls -la").returncode, guard("ls -la").stdout) == (0, "")
+    pushed = guard("git push origin feat/x")
+    assert pushed.returncode == 2
+    assert "no release" in pushed.stderr
+
+
 @spec("FR-023")
 def test_an_installed_plugin_runs_exactly_its_release(tmp_path: Path) -> None:
     fake = tmp_path / "fake-bin"
@@ -598,7 +618,7 @@ def cases() -> dict[str, dict[str, object]]:
     """Return every eval case's frontmatter, by case name."""
     return {
         prompt.parent.name: yaml.safe_load(prompt.read_text(encoding="utf-8").split("---\n")[1])
-        for prompt in sorted(EVALS.glob("*/prompt.md"))
+        for prompt in sorted(EVALS.glob("003-*/prompt.md"))
     }
 
 
@@ -676,7 +696,7 @@ def test_every_requirement_has_a_test_or_an_eval_case() -> None:
                     for param_mark in getattr(value, "marks", ()):
                         if param_mark.name == "spec" and param_mark.args[0] == "003":
                             proven.add(param_mark.args[1])
-    for prompt in sorted((PLUGIN / "evals").glob("*/prompt.md")):
+    for prompt in sorted((PLUGIN / "evals").glob("003-*/prompt.md")):
         front = yaml.safe_load(prompt.read_text(encoding="utf-8").split("---")[1])
         proven.update(tag for tag in front.get("tags", []) if tag.startswith("FR-"))
 

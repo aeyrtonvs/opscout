@@ -16,12 +16,20 @@ Rules for every later section:
 """
 
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Annotated, Any, Final, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StringConstraints
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+)
 from pydantic_core import PydanticCustomError
 
 SCHEMA_VERSION: Final = 1
@@ -115,6 +123,89 @@ class Writeups(BaseModel):
     )
 
 
+CONVENTIONAL_TYPES: Final = (
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "feat",
+    "fix",
+    "perf",
+    "refactor",
+    "revert",
+    "style",
+    "test",
+)
+"""The Conventional Commit types the ship skill allows by default (spec 004)."""
+
+_Branch = Annotated[str, StringConstraints(min_length=1, max_length=100, pattern=r"^\S+$")]
+_PATTERN_TOKENS: Final = ("{type}", "{slug}", "{ticket}")
+
+
+def _known_tokens(pattern: str) -> str:
+    """Refuse a branch pattern with a token other than {type}, {slug} and {ticket}."""
+    rest = pattern
+    for token in _PATTERN_TOKENS:
+        rest = rest.replace(token, "")
+    if "{slug}" not in pattern or not re.fullmatch(r"[a-z0-9/._-]*", rest):
+        raise PydanticCustomError(
+            "opscout_branch_pattern",
+            "expected lowercase text with {slug} and only the tokens {type}, {slug} and {ticket}",
+        )
+    return pattern
+
+
+class PullRequestConventions(BaseModel):
+    """How the ship skill opens a pull request (spec 004)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    base: _Branch | None = Field(
+        default=None,
+        description="The branch the pull request targets; without it, the remote's default.",
+    )
+    draft: Literal[True] = Field(
+        default=True, description="Pull requests are always drafts for a person to finish."
+    )
+
+
+class Ship(BaseModel):
+    """Conventions for the ship skill and its push guard (spec 004)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    protected_branches: list[_Branch] = Field(
+        default_factory=lambda: ["main", "master"],
+        max_length=30,
+        description=(
+            "Branch name patterns (globs such as release/*) that are never pushed to. main, "
+            "master and the remote's default branch are protected whatever this says."
+        ),
+    )
+    branch_pattern: Annotated[
+        str, StringConstraints(max_length=100), AfterValidator(_known_tokens)
+    ] = Field(
+        default="{type}/{slug}",
+        description="How new branches are named, with the tokens {type}, {slug} and {ticket}.",
+    )
+    types: list[Annotated[str, StringConstraints(pattern=r"^[a-z]{1,20}$")]] = Field(
+        default_factory=lambda: list(CONVENTIONAL_TYPES),
+        min_length=1,
+        max_length=20,
+        description="The Conventional Commit types allowed in commit messages and branch names.",
+    )
+    trailer: Annotated[
+        str, StringConstraints(max_length=100, pattern=r"^[A-Za-z][A-Za-z-]*: [^\n]*\S$")
+    ] = Field(
+        default="Assisted-by: Claude Code",
+        description="The trailer that ends every commit message the skill writes.",
+    )
+    pull_request: PullRequestConventions = Field(
+        default_factory=PullRequestConventions,
+        description="How pull requests are opened.",
+    )
+
+
 class Configuration(BaseModel):
     """The private opscout configuration (config.yaml in the configuration directory)."""
 
@@ -134,6 +225,10 @@ class Configuration(BaseModel):
     writeups: Writeups = Field(
         default_factory=Writeups,
         description="Write-up formats for the summary skill (spec 003).",
+    )
+    ship: Ship = Field(
+        default_factory=Ship,
+        description="Branch, commit and pull request conventions, and the protected branches.",
     )
 
 

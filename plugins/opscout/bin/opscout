@@ -17,6 +17,7 @@ through unchanged.
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -34,9 +35,30 @@ def clone_root() -> Path | None:
     return None
 
 
+def _not_the_guards_business(event_text: str) -> bool:
+    """Return True when a hook event surely holds no push and no pull request.
+
+    The push guard runs before every Bash command, so the commands that cannot concern it
+    are answered here, at once and without the engine. This is a superset check: anything
+    that might be a push goes on to the engine, which decides.
+    """
+    try:
+        event = json.loads(event_text)
+        command = event["tool_input"]["command"] if event["tool_name"] == "Bash" else ""
+    except (ValueError, KeyError, TypeError):
+        return False
+    if not isinstance(command, str):
+        return False
+    return "push" not in command and not ("gh" in command and "pr" in command)
+
+
 def main() -> None:
     """Replace this process with the engine that matches the plugin."""
     arguments = sys.argv[1:]
+    hook = arguments[:2] == ["hook", "pre-tool-use"]
+    event_text = sys.stdin.read() if hook else ""
+    if hook and _not_the_guards_business(event_text):
+        sys.exit(0)
     root = clone_root()
     if root is not None:
         command = ["uv", "run", "--quiet", "--frozen", "--project", str(root), "opscout"]
@@ -44,6 +66,13 @@ def main() -> None:
         manifest = PLUGIN / ".claude-plugin" / "plugin.json"
         version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
         if version == UNRELEASED:
+            if hook:
+                sys.stderr.write(
+                    "opscout push guard: there is no release of this plugin to run the guard, "
+                    "so this push or pull request is refused; load the plugin from a clone "
+                    "(claude --plugin-dir <clone>/plugins/opscout).\n"
+                )
+                sys.exit(2)
             sys.stderr.write(
                 f"opscout: this plugin is version {UNRELEASED}, and there is no release of it "
                 "to run. Until the first release, load the plugin from a clone:\n"
@@ -56,6 +85,13 @@ def main() -> None:
     if program is None:
         sys.stderr.write(f"opscout: {command[0]} is required: https://docs.astral.sh/uv/\n")
         sys.exit(127)
+    if hook:
+        # The event was read above, so the engine gets it on its standard input; a failure
+        # to start the engine blocks the command rather than letting it through.
+        result = subprocess.run(  # noqa: S603  (a fixed program)
+            [program, *command[1:], *arguments], input=event_text, text=True, check=False
+        )
+        sys.exit(result.returncode if result.returncode in (0, 2) else 2)
     os.execv(program, [program, *command[1:], *arguments])  # noqa: S606  (a fixed program)
 
 

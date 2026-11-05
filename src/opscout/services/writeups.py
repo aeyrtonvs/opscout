@@ -64,11 +64,13 @@ def render_formats(
     return "\n".join(lines) + "\n"
 
 
-def render_invalid(directory: Path, problems: int) -> str:
+def render_invalid(
+    directory: Path, problems: int, *, title: str = TITLE, missing: str = "write-up format"
+) -> str:
     """Return the text printed instead of the formats when the configuration is invalid."""
     return (
-        f"{TITLE}\n\n"
-        f"The configuration in {directory} has {problems} problem(s), so no write-up format "
+        f"{title}\n\n"
+        f"The configuration in {directory} has {problems} problem(s), so no {missing} "
         "is available.\n"
         f"Run `opscout config validate --config {shlex.quote(str(directory))}` to list them.\n"
     )
