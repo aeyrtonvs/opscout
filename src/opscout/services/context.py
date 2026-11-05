@@ -7,11 +7,11 @@ every other byte (FR-006).
 """
 
 import difflib
-import hashlib
 import re
 
 from opscout.core.config import MARKER_TEXT, PersonalContext
 from opscout.core.context import BEGIN, END, NOTE, MarkerError, SpliceError
+from opscout.services.confirm import confirmation_code as confirmation_code
 
 BOM = "\ufeff"
 
@@ -90,15 +90,6 @@ def _markers(lines: list[str]) -> tuple[int | None, int | None]:
     if begin is not None and end is None:
         raise MarkerError(f"line {begin + 1}: a begin marker without an end marker")
     return begin, end
-
-
-def confirmation_code(current: bytes | None, new: bytes) -> str:
-    """Return the code that confirms changing ``current`` into ``new``."""
-    digest = hashlib.sha256()
-    digest.update(b"absent" if current is None else b"present:" + current)
-    digest.update(b"\x00new:")
-    digest.update(new)
-    return digest.hexdigest()[:12]
 
 
 def unified_diff(current: str, new: str, target: str) -> str:

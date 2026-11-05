@@ -59,3 +59,11 @@ Contract tests for the runner; each run record stores the CLI version used.
 To verify in the daemon's spec: whether a launchd agent can use the user's existing login. If
 it cannot, the documented fallback is a token the user creates with `claude setup-token`, kept
 in the keychain and passed only to the child process.
+
+**Verified 2026-11-05 (spec 007, SC-005):** yes. On macOS 26 with Claude Code 2.1.318, the
+`check` job installed by `opscout daemon install` was started by launchd at its scheduled
+minute, ran `claude -p` under the restricted profile, and delivered; its start-up report
+gave `apiKeySource: none`, the user's OAuth login. The user's session was unlocked at the
+time; a run while the screen is locked was not observed. The fallback is built and tested
+anyway (`daemon.secrets.claude_token`, passed as `CLAUDE_CODE_OAUTH_TOKEN` to the child
+only), for a keychain that refuses a background job.

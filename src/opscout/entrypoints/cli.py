@@ -20,6 +20,7 @@ from opscout.core.config import (
 )
 from opscout.core.context import PendingChange
 from opscout.core.sso import AwsConfigError
+from opscout.entrypoints import daemon
 from opscout.entrypoints.config import config_file, load_config
 from opscout.entrypoints.context import TargetError, default_target, pending, write
 from opscout.entrypoints.hook import (
@@ -145,6 +146,65 @@ def build_parser() -> argparse.ArgumentParser:
     sso_check.add_argument(
         "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
     )
+    run = commands.add_parser(
+        "run",
+        help="run a scheduled job once for the current period",
+        description=(
+            "Run a job for the current period, at most once: a period that already delivered "
+            "is skipped unless --force is given (spec 007). Exit 0 delivered or skipped, 1 "
+            "refused, inconclusive or failed, 2 when the job cannot start."
+        ),
+    )
+    run.add_argument("job", help="the job's name, such as check")
+    run.add_argument("--force", action="store_true", help="run even if the period delivered")
+    run.add_argument(
+        "--trigger",
+        choices=("scheduler", "user"),
+        default="user",
+        help="who started the run; installed jobs pass scheduler",
+    )
+    daemon = commands.add_parser(
+        "daemon",
+        help="install, list and remove the scheduled jobs",
+        description="The scheduled jobs (spec 007).",
+    )
+    daemon_commands = daemon.add_subparsers(dest="daemon_command", metavar="COMMAND", required=True)
+    install = daemon_commands.add_parser(
+        "install",
+        help="make the installed jobs match the configuration, after confirmation",
+    )
+    uninstall = daemon_commands.add_parser(
+        "uninstall", help="remove every job opscout installed, after confirmation"
+    )
+    for command in (install, uninstall):
+        command.add_argument(
+            "--dry-run", action="store_true", help="list the changes and their code only"
+        )
+        command.add_argument("--confirm", metavar="CODE", help="the code --dry-run printed")
+    status = daemon_commands.add_parser(
+        "status", help="list the configured and installed jobs and their last outcome"
+    )
+    runs = daemon_commands.add_parser("runs", help="list recent runs, newest first")
+    runs.add_argument("job", nargs="?", help="only this job's runs")
+    runs.add_argument("--limit", type=int, default=20, metavar="N", help="at most N runs")
+    secret = commands.add_parser(
+        "secret",
+        help="the harness's own secrets in the OS keychain",
+        description="Store and check the harness's own secrets; values are never shown.",
+    )
+    secret_commands = secret.add_subparsers(dest="secret_command", metavar="COMMAND", required=True)
+    secret_set = secret_commands.add_parser(
+        "set", help="store a secret: read without echo, or one line of standard input"
+    )
+    secret_set.add_argument("name", help="the secret's name, such as claude_token")
+    secret_check = secret_commands.add_parser(
+        "check", help="say whether each configured secret is in the keychain"
+    )
+    secret_check.add_argument("name", nargs="?", help="only this secret")
+    for command in (run, install, uninstall, status, runs, secret_set, secret_check):
+        command.add_argument(
+            "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
+        )
     hook = commands.add_parser(
         "hook", help="the plugin's hooks", description="The plugin's hooks (specs 004 and 005)."
     )
@@ -184,6 +244,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _context(args)
     if args.command == "sso":
         return _sso_check(_given_directory(args.config))
+    if args.command == "run":
+        return daemon.run_command(
+            args.job, force=args.force, trigger=args.trigger, flag=_given_directory(args.config)
+        )
+    if args.command == "daemon":
+        return _daemon(args)
+    if args.command == "secret" and args.secret_command == "set":  # noqa: S105  (a command name)
+        return daemon.secret_set_command(args.name, _given_directory(args.config))
+    if args.command == "secret":
+        return daemon.secret_check_command(args.name, _given_directory(args.config))
     if args.command == "hook" and args.hook_command == "session-start":
         try:
             sys.stdin.read()  # the event; the hook's matcher already chose the sources
@@ -206,6 +276,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     parser.print_help()
     return 0
+
+
+def _daemon(args: argparse.Namespace) -> int:
+    """Run a daemon command (spec 007)."""
+    flag = _given_directory(args.config)
+    if args.daemon_command in ("install", "uninstall"):
+        return daemon.schedule_command(
+            uninstall=args.daemon_command == "uninstall",
+            dry_run=args.dry_run,
+            confirm=args.confirm,
+            flag=flag,
+        )
+    if args.daemon_command == "status":
+        return daemon.status_command(flag)
+    return daemon.runs_command(args.job, args.limit)
 
 
 def _ship(args: argparse.Namespace) -> int:

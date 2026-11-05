@@ -15,7 +15,8 @@ from pathlib import Path
 
 from opscout.core.config import PersonalContext
 from opscout.core.context import MAX_TARGET_BYTES, TARGET_NAME, PendingChange, SpliceError
-from opscout.services.context import confirmation_code, render_block, splice
+from opscout.services.confirm import confirmation_code
+from opscout.services.context import render_block, splice
 
 NEW_FILE_MODE = 0o666
 """A new file's permissions before the umask, as any editor creates one."""

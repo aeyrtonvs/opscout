@@ -16,6 +16,8 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "keyring>=25.7,<26",
+    "platformdirs>=4.14,<5",
     "pydantic>=2.14.1,<3",
     "pyyaml>=6.0.3,<7",
 ]
@@ -82,6 +84,10 @@ ban-relative-imports = "all"
 [tool.mypy]
 strict = true
 files = ["src", "tests", "tools", "plugins/opscout/bin/opscout"]
+# Test helpers are imported by their path from the root (tests.unit.daemon.fakes), as pytest
+# imports them with pythonpath = ["."].
+explicit_package_bases = true
+mypy_path = ["src", "."]
 
 # The coverage gate on core and services (ADR-0016): uv run just coverage
 [tool.coverage.run]
@@ -101,6 +107,7 @@ xfail_strict = true
 filterwarnings = ["error"]
 markers = [
     "spec(number, requirement): ties a test to a Spec Kit requirement, e.g. spec(\"003\", \"FR-002\") (PLAN.md 4.2)",
+    "launchd: runs against the real launchd; macOS only, in a GUI session (spec 007, FR-027)",
 ]
 
 # Layering (ADR-0011). Adapters, including the platform-specific ones, are imported only by
@@ -116,3 +123,10 @@ layers = [
     "opscout.adapters | opscout.services",
     "opscout.core",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Only the composition root builds adapters (spec 007, FR-025)"
+type = "forbidden"
+source_modules = ["opscout.entrypoints.cli", "opscout.entrypoints.hook"]
+forbidden_modules = ["opscout.adapters"]
+allow_indirect_imports = true

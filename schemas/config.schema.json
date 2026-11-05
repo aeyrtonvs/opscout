@@ -2,6 +2,176 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/aeyrtonvs/opscout/main/schemas/config.schema.json",
   "$defs": {
+    "Daemon": {
+      "additionalProperties": false,
+      "description": "Scheduled jobs and what their runs need (spec 007).",
+      "properties": {
+        "jobs": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JobSettings"
+          },
+          "description": "The jobs to schedule, by name; the engine defines them (now only check).",
+          "maxProperties": 20,
+          "propertyNames": {
+            "const": "check"
+          },
+          "title": "Jobs",
+          "type": "object"
+        },
+        "claude_path": {
+          "anyOf": [
+            {
+              "maxLength": 1024,
+              "minLength": 2,
+              "pattern": "^/[^\\n]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The Claude Code executable, as an absolute path; without it, PATH.",
+          "title": "Claude Path"
+        },
+        "secrets": {
+          "additionalProperties": {
+            "$ref": "#/$defs/KeychainRef"
+          },
+          "description": "The harness's own secrets, by name, each a keychain reference; claude_token is a token from claude setup-token, for jobs that cannot use your login.",
+          "propertyNames": {
+            "const": "claude_token"
+          },
+          "title": "Secrets",
+          "type": "object"
+        }
+      },
+      "title": "Daemon",
+      "type": "object"
+    },
+    "JobSettings": {
+      "additionalProperties": false,
+      "description": "When a job runs and the limits of its model run (spec 007).",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Whether opscout daemon install schedules this job.",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "at": {
+          "description": "The time of day, HH:MM in the machine's local time; quote it (\"09:30\").",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "title": "At",
+          "type": "string"
+        },
+        "weekdays": {
+          "description": "The days it runs, from mon to sun; without it, every day.",
+          "items": {
+            "enum": [
+              "mon",
+              "tue",
+              "wed",
+              "thu",
+              "fri",
+              "sat",
+              "sun"
+            ],
+            "type": "string"
+          },
+          "maxItems": 7,
+          "minItems": 1,
+          "title": "Weekdays",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "model": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "pattern": "^(haiku|sonnet|opus|fable|claude-[a-z0-9][a-z0-9.-]*)$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The model: an alias (haiku, sonnet, opus, fable) or a full claude-… id.",
+          "title": "Model"
+        },
+        "budget_usd": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 5,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The most one run may cost, in US dollars.",
+          "title": "Budget Usd"
+        },
+        "max_turns": {
+          "anyOf": [
+            {
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The most turns one run may take.",
+          "title": "Max Turns"
+        }
+      },
+      "required": [
+        "at"
+      ],
+      "title": "JobSettings",
+      "type": "object"
+    },
+    "KeychainRef": {
+      "additionalProperties": false,
+      "description": "A credential in the OS keychain, named by its service and account, never by its value.",
+      "properties": {
+        "service": {
+          "description": "The keychain service under which the credential is stored.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "title": "Service",
+          "type": "string"
+        },
+        "account": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The keychain account of the credential, when the service holds several.",
+          "title": "Account"
+        }
+      },
+      "required": [
+        "service"
+      ],
+      "title": "KeychainRef",
+      "type": "object"
+    },
     "PersonalContext": {
       "additionalProperties": false,
       "anyOf": [
@@ -349,6 +519,10 @@
       ],
       "default": null,
       "description": "The facts opscout context apply writes into your Claude Code CLAUDE.md (spec 006)."
+    },
+    "daemon": {
+      "$ref": "#/$defs/Daemon",
+      "description": "Scheduled jobs, the Claude Code executable and the harness's secrets (spec 007)."
     }
   },
   "required": [

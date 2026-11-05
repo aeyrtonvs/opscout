@@ -92,7 +92,8 @@ note; time it over many runs; check that no token value appears in any output.
    a session starts, **Then** that session is reported as "could not be checked", the
    others are reported normally, and the session starts.
 2. **Given** any error inside the check, **When** a session starts, **Then** the session
-   starts, and the user sees one line saying the SSO check could not run and why.
+   starts, and the user sees one line saying the SSO check could not run and why (the
+   session checks, since spec 007 added the scheduled jobs to this hook).
 3. **Given** any input, **When** the check runs, **Then** no access token, refresh token,
    client secret or other cache value except the expiry appears in its output.
 4. **Given** a machine without network, **When** the check runs, **Then** it gives the same
@@ -146,8 +147,8 @@ check with a session list and with the check turned off.
 - **A cache path that is not a regular file** (such as a named pipe) is "could not be
   checked", unread, so it cannot hold the session start.
 - **The plugin cannot start the engine** (no release yet, `uvx` missing, the engine fails or
-  takes longer than 8 s): one line says the SSO check could not run and why; the session
-  starts.
+  takes longer than 8 s): one line says the session checks could not run and why; the
+  session starts.
 - **A very large or hostile cache file.** Files above a size limit are "could not be
   checked", unread.
 
@@ -164,7 +165,9 @@ check with a session list and with the check turned off.
   (expired, with the expiry in local time; not logged in; could not be checked, with the
   reason; unknown), and the login command. When none needs a login, it MUST output nothing.
 - **FR-003**: The hook MUST always end without blocking the session start. Any error MUST
-  become a single line saying the SSO check could not run and why.
+  become a single line saying the SSO check could not run and why; an error that is not the
+  AWS config's, or a launcher that cannot start the engine, says "the session checks", since
+  spec 007 added its job notices to the same hook.
 
 #### The check
 

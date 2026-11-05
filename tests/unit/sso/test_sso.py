@@ -783,7 +783,7 @@ def test_any_error_becomes_one_message_and_the_session_starts(
 
     assert (code, err) == (0, "")
     assert json.loads(out) == {
-        "systemMessage": "opscout: the SSO check could not run (RuntimeError)"
+        "systemMessage": "opscout: the session checks could not run (RuntimeError)"
     }
 
 
@@ -886,7 +886,7 @@ def test_without_a_release_the_hook_says_so_in_one_message(tmp_path: Path) -> No
 
     assert (result.returncode, result.stderr) == (0, "")
     message = json.loads(result.stdout)["systemMessage"]
-    assert message.startswith("opscout: the SSO check could not run: there is no release")
+    assert message.startswith("opscout: the session checks could not run: there is no release")
     assert "\n" not in message
 
 
@@ -897,7 +897,9 @@ def test_an_engine_that_fails_to_start_becomes_one_message(tmp_path: Path) -> No
 
     assert (result.returncode, result.stderr) == (0, "")
     assert json.loads(result.stdout) == {
-        "systemMessage": "opscout: the SSO check could not run: the engine exited with status 1"
+        "systemMessage": (
+            "opscout: the session checks could not run: the engine exited with status 1"
+        )
     }
 
 

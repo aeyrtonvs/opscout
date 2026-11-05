@@ -1,9 +1,9 @@
 # opscout — plan
 
-> Status (2026-11-04): **Phase 0a done**: the repository is public at
-> `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b in progress** (§7): spec 001,
-> leak-guard, spec 002, config-contract, and spec 003, summary-skill, are merged; spec 004,
-> ship-skill, is implemented on `feat/004-ship-skill`. The
+> Status (2026-11-05): **Phase 0a done**: the repository is public at
+> `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b done** (§7): specs 001 to 006
+> are merged. **Phase 1 in progress**: spec 007, daemon-core, is implemented on
+> `feat/007-daemon-core`. The
 > constitution is ratified (1.0.2), ADRs 0001–0022 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -410,6 +410,20 @@ show the diff, wait for approval).
 | chat-output | 4 | Slack app manifest, Socket Mode, DMs only, agreement buttons | DM delivered; agreement stored in the run log |
 | daily-standup | 4 | Sources gathered in code (sessions, commits and PRs, tickets); a tool-less run; Monday covers Fri–Sun; sent 15 min before the standup | Evals on synthetic histories; a week of dailies delivered; agreement ≥ 80 % |
 
+**daemon-core** (spec 007, implemented 2026-11-05): an optional `daemon` section (jobs with
+a time and weekdays and run limits, `claude_path`, keychain references for the harness's
+secrets); `opscout run <job>` runs a job at most once per local day, under an `fcntl` lock,
+and writes one JSON record per start; `ClaudeCliRunner` starts the user's own `claude -p`
+with every restriction as a flag (`--safe-mode`, `--restricted`, `--tools`, `dontAsk`, no
+session persistence, model, budget, turns, schema), refuses any run whose `system/init`
+report differs from the profile, and retries a schema failure once; `opscout daemon install
+| uninstall | status | runs` manage launchd agents after a yes or a confirmation code, and
+write nothing when up to date; `opscout secret set | check` keep the harness's secrets in the
+keychain. The only job is `check`, a diagnostic; its deliveries go to a local outbox until
+chat-output. The SessionStart hook also names jobs that failed or did not run (decided in
+the clarification). The macOS test jobs stay informational (ADR-0016, amended). Checked
+live: a launchd job uses the user's existing Claude Code login (ADR-0012, More Information).
+
 ### Phase 2 — investigation agents the user invokes
 
 Hard dependency: runs against real systems need the read-only identity (open items). Until it
@@ -515,6 +529,24 @@ Checked 2026-11-03 (official docs and the local CLI, Claude Code 2.1.317):
 - **`claude plugin details`** shows a plugin's projected token cost as text only (no JSON),
   so it is a manual release check, not a CI gate.
 
+Checked 2026-11-05 with live runs (Claude Code 2.1.318, spec 007, research R1–R2):
+
+- **`--safe-mode`** turns off every customization (`CLAUDE.md`, skills, the user's plugins,
+  hooks, MCP servers, custom agents), and the OAuth login still works. Without it a `-p` run
+  loads the user's installed plugins; with it only built-in plugins (path `builtin`) load.
+- **`--tools ""` with `--json-schema`** leaves exactly one tool, `StructuredOutput`, through
+  which the model returns the output; `--max-turns` works though the help does not list it,
+  and the `StructuredOutput` turn does not count against it.
+- **The start-up report** (`stream-json`, first line `system/init`) carries `tools`,
+  `mcp_servers` (objects with `name`), `model` (the full id for an alias),
+  `permissionMode`, `plugins` (`name`, `path`, `source`), `apiKeySource` (`none` under the
+  OAuth login) and `claude_code_version`. The `result` line carries `subtype`, `is_error`,
+  `num_turns`, `total_cost_usd`, `duration_ms`, `structured_output` and `terminal_reason`;
+  a budget overrun ends with `error_max_budget_usd`, `budget_exhausted` and exit 1.
+- **launchd** (macOS 26): `launchctl bootstrap gui/<uid>`, `bootout gui/<uid>/<label>` and
+  `print gui/<uid>/<label>` (exit 0 only when loaded); a calendar job missed during sleep
+  runs once on wake.
+
 Sources: code.claude.com/docs (plugins/manifest-reference, plugins/marketplace-reference,
 plugin-evals, skills, sub-agents, cli-reference, headless, authentication, sandboxing, hooks,
 memory, monitoring-usage), agentskills.io/specification, github.com/github/spec-kit releases,
@@ -572,10 +604,9 @@ genai.owasp.org (Top 10 for Agentic Applications).
       `opscout-config-validate` hook, pinned to the merge commit, and points its schema line
       at that commit. Its `config.yaml` (only `schema_version: 1`) validates locally and is
       not committed yet.
-- [ ] macOS in CI (ADR-0016, amended 2026-11-04): the macOS test jobs are not required
-      checks, because hosted macOS runners were sometimes unavailable and blocked merges; a
-      daily run on `main` covers macOS. Decide with daemon-core (Phase 1), the first
-      macOS-specific code, whether macOS blocks merges again.
+- [x] macOS in CI (ADR-0016, amended 2026-11-04 and 2026-11-05): decided in spec 007 that
+      the macOS test jobs stay informational; the launchd adapter is tested everywhere
+      through its seam, and one test runs against the real launchd on macOS.
 - [ ] Skill evals (ADR-0013, amended 2026-11-04): `claude plugin eval` confines a run to the
       plugin directory, so before the first release it cannot run the engine from a clone;
       `tools/skill_evals.py` runs the same cases through `claude -p` until then. Move the
@@ -587,5 +618,11 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [ ] Ship skill, draft pull request (spec 004, US2 scenarios 4 and 5): they follow a
       confirmed push, which no headless eval can give; check them on the first real use and
       record the outcome in the spec.
+- [ ] Scheduled jobs and a locked screen (spec 007): a launchd job used the Claude Code login
+      with the session unlocked; whether it still can while the screen is locked was not
+      observed. If a scheduled run fails then, store the `claude_token` fallback
+      (`docs/reference/daemon.md`).
+- [ ] The run records and the outbox have no retention yet (spec 007): they grow by a few
+      small files a day. Decide a retention with chat-output or run-insights.
 - [ ] Leak check, annotated tags: their messages and taggers are not checked (a non-goal of
       spec 001, decided 2026-11-04). Decide before the first release tag.
