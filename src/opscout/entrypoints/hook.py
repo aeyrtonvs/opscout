@@ -1,26 +1,34 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The plugin's PreToolUse hook: the push guard (spec 004).
+"""The plugin's hooks: the push guard (spec 004) and the SSO check (spec 005).
 
-Claude Code sends each Bash command here before it runs (``hooks/hooks.json``, with
-``onFailure: block``). The decision itself is pure (``opscout.services.ship``); this module
-reads the event, asks git for the current branch and the remote's default branch, and
+PreToolUse: Claude Code sends each Bash command here before it runs (``hooks/hooks.json``,
+with ``onFailure: block``). The decision itself is pure (``opscout.services.ship``); this
+module reads the event, asks git for the current branch and the remote's default branch, and
 reads the protected patterns through the configuration's loader. When the configuration
 cannot be read, main, master and the remote's default branch stay protected. An event the
 hook cannot read exits 2, which blocks the command: the guard never fails open.
+
+SessionStart: the SSO check warns the user and tells Claude which SSO logins are needed. It
+cannot block a session, and any error becomes one message saying it could not run.
 """
 
 import json
 import shutil
 import subprocess
+from collections.abc import Mapping
 from dataclasses import replace
+from datetime import datetime, tzinfo
 from pathlib import Path
 from typing import Any
 
 from opscout.core.config import ConfigError, ConfigLocationError, Ship
 from opscout.core.ship import DEFAULT_REMOTE, PushCommand, PushConfig, PushDecision
+from opscout.core.sso import AwsConfigError
 from opscout.entrypoints.config import load_config
+from opscout.entrypoints.sso import check_sessions, sso_settings
 from opscout.services.config import ConfigLocation
 from opscout.services.ship import decide_push, read_command
+from opscout.services.sso import render_warning
 
 BLOCKED = 2
 
@@ -116,3 +124,35 @@ def _git(directory: Path, *args: str) -> str | None:
         [program, "-C", str(directory), *args], capture_output=True, text=True, check=False
     )
     return result.stdout.strip() or None if result.returncode == 0 else None
+
+
+def session_start(
+    location: ConfigLocation,
+    environ: Mapping[str, str],
+    home: Path,
+    now: datetime,
+    zone: tzinfo | None = None,
+) -> str:
+    """Return the SessionStart hook's output: JSON with the SSO warning, or nothing."""
+    settings, note = sso_settings(location)
+    warning = render_warning(check_sessions(settings, environ, home, now), zone, note)
+    if warning is None:
+        return ""
+    return json.dumps(
+        {
+            "systemMessage": warning,
+            "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": warning},
+        }
+    )
+
+
+def could_not_run(error: Exception) -> str:
+    """Return the SessionStart output that says the SSO check could not run, and why.
+
+    An unexpected error is named by its type only: its text could quote what was being read.
+    """
+    if isinstance(error, AwsConfigError):
+        return json.dumps({"systemMessage": f"opscout: the SSO check could not run: {error}"})
+    return json.dumps(
+        {"systemMessage": f"opscout: the SSO check could not run ({type(error).__name__})"}
+    )

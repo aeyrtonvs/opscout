@@ -206,6 +206,37 @@ class Ship(BaseModel):
     )
 
 
+_SessionName = Annotated[
+    str, StringConstraints(min_length=1, max_length=100, pattern=r"^[^\s\x00-\x1f\x7f]+$")
+]
+
+
+def _unique(names: list[str] | None) -> list[str] | None:
+    """Refuse a name listed twice."""
+    if names is not None and len(set(names)) != len(names):
+        raise PydanticCustomError("unique_names", "Each session may be listed only once")
+    return names
+
+
+class Sso(BaseModel):
+    """Which SSO logins the session-start check looks at (spec 005)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    enabled: bool = Field(
+        default=True, description="Whether the check runs when a Claude Code session starts."
+    )
+    sessions: Annotated[
+        list[_SessionName] | None, Field(min_length=1, max_length=50), AfterValidator(_unique)
+    ] = Field(
+        default=None,
+        description=(
+            "The SSO sessions or older SSO profiles to check, by name; without it, every one "
+            "in the AWS config."
+        ),
+    )
+
+
 class Configuration(BaseModel):
     """The private opscout configuration (config.yaml in the configuration directory)."""
 
@@ -229,6 +260,10 @@ class Configuration(BaseModel):
     ship: Ship = Field(
         default_factory=Ship,
         description="Branch, commit and pull request conventions, and the protected branches.",
+    )
+    sso: Sso = Field(
+        default_factory=Sso,
+        description="The SSO check at the start of a Claude Code session (spec 005).",
     )
 
 

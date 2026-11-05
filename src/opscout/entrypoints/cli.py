@@ -5,6 +5,7 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 from opscout import __version__
@@ -16,10 +17,19 @@ from opscout.core.config import (
     Writeups,
     schema_text,
 )
+from opscout.core.sso import AwsConfigError
 from opscout.entrypoints.config import config_file, load_config
-from opscout.entrypoints.hook import BLOCKED, HookError, pre_tool_use
+from opscout.entrypoints.hook import (
+    BLOCKED,
+    HookError,
+    could_not_run,
+    pre_tool_use,
+    session_start,
+)
+from opscout.entrypoints.sso import check_sessions, sso_settings
 from opscout.services.config import resolve_config_dir
 from opscout.services.ship import check_branch, check_message, render_rules
+from opscout.services.sso import render_status
 from opscout.services.writeups import render_formats, render_invalid, resolve_formats
 
 
@@ -91,8 +101,23 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument(
             "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
         )
+    sso = commands.add_parser(
+        "sso", help="check the SSO logins", description="Check the SSO logins (spec 005)."
+    )
+    sso_commands = sso.add_subparsers(dest="sso_command", metavar="COMMAND", required=True)
+    sso_check = sso_commands.add_parser(
+        "check",
+        help="show each SSO login's state, from the local token cache",
+        description=(
+            "Show each SSO login's state from the local token cache, without the network. "
+            "Exit 1 when a login is needed."
+        ),
+    )
+    sso_check.add_argument(
+        "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
+    )
     hook = commands.add_parser(
-        "hook", help="the plugin's hooks", description="The plugin's hooks (spec 004)."
+        "hook", help="the plugin's hooks", description="The plugin's hooks (specs 004 and 005)."
     )
     hook_commands = hook.add_subparsers(dest="hook_command", metavar="COMMAND", required=True)
     pre_tool_use = hook_commands.add_parser(
@@ -100,9 +125,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="the push guard: read a PreToolUse event on stdin",
         description="Ask before every git push, and deny a push to a protected branch.",
     )
-    pre_tool_use.add_argument(
-        "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
+    session_start = hook_commands.add_parser(
+        "session-start",
+        help="the SSO check: read a SessionStart event on stdin",
+        description="Warn when an SSO login is needed; never blocks the session.",
     )
+    for command in (pre_tool_use, session_start):
+        command.add_argument(
+            "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
+        )
     return parser
 
 
@@ -120,14 +151,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "ship":
         return _ship(args)
+    if args.command == "sso":
+        return _sso_check(_given_directory(args.config))
+    if args.command == "hook" and args.hook_command == "session-start":
+        try:
+            sys.stdin.read()  # the event; the hook's matcher already chose the sources
+            location = resolve_config_dir(_hook_directory(args), os.environ, Path.home())
+            now = datetime.now(UTC)
+            sys.stdout.write(session_start(location, os.environ, Path.home(), now))
+        except Exception as error:  # a session start is never blocked (spec 005, FR-003)
+            sys.stdout.write(could_not_run(error))
+        return 0
     if args.command == "hook" and args.hook_command == "pre-tool-use":
-        # Claude Code gives a plugin's hooks their options as CLAUDE_PLUGIN_OPTION_<KEY>; the
-        # docs do not say whether the key keeps its case, so both spellings are read.
-        lower = "CLAUDE_PLUGIN_OPTION_config_dir"
-        given = args.config or os.environ.get(
-            "CLAUDE_PLUGIN_OPTION_CONFIG_DIR", os.environ.get(lower)
-        )
-        location = resolve_config_dir(_given_directory(given), os.environ, Path.home())
+        location = resolve_config_dir(_hook_directory(args), os.environ, Path.home())
         try:
             sys.stdout.write(pre_tool_use(sys.stdin.read(), location))
         except HookError as error:
@@ -178,6 +214,33 @@ def _ship(args: argparse.Namespace) -> int:
     for reason in reasons:
         print(reason)
     return 1 if reasons else 0
+
+
+def _hook_directory(args: argparse.Namespace) -> Path | None:
+    """Return the configuration directory a hook was given, if any.
+
+    Claude Code gives a plugin's hooks their options as CLAUDE_PLUGIN_OPTION_<KEY>; the docs
+    do not say whether the key keeps its case, so both spellings are read.
+    """
+    lower = "CLAUDE_PLUGIN_OPTION_config_dir"
+    given = args.config or os.environ.get("CLAUDE_PLUGIN_OPTION_CONFIG_DIR", os.environ.get(lower))
+    return _given_directory(given)
+
+
+def _sso_check(flag: Path | None) -> int:
+    """Run ``opscout sso check`` (spec 005, FR-008)."""
+    settings, note = sso_settings(resolve_config_dir(flag, os.environ, Path.home()))
+    if not settings.enabled:
+        print("The SSO check is turned off in the configuration.")
+        return 0
+    now = datetime.now(UTC)
+    try:
+        checks = check_sessions(settings, os.environ, Path.home(), now)
+    except AwsConfigError as error:
+        print(f"opscout: the SSO check could not run: {error}")
+        return 1
+    sys.stdout.write(render_status(checks, note=note))
+    return 1 if any(check.needs_login for check in checks) else 0
 
 
 def _given_directory(value: str | None) -> Path | None:

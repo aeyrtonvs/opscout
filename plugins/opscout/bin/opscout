@@ -23,6 +23,8 @@ from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parents[1]
 UNRELEASED = "0.0.0"
+ENGINE_SECONDS = 8
+"""How long the SSO check's engine may take; the hook's own timeout is 10 s."""
 
 
 def clone_root() -> Path | None:
@@ -52,11 +54,19 @@ def _not_the_guards_business(event_text: str) -> bool:
     return "push" not in command and not ("gh" in command and "pr" in command)
 
 
+def _sso_check_could_not_run(reason: str) -> None:
+    """End the SSO check's hook with one message: a session start is never blocked."""
+    message = f"opscout: the SSO check could not run: {reason}"
+    sys.stdout.write(json.dumps({"systemMessage": message}) + "\n")
+    sys.exit(0)
+
+
 def main() -> None:
     """Replace this process with the engine that matches the plugin."""
     arguments = sys.argv[1:]
     hook = arguments[:2] == ["hook", "pre-tool-use"]
-    event_text = sys.stdin.read() if hook else ""
+    session_start = arguments[:2] == ["hook", "session-start"]
+    event_text = sys.stdin.read() if hook or session_start else ""
     if hook and _not_the_guards_business(event_text):
         sys.exit(0)
     root = clone_root()
@@ -66,6 +76,11 @@ def main() -> None:
         manifest = PLUGIN / ".claude-plugin" / "plugin.json"
         version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
         if version == UNRELEASED:
+            if session_start:
+                _sso_check_could_not_run(
+                    "there is no release of this plugin to run; load the plugin from a clone "
+                    "(claude --plugin-dir <clone>/plugins/opscout)"
+                )
             if hook:
                 sys.stderr.write(
                     "opscout push guard: there is no release of this plugin to run the guard, "
@@ -82,6 +97,8 @@ def main() -> None:
             sys.exit(1)
         command = ["uvx", "--quiet", "--from", f"opscout=={version}", "opscout"]
     program = shutil.which(command[0])
+    if program is None and session_start:
+        _sso_check_could_not_run(f"{command[0]} is required: https://docs.astral.sh/uv/")
     if program is None:
         sys.stderr.write(f"opscout: {command[0]} is required: https://docs.astral.sh/uv/\n")
         sys.exit(127)
@@ -92,6 +109,23 @@ def main() -> None:
             [program, *command[1:], *arguments], input=event_text, text=True, check=False
         )
         sys.exit(result.returncode if result.returncode in (0, 2) else 2)
+    if session_start:
+        # The engine may need to be fetched or may fail; the session starts either way.
+        try:
+            result = subprocess.run(  # noqa: S603  (a fixed program)
+                [program, *command[1:], *arguments],
+                input=event_text,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=ENGINE_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            _sso_check_could_not_run(f"the engine took longer than {ENGINE_SECONDS} s")
+        if result.returncode != 0:
+            _sso_check_could_not_run(f"the engine exited with status {result.returncode}")
+        sys.stdout.write(result.stdout)
+        sys.exit(0)
     os.execv(program, [program, *command[1:], *arguments])  # noqa: S606  (a fixed program)
 
 

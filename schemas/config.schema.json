@@ -83,6 +83,41 @@
       "title": "Ship",
       "type": "object"
     },
+    "Sso": {
+      "additionalProperties": false,
+      "description": "Which SSO logins the session-start check looks at (spec 005).",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "description": "Whether the check runs when a Claude Code session starts.",
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "sessions": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 100,
+                "minLength": 1,
+                "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+                "type": "string"
+              },
+              "maxItems": 50,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The SSO sessions or older SSO profiles to check, by name; without it, every one in the AWS config.",
+          "title": "Sessions"
+        }
+      },
+      "title": "Sso",
+      "type": "object"
+    },
     "WriteupFormat": {
       "additionalProperties": false,
       "description": "A shape for a write-up: its sections in order, its rules and its length (spec 003).",
@@ -208,6 +243,10 @@
     "ship": {
       "$ref": "#/$defs/Ship",
       "description": "Branch, commit and pull request conventions, and the protected branches."
+    },
+    "sso": {
+      "$ref": "#/$defs/Sso",
+      "description": "The SSO check at the start of a Claude Code session (spec 005)."
     }
   },
   "required": [
