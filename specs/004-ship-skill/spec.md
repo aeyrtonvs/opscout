@@ -305,14 +305,18 @@ statuses and messages.
 ## Actuals
 
 - **Effort**: one session on 2026-11-04.
-- **Eval result (FR-024, SC-001, SC-003)**: through `tools/skill_evals.py` (ADR-0013,
-  amended), on scratch repositories whose remote is a local bare repository: 5 cases, one
-  run each, USD 1.05; four at 1.00 and `004-us2-s6` at 0.67, because, asked to push straight
-  to `main`, the model did not invoke the skill, committed on `main` and tried the push,
-  which the guard denied. With the skill's description widened, `004-us2-s6` was re-run at
-  1.00 (USD 0.20). Latest result per case: lowest case score: 1.00;
-  delta over the no-plugin baseline: +0.37 (mean). No push reached a protected branch in any run.
-  `004-edge-nothing` scores 1.00 in both arms.
+- **Eval result (FR-024, SC-001, SC-003)**: last run on 2026-11-04, on the guard, skill and
+  graders after the independent review, through `tools/skill_evals.py` (ADR-0013, amended),
+  on scratch repositories whose remote is a local bare repository: 5 cases, one run each,
+  USD 1.06; four at 1.00 and `004-us2-s1` at 0.75, a grader false negative (its patterns
+  matched the call's `description` too). With every pattern anchored on the command,
+  `004-us2-s1` was re-run at 1.00 (USD 0.20). Latest result per case:
+  lowest case score: 1.00;
+  delta over the no-plugin baseline: +0.49 (mean). The baseline arm scored
+  0.25 to 0.80. An earlier run, before the review, found the skill not invoked for
+  "push it straight to main"; its description now covers that request. No push reached a
+  protected branch in any run; in a headless run every push is only attempted, since the
+  guard's `ask` cannot be answered.
 - **Not covered by an eval**: US2 scenarios 4 and 5 (the draft pull request, or saying it
   cannot be opened) come after a confirmed push, which no headless run can give; they are
   checked by the skill's structure test and by the first real use, recorded in PLAN.md §9.
@@ -320,5 +324,5 @@ statuses and messages.
   unset option made the hook fail and `onFailure: block` then blocked every Bash command;
   the hook now reads `CLAUDE_PLUGIN_OPTION_CONFIG_DIR` (research R1). On Python 3.15,
   `Path.exists()` stopped raising for unreadable paths (spec 003's loader, fixed there).
-- **Total eval spend**: about USD 1.45, a diagnostic case included.
+- **Total eval spend**: about USD 2.70, a diagnostic case and two re-runs included.
 

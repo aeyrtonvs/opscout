@@ -106,4 +106,4 @@ Findings of the review in a fresh context (2026-11-04), each reproduced.
   unreadable configured patterns in the prompt (FR-005, FR-012, low)
 - [X] T028 Strengthen the evals: `no-push-to-main` catches `+main` and `refs/heads/main`,
   the branch comes before any push, and the local remote lives in the run's directory (low)
-- [ ] T029 Re-run the suite on the final skill and guard; record the result (FR-024)
+- [X] T029 Re-run the suite on the final skill and guard; record the result (FR-024)
