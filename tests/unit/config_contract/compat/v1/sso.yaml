@@ -1,0 +1,5 @@
+# Every field of the sso section (spec 005), added to schema version 1 (spec 002, FR-030).
+schema_version: 1
+sso:
+  enabled: true
+  sessions: [example-session, example-prod]

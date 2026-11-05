@@ -49,3 +49,12 @@ ship:
   pull_request:
     # The target branch; without it, the remote's default branch.
     base: main
+
+# The SSO check at the start of a Claude Code session (spec 005). Optional: without this
+# section, every SSO session and older SSO profile in the AWS config is checked.
+# `opscout sso check` prints each login's state.
+sso:
+  # Whether the check runs.
+  enabled: true
+  # The logins to check, by SSO session or profile name.
+  sessions: [example-session, example-prod]

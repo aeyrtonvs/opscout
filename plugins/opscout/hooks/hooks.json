@@ -12,6 +12,19 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/opscout",
+            "args": ["hook", "session-start"],
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

@@ -133,6 +133,23 @@ reads only the plain form, `git [-C <dir>] push [<options>] [<remote> [<branch>.
 refuses a push written any other way. `opscout ship rules`, `opscout ship check-branch` and
 `opscout ship check-message` print and check the conventions.
 
+### `sso` (optional; spec 005)
+
+The SSO check at the start of a Claude Code session.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `enabled` | `true` | whether the check runs when a session starts, resumes, is cleared or is forked |
+| `sessions` | every SSO session and older SSO profile in the AWS config | the logins to check, by name: an SSO session's name, or a profile's (a profile on an SSO session stands for that session); 1–50 unique names |
+
+With the plugin enabled, a SessionStart hook reads the AWS config (`AWS_CONFIG_FILE`, or
+`~/.aws/config`) and the AWS CLI's token cache (`~/.aws/sso/cache/`), and tells you and
+Claude which logins have expired, were never made or could not be checked, with the
+`aws sso login` command for each. It says nothing when every login is valid. It never uses
+the network, never logs in and never shows a token: it takes only each token's expiry. An
+expired token counts as expired even when the AWS CLI might renew it. `opscout sso check`
+prints every checked login's state and exits 1 when one needs a login.
+
 ## Rules for every section
 
 These hold for each section a later spec adds. Review checks them; tests enforce the

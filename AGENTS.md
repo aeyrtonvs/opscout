@@ -87,8 +87,8 @@ Spec-Driven Development with GitHub Spec Kit (ADR-0008):
 - `docs/PLAN.md`, `docs/adr/`: plan and decisions.
 - `src/opscout/` and `tests/`: the Python package and its tests. `plugins/opscout/`: the
   plugin, listed by `.claude-plugin/marketplace.json`: `bin/opscout` runs the engine
-  (ADR-0022), `hooks/hooks.json` holds the push guard (spec 004), `skills/` holds the
-  skills, and `evals/` their eval cases (ADR-0013).
+  (ADR-0022), `hooks/hooks.json` holds the push guard (spec 004) and the SSO check
+  (spec 005), `skills/` holds the skills, and `evals/` their eval cases (ADR-0013).
 - `tools/`: this repository's development hooks and checks, including the headless eval
   runner `tools/skill_evals.py`; not shipped.
 - `specs/`: the Spec Kit features. `schemas/config.schema.json`: the configuration's JSON

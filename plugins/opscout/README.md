@@ -32,3 +32,15 @@ repository's marketplace, and it runs the engine release of exactly its own vers
 
 - `summary`: a write-up of the session's work, ready to paste into a ticket, a chat message
   or a postmortem, in your configured formats (spec 003).
+- `ship`: branch, commit with a checked Conventional Commit message, push through the push
+  guard, and open a draft pull request with your `gh` (spec 004).
+
+## Hooks
+
+- **Push guard** (PreToolUse, spec 004): asks before every `git push` and `gh pr create`
+  Claude runs, and refuses a push to a protected branch, whatever your permission settings
+  say.
+- **SSO check** (SessionStart, spec 005): when a session starts, resumes, is cleared or is
+  forked, tells you and Claude which AWS SSO logins have expired or are missing, with the
+  `aws sso login` command for each, from the local token cache alone. It never uses the
+  network and never shows a token. `opscout sso check` shows the same by hand.
