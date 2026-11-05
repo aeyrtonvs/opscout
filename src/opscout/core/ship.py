@@ -27,3 +27,12 @@ class PushCommand:
     refspecs: tuple[str, ...]
     delete: bool = False
     force: bool = False
+
+
+@dataclass(frozen=True)
+class PushConfig:
+    """What git's configuration says about where a push goes (spec 004, review)."""
+
+    push_default: str = "simple"
+    remote_push: tuple[str, ...] = ()
+    upstream: str | None = None

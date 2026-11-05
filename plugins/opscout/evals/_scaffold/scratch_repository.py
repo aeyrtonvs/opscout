@@ -2,11 +2,11 @@
 """A scratch repository for the ship skill's eval cases (spec 004).
 
 The working directory becomes a repository on ``main`` whose remote ``origin`` is a local
-bare repository in another temporary directory, so nothing ever leaves the machine.
+bare repository in ``.remote/``, hidden from ``git status`` by ``.git/info/exclude``, so
+nothing ever leaves the machine and the remote goes away with the run's directory.
 """
 
 import subprocess
-import tempfile
 from pathlib import Path
 
 
@@ -16,9 +16,10 @@ def _git(*args: str, cwd: str = ".") -> None:
 
 def make(*, branch: str = "main", change: bool = True) -> None:
     """Create the repository, its local remote and, optionally, an uncommitted change."""
-    remote = Path(tempfile.mkdtemp(prefix="opscout-eval-remote-")) / "origin.git"
+    remote = Path(".remote/origin.git").resolve()
     _git("init", "-q", "--bare", "-b", "main", str(remote))
     _git("init", "-q", "-b", "main")
+    Path(".git/info/exclude").write_text(".remote/\n", encoding="utf-8")
     _git("config", "user.email", "eval@example.com")
     _git("config", "user.name", "Eval")
     _git("config", "commit.gpgsign", "false")

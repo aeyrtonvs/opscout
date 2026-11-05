@@ -133,6 +133,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         except HookError as error:
             sys.stderr.write(f"{error}\n")
             return BLOCKED
+        except Exception as error:  # the guard never fails open (spec 004, FR-013)
+            sys.stderr.write(f"opscout push guard: {type(error).__name__}: {error}\n")
+            return BLOCKED
         return 0
     parser.print_help()
     return 0
@@ -171,7 +174,7 @@ def _ship(args: argparse.Namespace) -> int:
             text = sys.stdin.read()
         else:
             text = Path(args.file).read_text(encoding="utf-8")
-        reasons = check_message(text, ship)
+        reasons = check_message(text, ship, strip_comments=not args.paragraphs)
     for reason in reasons:
         print(reason)
     return 1 if reasons else 0

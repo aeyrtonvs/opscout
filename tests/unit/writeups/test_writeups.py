@@ -444,6 +444,26 @@ def test_an_installed_plugin_without_a_release_says_what_to_do(tmp_path: Path) -
     assert "claude --plugin-dir" in result.stderr
 
 
+@spec("FR-024")
+def test_without_a_release_the_guard_only_blocks_pushes(tmp_path: Path) -> None:
+    launcher = copy_plugin(tmp_path, "0.0.0")
+
+    def guard(command: str) -> subprocess.CompletedProcess[str]:
+        event = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}, "cwd": "."})
+        return subprocess.run(  # noqa: S603  (the launcher under test)
+            [str(launcher), "hook", "pre-tool-use"],
+            input=event,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    assert (guard("ls -la").returncode, guard("ls -la").stdout) == (0, "")
+    pushed = guard("git push origin feat/x")
+    assert pushed.returncode == 2
+    assert "no release" in pushed.stderr
+
+
 @spec("FR-023")
 def test_an_installed_plugin_runs_exactly_its_release(tmp_path: Path) -> None:
     fake = tmp_path / "fake-bin"

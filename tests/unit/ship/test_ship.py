@@ -24,7 +24,7 @@ from opscout.core.config import (
     InvalidConfigError,
     Ship,
 )
-from opscout.core.ship import PushDecision
+from opscout.core.ship import PushConfig, PushDecision
 from opscout.entrypoints.cli import main
 from opscout.services.config import parse_config
 from opscout.services.ship import (
@@ -142,13 +142,19 @@ PATTERNS = ("main", "master", "release/*")
 
 
 def decision(
-    command: str, *, current: str | None = "feat/add-guard", default: str | None = "main"
+    command: str,
+    *,
+    current: str | None = "feat/add-guard",
+    default: str | None = "main",
+    config: PushConfig | None = None,
 ) -> PushDecision | None:
     """Return the guard's decision for one command, with the branches a repository would give."""
     read = read_command(command)
     if read is None or isinstance(read, PushDecision):
         return read
-    return decide_push(read, current=current, default=default, patterns=PATTERNS)
+    return decide_push(
+        read, current=current, default=default, patterns=PATTERNS, config=config or PushConfig()
+    )
 
 
 ASKED = [
@@ -182,6 +188,7 @@ DENIED_PROTECTED = [
     ("git push origin feat/x:refs/heads/master", "master"),
     ("git push origin release/1.2", "release/1.2"),
     ("git push origin :main", "main"),
+    ("git push origin @:refs/heads/main", "main"),
     ("git push --delete origin release/1.2", "release/1.2"),
     ("git push -f origin HEAD:main", "main"),
 ]
@@ -244,7 +251,6 @@ UNREADABLE = [
     "git push 'unterminated",
     "(git push)",
     "git push origin feat/x | tee log",
-    "echo git push",
     "cd sub\ngit push",
     "git add -A && gh pr create --draft",
 ]
@@ -258,6 +264,127 @@ def test_a_push_in_a_form_the_guard_cannot_read_is_denied(command: str) -> None:
     assert result is not None
     assert result.verdict == "deny"
     assert "plain" in result.reason
+
+
+@spec("FR-008")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git push origin :",
+        "git push origin +:",
+        "git push origin '*:*'",
+        "git push origin 'refs/heads/*:refs/heads/*'",
+        "git push origin HEAD:heads/main",
+        "git push origin HEAD:refs/remotes/origin/main",
+        "git push origin HEAD:tags/v1",
+        "git push origin :refs/remotes/origin/main",
+    ],
+    ids=[
+        "matching",
+        "forced-matching",
+        "glob",
+        "glob-refs",
+        "heads-short",
+        "remotes",
+        "tags-short",
+        "delete-remotes",
+    ],
+)
+def test_matching_glob_and_ambiguous_refspecs_are_denied(command: str) -> None:
+    result = decision(command, current="main")
+
+    assert result is not None
+    assert result.verdict == "deny"
+
+
+@spec("FR-008")
+def test_at_and_head_mean_the_current_branch() -> None:
+    on_main = decision("git push origin @", current="main")
+    on_feature = decision("git push origin @", current="feat/x")
+    detached = decision("git push origin HEAD", current=None)
+
+    assert on_main is not None
+    assert on_main.verdict == "deny"
+    assert on_feature == PushDecision("ask", "opscout: push to origin: feat/x?")
+    assert detached is not None
+    assert detached.verdict == "deny"
+
+
+@spec("FR-008")
+@pytest.mark.parametrize(
+    ("config", "verdict", "named"),
+    [
+        (PushConfig(push_default="simple"), "ask", "feat/add-guard"),
+        (PushConfig(push_default="current"), "ask", "feat/add-guard"),
+        (PushConfig(push_default="upstream", upstream="main"), "deny", "main"),
+        (PushConfig(push_default="upstream", upstream="feat/other"), "ask", "feat/other"),
+        (PushConfig(push_default="matching"), "deny", "matching"),
+        (PushConfig(remote_push=("HEAD:refs/heads/main",)), "deny", "remote.origin.push"),
+    ],
+    ids=["simple", "current", "upstream-main", "upstream-feature", "matching", "remote-push"],
+)
+def test_the_git_configuration_decides_where_a_bare_push_goes(
+    config: PushConfig, verdict: str, named: str
+) -> None:
+    result = decision("git push", config=config)
+
+    assert result is not None
+    assert (result.verdict, named in result.reason) == (verdict, True)
+
+
+@spec("FR-008")
+def test_a_configured_push_refspec_denies_even_a_named_branch() -> None:
+    config = PushConfig(remote_push=("refs/heads/feat/x:refs/heads/main",))
+
+    result = decision("git push origin feat/x", config=config)
+
+    assert result is not None
+    assert result.verdict == "deny"
+
+
+@spec("FR-010")
+@pytest.mark.parametrize(
+    ("command", "verdict"),
+    [
+        ("/usr/bin/git push origin main", "deny"),
+        ("/usr/bin/git push origin feat/x", "ask"),
+        ("git subtree push --prefix=lib origin main", "deny"),
+        ('gh pr create --draft --body "$(git push origin main)"', "deny"),
+    ],
+    ids=["git-by-path-main", "git-by-path-feature", "subtree", "substitution-in-gh"],
+)
+def test_other_ways_of_pushing_are_read(command: str, verdict: str) -> None:
+    result = decision(command)
+
+    assert result is not None
+    assert result.verdict == verdict
+
+
+@spec("FR-011")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git diff main...HEAD | grep -n push",
+        "git log --oneline | grep -i push",
+        "git branch -a | grep -v push",
+        "echo git push",
+        'git commit -m "fix(plugin): keep the push guard quiet" -m "Assisted-by: Claude Code"',
+        "sudo ls && git log --grep push",
+        "git -C repo; echo push",
+    ],
+)
+def test_ordinary_commands_that_mention_push_are_left_alone(command: str) -> None:
+    assert decision(command) is None
+
+
+@spec("FR-011")
+def test_the_skills_own_pull_request_command_is_asked() -> None:
+    command = (
+        "gh pr create --draft --base main --head feat/x "
+        '--title "feat(ship): add the skill" --body "Adds it (see the spec)."'
+    )
+
+    assert decision(command) == PushDecision("ask", "opscout: open a pull request on GitHub?")
 
 
 @spec("FR-011")
@@ -489,6 +616,101 @@ def test_the_hook_is_silent_for_other_tools_and_commands(
     assert hook(monkeypatch, capsys, bash("git status", tmp_path))[:2] == (0, None)
 
 
+@spec("FR-008")
+@pytest.mark.parametrize(
+    ("settings", "command"),
+    [
+        (
+            [("push.default", "upstream"), ("branch.feat/add-guard.merge", "refs/heads/main")],
+            "git push",
+        ),
+        ([("push.default", "matching")], "git push"),
+        ([("remote.origin.push", "HEAD:refs/heads/main")], "git push"),
+        (
+            [("remote.origin.push", "refs/heads/feat/add-guard:refs/heads/main")],
+            "git push origin feat/add-guard",
+        ),
+        (
+            [
+                ("remote.pushDefault", "upstream-remote"),
+                ("remote.upstream-remote.push", "HEAD:main"),
+            ],
+            "git push",
+        ),
+    ],
+    ids=["upstream-main", "matching", "remote-push", "remote-push-named", "push-remote"],
+)
+def test_the_hook_reads_where_git_would_really_push(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    settings: list[tuple[str, str]],
+    command: str,
+) -> None:
+    repository = scratch_repository(tmp_path)
+    for key, value in settings:
+        git(repository, "config", key, value)
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / "none"))
+
+    _, output, _ = hook(monkeypatch, capsys, bash(command, repository))
+
+    assert output is not None
+    assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+@spec("FR-007")
+def test_the_hook_expands_a_tilde_after_minus_c(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    scratch_repository(tmp_path)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("OPSCOUT_CONFIG", str(tmp_path / "none"))
+
+    _, output, _ = hook(monkeypatch, capsys, bash("git -C ~/repository push origin HEAD", tmp_path))
+
+    # Only a read of ~/repository itself knows the branch, so the prompt can name it.
+    assert output is not None
+    assert output["hookSpecificOutput"]["permissionDecisionReason"] == (
+        "opscout: push to origin: feat/add-guard?"
+    )
+
+
+@spec("FR-013")
+@pytest.mark.parametrize(
+    "event",
+    ['{"tool_name": "Bash", "tool_input": "x"}', '{"tool_name": "Bash", "tool_input": null}'],
+    ids=["input-not-a-mapping", "input-null"],
+)
+def test_any_error_while_reading_the_event_blocks_with_status_two(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], event: str
+) -> None:
+    status, output, error = hook(monkeypatch, capsys, event)
+
+    assert (status, output) == (2, None)
+    assert "opscout push guard" in error
+
+
+@spec("FR-012")
+def test_the_reason_says_when_the_configured_patterns_could_not_be_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repository = scratch_repository(tmp_path)
+    config = tmp_path / "config"
+    config.mkdir()
+    (config / "config.yaml").write_text("schema_version: 1\nship: {types: []}\n", encoding="utf-8")
+
+    _, output, _ = hook(
+        monkeypatch, capsys, bash("git push origin release/1", repository), config=str(config)
+    )
+
+    assert output is not None
+    assert output["hookSpecificOutput"]["permissionDecision"] == "ask"
+    assert (
+        "configured protected branches could not be read"
+        in output["hookSpecificOutput"]["permissionDecisionReason"]
+    )
+
+
 @spec("FR-006")
 def test_the_plugin_declares_the_hook_so_that_a_failure_blocks() -> None:
     hooks = json.loads((PLUGIN / "hooks" / "hooks.json").read_text(encoding="utf-8"))
@@ -650,6 +872,20 @@ def test_a_commit_message_is_checked(message: str, expected: list[str]) -> None:
         assert part in reason
 
 
+@spec("FR-005")
+def test_paragraphs_keep_their_comment_lines_as_git_commit_m_does() -> None:
+    message = f"feat: add the guard\n\n{TRAILER}\n\n# a note\n"
+
+    assert check_message(message, Ship()) == []
+    assert check_message(message, Ship(), strip_comments=False) != []
+
+
+@spec("FR-005")
+@pytest.mark.parametrize("subject", ["feat(API): add it", "fix(ship_guard): refuse it"])
+def test_scopes_may_hold_capitals_and_underscores(subject: str) -> None:
+    assert check_message(f"{subject}\n\n{TRAILER}\n", Ship()) == []
+
+
 @spec("FR-004")
 @spec("FR-005")
 def test_the_check_commands_exit_with_the_result(
@@ -672,6 +908,7 @@ def test_the_check_commands_exit_with_the_result(
         == 0
     )
     assert main(["ship", "check-message", "-m", "feat: add the guard"]) == 1
+    assert main(["ship", "check-message", "-m", "feat: x", "-m", TRAILER, "-m", "# note"]) == 1
     with pytest.raises(SystemExit):
         main(["ship", "check-message"])
 
@@ -805,7 +1042,15 @@ def test_the_scaffold_makes_a_repository_with_a_local_remote(tmp_path: Path) -> 
     ).stdout.strip()
 
     assert Path(remote).is_dir()  # a local bare repository, never a real remote
-    assert not Path(remote).resolve().is_relative_to(tmp_path.resolve())
+    assert Path(remote).resolve().is_relative_to(tmp_path.resolve())  # removed with the run
+    status = subprocess.run(
+        ["/usr/bin/env", "git", "status", "--porcelain"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert ".remote" not in status
 
 
 @spec("FR-023")

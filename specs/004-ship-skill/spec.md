@@ -199,14 +199,17 @@ statuses and messages.
 - **FR-008**: The guard MUST answer "deny", naming the branch, when a destination is
   protected: an explicit refspec destination, the current branch when no refspec is given,
   or a deleted branch. Protected means a configured pattern, `main`, `master`, or the
-  remote's default branch.
+  remote's default branch. Where git's configuration decides the destination
+  (`push.default`, `remote.<name>.push`, the branch's upstream and push remote), the guard
+  reads it; matching (`:`), glob (`*`) and ambiguous (`heads/…`) refspecs are denied.
 - **FR-009**: The guard MUST deny `--all` and `--mirror`, and a push from a detached HEAD
   without a refspec.
 - **FR-010**: The guard MUST deny a command that pushes in any form it cannot read with
-  certainty (compound commands, variables or wrappers before `git`, nested shells, other
-  global options), with a reason that asks for the plain form.
+  certainty (a push inside a compound command, variables or wrappers before `git`, nested
+  shells, other global options, `git subtree push`, substituted text), with a reason that
+  asks for the plain form; `git` named by its path is read like `git`.
 - **FR-011**: The guard MUST answer "ask" for `gh pr create`, and MUST NOT interfere with any
-  other command.
+  other command, including one that only mentions a push (`git log | grep push`).
 - **FR-012**: The guard MUST read the protected patterns from the configuration through the
   engine's loader; when it cannot read them, it MUST still protect `main`, `master` and the
   remote's default branch.
@@ -292,6 +295,12 @@ statuses and messages.
   and run through the headless runner of spec 003 (ADR-0013, amended), which gains scratch
   repositories and `tool_order` grading.
 - **`gh`** is the user's own, authenticated by them; the skill never handles its token.
+- **The skill's pre-approved commands are prefixes**: `git commit -m *` also matches
+  `--amend` or `--no-verify`, and `git add *` matches `git add .env`; a permission rule
+  cannot exclude them. Those Non-Goals rest on the skill's instructions, and the guard still
+  asks before any push, so nothing staged by mistake leaves the machine unconfirmed.
+- **Without uv, or with a launcher that cannot start**, the guard blocks pushes and pull
+  requests only: the launcher answers every other command itself.
 
 ## Actuals
 

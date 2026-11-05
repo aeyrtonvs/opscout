@@ -12,11 +12,12 @@ hook cannot read exits 2, which blocks the command: the guard never fails open.
 import json
 import shutil
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from opscout.core.config import ConfigError, Ship
-from opscout.core.ship import DEFAULT_REMOTE, PushCommand, PushDecision
+from opscout.core.config import ConfigError, ConfigLocationError, Ship
+from opscout.core.ship import DEFAULT_REMOTE, PushCommand, PushConfig, PushDecision
 from opscout.entrypoints.config import load_config
 from opscout.services.config import ConfigLocation
 from opscout.services.ship import decide_push, read_command
@@ -33,11 +34,11 @@ def pre_tool_use(event_text: str, location: ConfigLocation) -> str:
     try:
         event: dict[str, Any] = json.loads(event_text)
         tool = event["tool_name"]
+        command = event["tool_input"]["command"] if tool == "Bash" else None
     except (ValueError, KeyError, TypeError) as error:
         raise HookError(f"opscout push guard: the hook event cannot be read ({error})") from None
     if tool != "Bash":
         return ""
-    command = event.get("tool_input", {}).get("command")
     if not isinstance(command, str):
         raise HookError("opscout push guard: the Bash event holds no command")
     read = read_command(command)
@@ -57,23 +58,54 @@ def pre_tool_use(event_text: str, location: ConfigLocation) -> str:
 
 
 def _decide(push: PushCommand, cwd: Path, location: ConfigLocation) -> PushDecision:
-    directory = cwd / push.directory if push.directory else cwd
-    remote = push.remote or DEFAULT_REMOTE
+    directory = cwd / Path(push.directory).expanduser() if push.directory else cwd
     current = _git(directory, "symbolic-ref", "--short", "-q", "HEAD")
+    remote = push.remote or _remote_for(directory, current)
     default = _git(directory, "symbolic-ref", "--short", "-q", f"refs/remotes/{remote}/HEAD")
     if default is not None:
         default = default.removeprefix(f"{remote}/")
-    return decide_push(
-        push, current=current, default=default, patterns=_ship(location).protected_branches
+    upstream = _git(directory, "config", f"branch.{current}.merge") if current else None
+    config = PushConfig(
+        push_default=_git(directory, "config", "push.default") or "simple",
+        remote_push=tuple(
+            (_git(directory, "config", "--get-all", f"remote.{remote}.push") or "").split()
+        ),
+        upstream=upstream.removeprefix("refs/heads/") if upstream else None,
     )
+    ship, readable = _ship(location)
+    decision = decide_push(
+        replace(push, remote=remote),
+        current=current,
+        default=default,
+        patterns=ship.protected_branches,
+        config=config,
+    )
+    if not readable and decision.verdict == "ask":
+        note = " (the configured protected branches could not be read)"
+        return PushDecision("ask", decision.reason.removesuffix("?") + note + "?")
+    return decision
 
 
-def _ship(location: ConfigLocation) -> Ship:
-    """Return the configured conventions, or the defaults when they cannot be read."""
+def _remote_for(directory: Path, current: str | None) -> str:
+    """Return the remote a push without one goes to, as git chooses it."""
+    candidates = [f"branch.{current}.pushRemote"] if current else []
+    candidates.append("remote.pushDefault")
+    if current:
+        candidates.append(f"branch.{current}.remote")
+    for key in candidates:
+        if value := _git(directory, "config", key):
+            return value
+    return DEFAULT_REMOTE
+
+
+def _ship(location: ConfigLocation) -> tuple[Ship, bool]:
+    """Return the configured conventions, or the defaults and False when they cannot be read."""
     try:
-        return load_config(location.directory).ship
-    except ConfigError:
-        return Ship()
+        return load_config(location.directory).ship, True
+    except ConfigError as error:
+        # Nothing configured is fine; a configuration that exists but cannot be read is not.
+        nothing_configured = isinstance(error, ConfigLocationError) and "no such" in str(error)
+        return Ship(), nothing_configured
 
 
 def _git(directory: Path, *args: str) -> str | None:

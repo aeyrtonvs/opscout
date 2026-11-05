@@ -59,6 +59,15 @@ git [-C <dir>] push [<options>] [<remote> [<refspec>…]]
 - With no refspec, the destination is the current branch; a detached HEAD is denied.
 - `gh pr create` (and only the plain form) is asked.
 
+**Revised after the independent review (2026-11-04)**: the command is first split into
+simple commands at the shell's operators outside quotes, so `git log | grep push` and a
+quoted `feat(ship): …` title are left alone, while a push inside a compound command is
+denied. The hook reads git's own push configuration (`push.default`,
+`remote.<name>.push`, `branch.<name>.merge`, `pushRemote`, `remote.pushDefault`); matching,
+glob and ambiguous refspecs, `@`/`HEAD` without a known branch, `git subtree push` and
+substituted text are denied; `git` by path is read as `git`. The launcher answers events
+that cannot concern the guard at once, so a launcher that cannot start blocks pushes only.
+
 The current branch and the remote's default branch come from `git` in the event's `cwd`
 (or `-C <dir>`): `git symbolic-ref --short HEAD` and `git symbolic-ref --short
 refs/remotes/<remote>/HEAD`. They are read in the entrypoint and passed to a pure decision

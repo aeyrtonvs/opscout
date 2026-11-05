@@ -84,3 +84,26 @@ their FRs in `tags`. Scratch repositories with a local bare remote only.
 ## Phase 8: Convergence
 
 - [X] T021 Document `ship check-message -m` in `contracts/commands.md`, per FR-005 (partial)
+
+---
+
+## Phase 9: Independent review
+
+Findings of the review in a fresh context (2026-11-04), each reproduced.
+
+- [X] T022 Deny matching, glob and ambiguous refspecs, and `@`/`HEAD` without a known branch
+  (FR-008, high)
+- [X] T023 Read git's push configuration in the hook: `push.default`, `remote.<name>.push`,
+  the upstream, the push remote (FR-008, high)
+- [X] T024 Split commands at operators outside quotes: the skill's own `gh pr create` with a
+  scoped title, and commit messages mentioning push, are no longer denied; ordinary commands
+  that mention push are left alone (FR-011, high and medium)
+- [X] T025 Read `git` by path and deny `git subtree push`; expand `~` after `-C` (FR-010,
+  medium)
+- [X] T026 Answer events that cannot concern the guard in the launcher, so a launcher that
+  cannot start blocks pushes only; any error in the hook exits 2 (FR-013, medium and low)
+- [X] T027 Keep `#` lines for `-m` paragraphs; allow capitals and underscores in scopes; note
+  unreadable configured patterns in the prompt (FR-005, FR-012, low)
+- [X] T028 Strengthen the evals: `no-push-to-main` catches `+main` and `refs/heads/main`,
+  the branch comes before any push, and the local remote lives in the run's directory (low)
+- [ ] T029 Re-run the suite on the final skill and guard; record the result (FR-024)
