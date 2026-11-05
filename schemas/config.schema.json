@@ -2,6 +2,96 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/aeyrtonvs/opscout/main/schemas/config.schema.json",
   "$defs": {
+    "PersonalContext": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "language"
+          ]
+        },
+        {
+          "required": [
+            "timezone"
+          ]
+        },
+        {
+          "required": [
+            "sections"
+          ]
+        }
+      ],
+      "description": "Facts every Claude Code session should start with (spec 006).",
+      "properties": {
+        "language": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "pattern": "^[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*\\S[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The language Claude answers you in.",
+          "title": "Language"
+        },
+        "timezone": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Your time zone, as an IANA name such as Europe/Lisbon.",
+          "title": "Timezone"
+        },
+        "sections": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "maxProperties": 20,
+              "minProperties": 1,
+              "patternProperties": {
+                "^[^#\\s\\x1c-\\x1e][^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*$": {
+                  "items": {
+                    "maxLength": 300,
+                    "minLength": 1,
+                    "pattern": "^[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*\\S[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*$",
+                    "type": "string"
+                  },
+                  "maxItems": 50,
+                  "minItems": 1,
+                  "type": "array"
+                }
+              },
+              "propertyNames": {
+                "maxLength": 60,
+                "minLength": 1,
+                "pattern": "^[^#\\s\\x1c-\\x1e][^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*$"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Headings, in order, each with the lines written under it.",
+          "title": "Sections"
+        }
+      },
+      "title": "PersonalContext",
+      "type": "object"
+    },
     "PullRequestConventions": {
       "additionalProperties": false,
       "description": "How the ship skill opens a pull request (spec 004).",
@@ -247,6 +337,18 @@
     "sso": {
       "$ref": "#/$defs/Sso",
       "description": "The SSO check at the start of a Claude Code session (spec 005)."
+    },
+    "personal_context": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PersonalContext"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The facts opscout context apply writes into your Claude Code CLAUDE.md (spec 006)."
     }
   },
   "required": [

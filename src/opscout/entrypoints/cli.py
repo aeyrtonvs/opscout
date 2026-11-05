@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import shlex
 import sys
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -17,8 +18,10 @@ from opscout.core.config import (
     Writeups,
     schema_text,
 )
+from opscout.core.context import PendingChange
 from opscout.core.sso import AwsConfigError
 from opscout.entrypoints.config import config_file, load_config
+from opscout.entrypoints.context import TargetError, default_target, pending, write
 from opscout.entrypoints.hook import (
     BLOCKED,
     HookError,
@@ -28,6 +31,7 @@ from opscout.entrypoints.hook import (
 )
 from opscout.entrypoints.sso import check_sessions, sso_settings
 from opscout.services.config import resolve_config_dir
+from opscout.services.context import render_block, unified_diff
 from opscout.services.ship import check_branch, check_message, render_rules
 from opscout.services.sso import render_status
 from opscout.services.writeups import render_formats, render_invalid, resolve_formats
@@ -101,6 +105,31 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument(
             "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
         )
+    context = commands.add_parser(
+        "context",
+        help="your personal context in Claude Code's CLAUDE.md",
+        description="Write your configured personal context into Claude Code's CLAUDE.md "
+        "(spec 006).",
+    )
+    context_commands = context.add_subparsers(
+        dest="context_command", metavar="COMMAND", required=True
+    )
+    show = context_commands.add_parser("show", help="print the block")
+    diff = context_commands.add_parser(
+        "diff", help="show what apply would change, and the code that confirms it"
+    )
+    apply = context_commands.add_parser(
+        "apply", help="write the block, after a terminal yes or with --confirm"
+    )
+    for command in (show, diff, apply):
+        command.add_argument(
+            "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
+        )
+    for command in (diff, apply):
+        command.add_argument(
+            "--target", metavar="FILE", help="the file to change; default: Claude Code's CLAUDE.md"
+        )
+    apply.add_argument("--confirm", metavar="CODE", help="the code opscout context diff printed")
     sso = commands.add_parser(
         "sso", help="check the SSO logins", description="Check the SSO logins (spec 005)."
     )
@@ -151,6 +180,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "ship":
         return _ship(args)
+    if args.command == "context":
+        return _context(args)
     if args.command == "sso":
         return _sso_check(_given_directory(args.config))
     if args.command == "hook" and args.hook_command == "session-start":
@@ -214,6 +245,87 @@ def _ship(args: argparse.Namespace) -> int:
     for reason in reasons:
         print(reason)
     return 1 if reasons else 0
+
+
+def _context(args: argparse.Namespace) -> int:
+    """Run a context command (spec 006): 0 done, 1 a change or not confirmed, 2 an error."""
+    location = resolve_config_dir(_given_directory(args.config), os.environ, Path.home())
+    try:
+        context = load_config(location.directory).personal_context
+    except InvalidConfigError as error:
+        return _context_error(
+            f"the configuration has {len(error.problems)} problem(s); run opscout config validate"
+        )
+    except ConfigLocationError as error:
+        return _context_error(str(error))
+    if context is None:
+        return _context_error(
+            f"{config_file(location.directory)} has no personal_context section; nothing to render"
+        )
+    if args.context_command == "show":
+        sys.stdout.write(render_block(context))
+        return 0
+    target = Path(args.target) if args.target else default_target(os.environ, Path.home())
+    try:
+        change = pending(context, target)
+    except TargetError as error:
+        return _context_error(str(error))
+    if not change.changed:
+        print(f"{target} is up to date.")
+        return 0
+    if args.context_command == "apply" and args.confirm is not None:
+        if args.confirm.strip().lower() != change.code:
+            print(
+                "That code does not match the current diff: the file or the configuration "
+                "changed, or the code is mistyped. Run opscout context diff again."
+            )
+            return 1
+        return _context_write(change)
+    current = change.current.decode("utf-8") if change.current is not None else ""
+    sys.stdout.write(unified_diff(current, change.new.decode("utf-8"), str(target)))
+    if args.context_command == "apply" and sys.stdin.isatty() and sys.stdout.isatty():
+        try:
+            answer = input(f"Write these changes to {target}? [y/N] ")
+        except (EOFError, KeyboardInterrupt):
+            answer = ""
+            print()
+        if answer.strip().lower() not in ("y", "yes"):
+            print("Nothing was written.")
+            return 1
+        # The answer may come long after the diff, and Claude Code writes to this file too.
+        try:
+            again = pending(context, target)
+        except TargetError as error:
+            return _context_error(str(error))
+        if again.code != change.code:
+            print(
+                "The file or the configuration changed while you were asked; nothing was "
+                "written. Run opscout context apply again."
+            )
+            return 1
+        return _context_write(change)
+    flags = "".join(
+        f" {flag} {shlex.quote(value)}"
+        for flag, value in (("--config", args.config), ("--target", args.target))
+        if value
+    )
+    print(f"\nConfirmation code: {change.code}")
+    print(f"To write it: opscout context apply{flags} --confirm {change.code}")
+    return 1
+
+
+def _context_write(change: PendingChange) -> int:
+    try:
+        write(change)
+    except TargetError as error:
+        return _context_error(str(error))
+    print(f"Wrote {change.target}.")
+    return 0
+
+
+def _context_error(reason: str) -> int:
+    sys.stderr.write(f"opscout context: {reason}\n")
+    return 2
 
 
 def _hook_directory(args: argparse.Namespace) -> Path | None:

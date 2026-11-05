@@ -17,6 +17,7 @@ Rules for every later section:
 
 import json
 import re
+import zoneinfo
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -29,6 +30,7 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    model_validator,
 )
 from pydantic_core import PydanticCustomError
 
@@ -237,6 +239,97 @@ class Sso(BaseModel):
     )
 
 
+MARKER_TEXT: Final = "opscout:personal-context"
+"""Text no personal context value may hold, so the block's markers stay unambiguous."""
+
+
+def _no_marker(value: str) -> str:
+    """Refuse the marker text inside a value (spec 006, FR-002)."""
+    if MARKER_TEXT in value:
+        raise PydanticCustomError("marker_text", "Must not contain the marker text")
+    return value
+
+
+def _known_zone(value: str) -> str:
+    """Refuse a name the zone database does not list, exactly as written.
+
+    Listed names only: on a case-insensitive disk ``zoneinfo`` would also load a miscased
+    name, which another machine refuses.
+    """
+    if value not in zoneinfo.available_timezones():
+        raise PydanticCustomError("time_zone", "Unknown time zone")
+    return value
+
+
+_LineBreak = "\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029"
+"""Every character Python or an editor may treat as a line break."""
+_OneLine = f"^[^{_LineBreak}]*\\S[^{_LineBreak}]*$"
+_HeadingLine = f"^[^#\\s\\x1c-\\x1e][^{_LineBreak}]*$"
+_Language = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=40, pattern=_OneLine),
+    AfterValidator(_no_marker),
+]
+_TimeZone = Annotated[
+    str,
+    StringConstraints(max_length=64, pattern=r"^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$"),
+    AfterValidator(_known_zone),
+]
+_Heading = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=60, pattern=_HeadingLine),
+    AfterValidator(_no_marker),
+]
+_ContextLine = Annotated[
+    str,
+    StringConstraints(min_length=1, max_length=300, pattern=_OneLine),
+    AfterValidator(_no_marker),
+]
+
+
+def _context_schema(schema: dict[str, Any]) -> None:
+    """Make the generated schema refuse what the model refuses (spec 006, review).
+
+    Pydantic checks a mapping's keys only by length in JSON Schema, and cannot say "at
+    least one field"; both are added here.
+    """
+    sections = schema["properties"]["sections"]["anyOf"][0]
+    sections["propertyNames"]["pattern"] = _HeadingLine
+    sections["additionalProperties"] = False
+    schema["anyOf"] = [{"required": [name]} for name in ("language", "timezone", "sections")]
+
+
+class PersonalContext(BaseModel):
+    """Facts every Claude Code session should start with (spec 006)."""
+
+    model_config = ConfigDict(
+        strict=True, extra="forbid", frozen=True, json_schema_extra=_context_schema
+    )
+
+    language: _Language | None = Field(
+        default=None, description="The language Claude answers you in."
+    )
+    timezone: _TimeZone | None = Field(
+        default=None, description="Your time zone, as an IANA name such as Europe/Lisbon."
+    )
+    sections: (
+        Annotated[
+            dict[_Heading, Annotated[list[_ContextLine], Field(min_length=1, max_length=50)]],
+            Field(min_length=1, max_length=20),
+        ]
+        | None
+    ) = Field(
+        default=None,
+        description="Headings, in order, each with the lines written under it.",
+    )
+
+    @model_validator(mode="after")
+    def _something(self) -> "PersonalContext":
+        if self.language is None and self.timezone is None and self.sections is None:
+            raise PydanticCustomError("empty", "Give a language, a time zone or sections")
+        return self
+
+
 class Configuration(BaseModel):
     """The private opscout configuration (config.yaml in the configuration directory)."""
 
@@ -264,6 +357,12 @@ class Configuration(BaseModel):
     sso: Sso = Field(
         default_factory=Sso,
         description="The SSO check at the start of a Claude Code session (spec 005).",
+    )
+    personal_context: PersonalContext | None = Field(
+        default=None,
+        description=(
+            "The facts opscout context apply writes into your Claude Code CLAUDE.md (spec 006)."
+        ),
     )
 
 

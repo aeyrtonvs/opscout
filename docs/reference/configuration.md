@@ -150,6 +150,29 @@ the network, never logs in and never shows a token: it takes only each token's e
 expired token counts as expired even when the AWS CLI might renew it. `opscout sso check`
 prints every checked login's state and exits 1 when one needs a login.
 
+### `personal_context` (optional; spec 006)
+
+The facts every Claude Code session should start with. `opscout context apply` writes them
+into a marked block of Claude Code's `CLAUDE.md` (in `CLAUDE_CONFIG_DIR`, or `~/.claude`).
+
+| Key | Type | Meaning |
+|---|---|---|
+| `language` | one line, up to 40 characters | the language Claude answers you in |
+| `timezone` | an IANA time zone name, such as `Europe/Lisbon` | your time zone |
+| `sections` | mapping of heading → list of lines | headings, in order, each with up to 50 lines of up to 300 characters; up to 20 headings of up to 60 characters, without `#` |
+
+At least one key is present, and no value holds a line break or `opscout:personal-context`.
+
+- `opscout context show` prints the block.
+- `opscout context diff [--target FILE]` shows the change as a unified diff and prints a
+  confirmation code; it never writes.
+- `opscout context apply [--target FILE]` asks before writing in a terminal; elsewhere it
+  writes only with `--confirm <code>` from a diff, and only while the file and the
+  configuration still give that diff.
+
+Only the lines between the markers change; everything else in the file stays as you wrote
+it. Applying again changes nothing. To remove the block, delete it by hand.
+
 ## Rules for every section
 
 These hold for each section a later spec adds. Review checks them; tests enforce the

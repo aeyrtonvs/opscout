@@ -58,3 +58,20 @@ sso:
   enabled: true
   # The logins to check, by SSO session or profile name.
   sessions: [example-session, example-prod]
+
+# The facts every Claude Code session should start with (spec 006). Optional.
+# `opscout context diff` shows what `opscout context apply` would write into Claude Code's
+# CLAUDE.md, between markers; nothing outside them changes.
+personal_context:
+  # The language Claude answers you in.
+  language: English
+  # Your time zone, as an IANA name.
+  timezone: Europe/Lisbon
+  # Headings, in order, each with the lines written under it.
+  sections:
+    # A heading, and the lines under it.
+    Working rules:
+      - Before any live fix in example-prod, list exactly what changes and wait.
+    # Another heading.
+    Environment:
+      - example-prod is AWS account 123456789012, profile example-prod.

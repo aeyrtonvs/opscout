@@ -343,7 +343,7 @@ on the first push; the first commit reviewed for real data. Met on 2026-11-03.
 | summary-skill ([003](../specs/003-summary-skill/spec.md)) | 5 | Write-up formats from config: ticket, message, postmortem; a contract whose non-goals include "never list what was ruled out" | Eval suite at threshold and above the no-plugin baseline |
 | ship-skill ([004](../specs/004-ship-skill/spec.md)) | 6 | Branch naming, Conventional Commits, trailer, never to protected branches, draft PR; each push confirmed | `tool_order` graders: never pushes to a protected branch |
 | sso-check-hook ([005](../specs/005-sso-check-hook/spec.md)) | 6 | SessionStart warning from the local SSO token cache, no network | Tests for valid, expired and missing cache; p95 < 100 ms |
-| personal-context | 6 | Renders a marked section of `~/.claude/CLAUDE.md` from config; shows a diff and writes only on confirmation | Idempotent; content outside the markers untouched |
+| personal-context ([006](../specs/006-personal-context/spec.md)) | 6 | Renders a marked section of `~/.claude/CLAUDE.md` from config; shows a diff and writes only on confirmation | Idempotent; content outside the markers untouched |
 
 Spec 001 (leak-guard), implemented 2026-11-04: every test of the leak check is tied to a
 requirement, and a traceability test fails when one has none. Behaviors that changed: before a
@@ -390,6 +390,14 @@ command for each, from the AWS CLI's token cache alone, taking only each token's
 expired token counts as expired even when the CLI might renew it (decided in the
 clarification). The 100 ms 95th percentile covers the check; the whole hook, start-up
 through the launcher included, stays under one second (the engine starts in 160 to 200 ms).
+
+Spec 006 (personal-context), implemented 2026-11-04: the configuration gains an optional
+`personal_context` section (`language`, `timezone`, and `sections` of headings with lines,
+decided in the clarification); `opscout context show`, `context diff` and `context apply`
+render it into a marked block of Claude Code's `CLAUDE.md` (`CLAUDE_CONFIG_DIR`, or
+`~/.claude`). Apply writes only after a yes in a terminal or with the confirmation code of
+the current diff (decided in the clarification), in one step, and changes nothing outside
+the markers; applying twice writes once.
 
 Outside this repo (private runbook): consolidate the SSO sessions into one (back up first,
 show the diff, wait for approval).
