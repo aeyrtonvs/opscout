@@ -1,0 +1,4 @@
+WARNING: example-worker queue depth rising
+Environment: prod
+Resource: example-worker-queue
+Region: us-east-1

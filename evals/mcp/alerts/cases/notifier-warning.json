@@ -1,0 +1,4 @@
+{"format": "example-notifier",
+ "fields": {"severity": "WARNING", "title": "example-worker queue depth rising",
+            "environment": "prod", "resource": "example-worker-queue", "region": "us-east-1"},
+ "environment": "example-prod"}

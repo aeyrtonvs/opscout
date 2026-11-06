@@ -225,7 +225,7 @@ before it is sent.
 
 **Independent test**: the synthetic corpus parses and resolves as expected.
 
-- [ ] T025 [P] [US2] Write failing tests in `tests/unit/mcp/test_alerts.py` for parsing
+- [X] T025 [P] [US2] Write failing tests in `tests/unit/mcp/test_alerts.py` for parsing
   (FR-017):
   - each declared format returns its name and the fields it declares, each with
     `{value, source}`;
@@ -234,16 +234,16 @@ before it is sent.
   - when two formats match, the first wins and `also_matched` names the other;
   - text beyond 20,000 characters is cut before matching, and the cut is recorded in
     `capped`.
-- [ ] T026 [P] [US2] Write failing tests in `tests/unit/mcp/test_resolve.py` for
+- [X] T026 [P] [US2] Write failing tests in `tests/unit/mcp/test_resolve.py` for
   resolution (FR-018):
   - an environment is matched by account ID, by name, or by alias, without case;
   - with no match, the result is `out_of_scope`, with the field and value that did not
     match;
   - `list_environments` returns the names, regions, aliases and identity kinds.
-- [ ] T027 [US2] Write `src/opscout/core/alerts.py` and the three handlers in
+- [X] T027 [US2] Write `src/opscout/core/alerts.py` and the three handlers in
   `src/opscout/services/tools/`. With no `alerts` section, `parse_alert` returns
   `not-configured`. T025 and T026 pass.
-- [ ] T028 [US2] Build the synthetic alert corpus in `evals/mcp/alerts/`: fake text in the
+- [X] T028 [US2] Build the synthetic alert corpus in `evals/mcp/alerts/`: fake text in the
   two example formats of contracts/config.md, plus unknown, out-of-scope and two-match
   cases. Each case has an expected-fields file. Add a test that 100 % of the corpus parses
   to its expected fields, or to "no format matched" (SC-005).

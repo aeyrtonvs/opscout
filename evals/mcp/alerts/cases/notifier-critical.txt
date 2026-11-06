@@ -1,0 +1,8 @@
+CRITICAL: example-api 5XX errors above threshold
+Project: example-api
+Environment: Production
+Resource: example-api-alb
+Account: 123456789012
+Region: us-east-1
+Metric: HTTPCode_Target_5XX_Count
+Threshold: 50

@@ -1,0 +1,2 @@
+Triggered: [example-api][prod] forwarded
+CRITICAL: example-api health check failing
