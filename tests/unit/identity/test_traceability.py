@@ -17,7 +17,6 @@ def spec(requirement: str) -> pytest.MarkDecorator:
 
 
 @spec("FR-020")
-@pytest.mark.xfail(strict=True, reason="until every requirement has a test (T040)")
 def test_every_requirement_has_a_test() -> None:
     required = set(re.findall(r"\*\*(FR-\d{3})\*\*", SPEC_FILE.read_text(encoding="utf-8")))
     proven: set[str] = set()
@@ -27,3 +26,11 @@ def test_every_requirement_has_a_test() -> None:
     assert required, "no requirement found in the spec"
     assert sorted(required - proven) == []
     assert sorted(proven - required) == []
+
+
+@spec("FR-021")
+def test_the_live_check_is_an_open_item_in_the_plan() -> None:
+    plan = (REPO_ROOT / "docs" / "PLAN.md").read_text(encoding="utf-8")
+    open_items = plan.split("## 9. Open items", 1)[1]
+    assert "- [ ] Read-only identity, live check (spec 010, FR-021)" in open_items
+    assert "docs/reference/identity.md" in open_items

@@ -892,8 +892,8 @@ def test_a_credential_can_only_be_a_keychain_reference() -> None:
 
 @spec("FR-033")
 def test_the_published_hook_validates_the_repository_it_runs_in(tmp_path: Path) -> None:
-    (hook,) = yaml.safe_load((REPO_ROOT / ".pre-commit-hooks.yaml").read_text("utf-8"))
-    assert hook["id"] == "opscout-config-validate"
+    hooks = yaml.safe_load((REPO_ROOT / ".pre-commit-hooks.yaml").read_text("utf-8"))
+    (hook,) = [hook for hook in hooks if hook["id"] == "opscout-config-validate"]
     assert hook["language"] == "python"
     assert hook["pass_filenames"] is False
     assert [

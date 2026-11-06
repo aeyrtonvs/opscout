@@ -34,8 +34,8 @@ missing is an open item in `docs/PLAN.md` §9.
    instructions.** They use a read-only identity; they report whether a secret exists and
    where, never its value; on hosts they run an allow-listed command document, not an open
    shell.
-   *Gate:* the read-only identity, tool allow-lists and allow-listed host documents
-   (ADR-0010).
+   *Gate:* the read-only identity and allow-listed host documents, proved by
+   `opscout identity check` (spec 010); tool allow-lists still to come (ADR-0010).
 4. **English** for code, comments, docs and commit messages. *Gate:* review only.
 5. **Nothing leaves the machine without asking each time:** creating the GitHub remote,
    pushing, publishing a release or a plugin.
@@ -85,14 +85,17 @@ Spec-Driven Development with GitHub Spec Kit (ADR-0008):
 - `.claude/settings.json`: permission gates (rule 5) and development hooks (ADR-0018). Do
   not loosen them.
 - `docs/PLAN.md`, `docs/adr/`: plan and decisions.
-- `src/opscout/` and `tests/`: the Python package and its tests. `plugins/opscout/`: the
+- `src/opscout/` and `tests/`: the Python package and its tests. `src/opscout/data/identity/`
+  holds the read-only identity's reference documents and the AWS records they are proved
+  against (spec 010). `plugins/opscout/`: the
   plugin, listed by `.claude-plugin/marketplace.json`: `bin/opscout` runs the engine
   (ADR-0022), `hooks/hooks.json` holds the push guard (spec 004) and the SSO check
   (spec 005), `skills/` holds the skills, and `evals/` their eval cases (ADR-0013).
 - `tools/`: this repository's development hooks and checks, including the headless eval
-  runner `tools/skill_evals.py`; not shipped.
+  runner `tools/skill_evals.py` and `tools/identity_refresh.py`, which refreshes the
+  identity's AWS records; not shipped.
 - `specs/`: the Spec Kit features. `schemas/config.schema.json`: the configuration's JSON
   Schema, generated from the models (`uv run just schema`). `example-config/`: a valid
-  configuration with fake values. `.pre-commit-hooks.yaml`: the hook a private configuration
-  repository uses (spec 002).
+  configuration with fake values. `.pre-commit-hooks.yaml`: the hooks a private configuration
+  repository (spec 002) and an infrastructure repository (spec 010) use.
 - Planned (PLAN.md §6): `deploy/`.

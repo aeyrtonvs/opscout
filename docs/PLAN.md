@@ -4,7 +4,8 @@
 > `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b done** (§7): specs 001 to 006
 > are merged. **Phase 1 in progress**: specs 007, daemon-core, 008, chat-output, and 009,
 > daily-standup, are merged; its last exit criterion, a week of dailies and their agreement
-> rate, is being measured (§9). The
+> rate, is being measured (§9). **Phase 2 in progress**: spec 010, readonly-identity, is
+> implemented on `feat/010-readonly-identity`. The
 > constitution is ratified (1.0.2), ADRs 0001–0022 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -240,7 +241,8 @@ opscout/
 ├── schemas/config.schema.json        # generated from the config models
 ├── example-config/                   # fake values, validated in CI
 ├── .pre-commit-hooks.yaml            # opscout-config-validate, for private configuration repositories
-├── deploy/                           # reference IAM policies, Slack app manifest, launchd template
+├── src/opscout/data/identity/        # the read-only identity's reference documents and AWS records (spec 010)
+├── deploy/                           # Slack app manifest, launchd template
 ├── specs/NNN-slug/                   # Spec Kit features
 ├── docs/                             # PLAN.md, adr/, tutorials/, how-to/, reference/, explanation/
 ├── .specify/                         # Spec Kit: constitution, templates, scripts, extensions
@@ -465,6 +467,29 @@ exists, development uses fixtures and MCP mocks.
 | thread-bot | 3 | Mentions in threads, allow-list, routing, reply in the thread | Injected instructions do not change the tool list; only allow-listed users get answers |
 | run-insights | — | Agreement rate, cost and latency per skill; disagreed runs exported as eval candidates | The report is the input for deciding Phase 3 |
 
+**readonly-identity** (spec 010, implemented 2026-11-05): the reference identity ships in
+the package as documents with placeholders, and `opscout identity check` proves them offline
+against a recorded copy of AWS's action catalog (457 services, 22,444 actions) and of the two
+managed policies it uses. There are two identities per environment:
+
+- **The read-only identity**: `ViewOnlyAccess`, six capabilities and a guardrail of explicit
+  denies, under `ReadOnlyAccess` as its permissions boundary.
+- **An optional host identity**, which may only send seven fixed Linux SSM documents,
+  because `ssm:SendCommand` is a write.
+
+EKS is reached through `AmazonEKSViewPolicy` or a binding to Kubernetes' `view` role. The
+check proves the following, even with `Allow *` attached:
+
+- every secret read and every write is denied
+- every declared read is allowed
+- nothing is granted outside a capability
+- the host and cluster documents equal the reference
+- everything fits AWS's size limits
+
+`opscout identity export` writes the editable tree, and the `opscout-identity-check`
+pre-commit hook runs the check in the infrastructure repository. The engine applies
+nothing. The live check in a sandbox account is an open item (§9).
+
 Candidate, not committed: let alert triage see earlier verdicts for the same alert, since
 recurrence informs "real or tune the threshold?". Only verdicts the user agreed with, with
 their dates, to limit memory poisoning (OWASP ASI06).
@@ -589,9 +614,9 @@ genai.owasp.org (Top 10 for Agentic Applications).
       asking before every `gh` command. Still open: account
       connectors that also send data out (ticket and docs tools, artifact publishing) are
       not gated in this repo; decide whether rule 5 covers them.
-- [ ] Rule 3's gates (the read-only identity, tool allow-lists and allow-listed host
-      documents, ADR-0010) do not exist yet. They arrive with the first skills that touch
-      live systems (Phases 1–2).
+- [ ] Rule 3's gates (ADR-0010): the read-only identity and the allow-listed host documents
+      exist since spec 010, proved by `opscout identity check`. The tool allow-lists arrive
+      with ops-mcp-server.
 - [x] **Before the first commit:** the global git e-mail is a work address. Done 2026-11-03:
       the repo-local `user.email` is the GitHub no-reply address.
 - [x] Name: **opscout** (ADR-0019). The working name `ops-harness` was taken on PyPI by an
@@ -600,7 +625,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [x] Runner (former item 1): ADR-0012 accepted. The user's own `claude -p` is the default
       runner; the Agent SDK is an optional API-key runner.
 - [ ] Read-only identity (former item 2): the reference policies come from this repo
-      (Phase 2); who applies them, and through which IaC repo, is still open.
+      (spec 010); who applies them, and through which IaC repo, is still open.
+- [ ] Read-only identity, live check (spec 010, FR-021): once the identity is instantiated in
+      a sandbox account, run the probes in `docs/reference/identity.md` ("Live check") and
+      record each outcome in the spec's Actuals and in §7.
 - [x] GitHub account (former item 3): confirmed, the remote goes in `aeyrtonvs`.
 - [x] How the plugin finds the Python package: a uv launcher in the plugin's `bin/` (ADR-0022),
       decided 2026-11-04 in spec 003, the first consumer.

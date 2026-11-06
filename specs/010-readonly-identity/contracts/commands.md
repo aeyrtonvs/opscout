@@ -22,6 +22,7 @@ On failure, each finding is a line, then `Fail: N findings.`:
 secret-allowed: secretsmanager:GetSecretValue is allowed (aws/readonly/capabilities/logs.json#2); the guardrail must deny it
 write-allowed: ec2:CreateTags is allowed with Allow * added; the boundary or the guardrail must deny it
 exception-too-wide: ssm:SendCommand allowed on arn:aws:ssm:*:123456789012:document/AWS-RunShellScript (aws/hosts/capability.json#1)
+data-allowed: s3:ListBucket reads application data (ViewOnlyAccess#GeneralViewOnlyAccessStatement) for the read-only identity; declare it in a capability or deny it
 read-missing: cloudwatch:GetMetricData (capability metrics) is denied (aws/guardrail.json#4)
 undeclared-grant: ec2:DescribeVolumes in aws/readonly/capabilities/cost.json#1 belongs to no capability
 unknown-action: logs:GetLogEvent in aws/readonly/capabilities/logs.json#1 is not in the catalog

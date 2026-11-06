@@ -20,7 +20,7 @@ from opscout.core.config import (
 )
 from opscout.core.context import PendingChange
 from opscout.core.sso import AwsConfigError
-from opscout.entrypoints import daemon
+from opscout.entrypoints import daemon, identity
 from opscout.entrypoints.config import config_file, load_config
 from opscout.entrypoints.context import TargetError, default_target, pending, write
 from opscout.entrypoints.hook import (
@@ -202,6 +202,31 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     preview.add_argument("--counts", action="store_true", help="print the counts only")
+    identity_parser = commands.add_parser(
+        "identity",
+        help="the read-only identity's reference documents",
+        description="Prove or export the read-only identity's documents (spec 010).",
+    )
+    identity_commands = identity_parser.add_subparsers(
+        dest="identity_command", metavar="COMMAND", required=True
+    )
+    identity_check = identity_commands.add_parser(
+        "check",
+        help="prove that a tree denies secret reads and writes; offline, read-only",
+        description=(
+            "Prove a directory of identity documents, or the packaged reference when DIR is "
+            "omitted: secret reads and writes denied even with Allow * attached, declared "
+            "reads allowed, nothing undeclared, host and cluster documents as the reference. "
+            "Exit 0 pass, 1 findings, 2 unreadable."
+        ),
+    )
+    identity_check.add_argument("directory", nargs="?", metavar="DIR", help="the tree to check")
+    identity_export = identity_commands.add_parser(
+        "export",
+        help="write the editable reference documents into DIR, to instantiate them",
+        description="Write the editable reference tree into DIR; nothing is overwritten.",
+    )
+    identity_export.add_argument("directory", metavar="DIR", help="where to write the tree")
     gateway = commands.add_parser(
         "gateway",
         help="hold the Slack connection and record agreement clicks (launchd runs it)",
@@ -277,6 +302,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _daemon(args)
     if args.command == "standup":
         return daemon.preview_command(_given_directory(args.config), counts_only=args.counts)
+    if args.command == "identity" and args.identity_command == "check":
+        return identity.check_command(Path(args.directory) if args.directory else None)
+    if args.command == "identity":
+        return identity.export_command(Path(args.directory))
     if args.command == "gateway":
         return daemon.gateway_command(_given_directory(args.config))
     if args.command == "secret" and args.secret_command == "set":  # noqa: S105  (a command name)

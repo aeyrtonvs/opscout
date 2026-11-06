@@ -32,6 +32,8 @@ under SSM, ECS, Lambda and RDS. No value from it enters this repository.
 - **The refresh** is `uv run python -m tools.identity_refresh`, a development tool that is
   not shipped. It downloads the index and every service file and writes the catalog.
 - **"Write" for the check** is any of `w`, `p` or `t`.
+- **Measured on 2026-11-05**: 457 services and 22,444 actions, of which 12,695 are
+  writes, 9,749 are reads, and 483 carry the `d` flag.
 - **Data plane is not trusted alone.** It is incomplete, so the secret and data reads are a
   reviewed list (R4), and the `d` flag only adds to that list.
 
@@ -82,6 +84,17 @@ capability off the identity that every agent uses.
 - **`ViewOnlyAccess` as the boundary**: it lacks log queries and the other capability reads.
 - **No boundary**: an `Allow *` attached by mistake would then grant writes (US1, scenarios
   3 and 5).
+
+**Measured on 2026-11-05**: the cap and the grant let through a few writes, all of which
+the guardrail denies (R4, group `capped-writes`).
+
+- **`ReadOnlyAccess` v191** expands to 7,059 catalog actions. Nine of them are writes:
+  `athena:GetSessionEndpoint`, `backup:ListIndexedRecoveryPointsForSearch`,
+  `billing:GetResourcePolicy`, `cognito-idp:GetClientToken`,
+  `cognito-idp:GetTokensFromRefreshToken`, `iot:GetConnection`, `iot:ListSubscriptions`,
+  `s3express:CreateSession` (conditionally) and `ssm-sap:GetResourcePermission`.
+- **`ViewOnlyAccess` v48** expands to 2,006 actions. One is a write
+  (`iot:ListSubscriptions`) and 21 are data plane.
 
 **Known limit**: a resource-based policy that names the role *session* ARN as its principal
 is not limited by the boundary. The guardrail's explicit denies still apply. This limit
@@ -137,6 +150,15 @@ each entry denied under the robust evaluation.
   SSM, only `ListAssociations` and `ListDocuments`. A `secret-metadata` capability therefore
   grants `secretsmanager:ListSecrets`, `secretsmanager:DescribeSecret` and
   `ssm:DescribeParameters`, for ask and alert-triage. None of them returns a value.
+- **Added in implementation** (measured, R2):
+  - **Group `capped-writes`**: the writes that the two managed policies let through. The
+    two Cognito token actions are listed under `credentials`.
+  - **More `data-plane` entries**: the data-plane reads that `ViewOnlyAccess` grants, except
+    the CloudWatch metric reads, which the metrics capability declares. These are object
+    listing, Bedrock and agent sessions, feature-store records and workflow executions.
+  - **A new failure kind**: an allowed data-plane action that no capability declares fails
+    as `data-allowed`.
+  - **Result**: the guardrail is 2,746 characters.
 - **Residual risk**: `ecs:DescribeTasks` can show run-time environment overrides. ECS triage
   needs it (stopped reasons), so it stays allowed, and the reference documentation names
   this residual risk, which is left to redaction (ADR-0010, layer 4).
@@ -173,6 +195,8 @@ named after its file, with the `opscout-ReadOnly-` prefix:
   arguments. `systemctl show` with named properties prints no command line, whereas
   `systemctl status` prints the process tree with arguments. `ss` without `-p` prints no
   process.
+- **No leading `-` or `.`**: a service name cannot begin with `-` (an option) or `.`, so `..`
+  and `-o` are refused, while `sshd.service` and `getty@tty1` pass.
 - **No `{{ }}` interpolation**: no command uses it. Parameters arrive only as quoted
   environment variables after `--`.
 - **The check compares each instantiated document with the packaged reference**, as parsed

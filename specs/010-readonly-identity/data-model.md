@@ -34,7 +34,8 @@ publishes it.
 
 ### Guardrail list (`guardrail-actions.json`, R4)
 
-Groups (`secret-values`, `credentials`, `plaintext-secrets`, `data-plane`, `sessions`), each
+Groups (`secret-values`, `credentials`, `plaintext-secrets`, `data-plane`, `sessions`,
+`capped-writes`), each
 holding entries `{ "action": "<pattern>", "resource": "<arn pattern>" | "*", "why": text }`.
 Each entry must be denied under the robust evaluation (R3). An entry with a resource is
 proved with an exact probe on that resource.
@@ -86,6 +87,7 @@ Any other file is an error. Attachments follow from the layout (R7):
 - **Finding**: `{ kind, subject, ref, message }`. The kinds are:
   - `secret-allowed`
   - `write-allowed`
+  - `data-allowed`
   - `exception-too-wide`
   - `read-missing`
   - `undeclared-grant`

@@ -229,7 +229,7 @@ live-check documentation.
 **Independent test**: export, plant a fault, and check: exit 1 with the finding. The packaged
 reference passes with exit 0.
 
-- [ ] T025 [P] [US5] Write failing tests in `tests/unit/identity/test_commands.py`
+- [X] T025 [P] [US5] Write failing tests in `tests/unit/identity/test_commands.py`
   (FR-016, contracts/commands.md):
   - `opscout identity check` with no argument prints the packaged reference's summary
     (catalog date, both managed versions, counts) and exits 0
@@ -242,14 +242,14 @@ reference passes with exit 0.
     nothing
   - an exported tree checks clean
   - the check works with the network disabled
-- [ ] T026 [US5] Implement `src/opscout/entrypoints/identity.py` (the wiring) and the
+- [X] T026 [US5] Implement `src/opscout/entrypoints/identity.py` (the wiring) and the
   `identity` subcommands in `src/opscout/entrypoints/cli.py`. Keep the import contracts: the
   CLI builds no adapter. T025 passes.
-- [ ] T027 [P] [US5] Add `opscout-identity-check` to `.pre-commit-hooks.yaml` per
+- [X] T027 [P] [US5] Add `opscout-identity-check` to `.pre-commit-hooks.yaml` per
   contracts/commands.md. Write a failing test in `tests/unit/identity/test_commands.py`
   (FR-016) that the hook's entry is `opscout identity check`, that `pass_filenames` is
   false, and that the file still lists `opscout-config-validate`. Then make it pass.
-- [ ] T028 [US5] Write `docs/reference/identity.md` (FR-017, FR-018):
+- [X] T028 [US5] Write `docs/reference/identity.md` (FR-017, FR-018):
   - **What it is**: the two identities, the capabilities table (generated from
     `capabilities.json` by a test that compares them), and the guardrail groups.
   - **Instantiating**: export, fill the placeholders, and attach. Give one example for an
@@ -264,7 +264,7 @@ reference passes with exit 0.
   - **Known limits**: resource policies that name the session ARN; `ecs:DescribeTasks`
     overrides; host log lines.
   - **The engine never applies anything.**
-- [ ] T029 [P] [US5] Write failing tests in `tests/unit/identity/test_docs.py`, then make
+- [X] T029 [P] [US5] Write failing tests in `tests/unit/identity/test_docs.py`, then make
   them pass:
   - FR-017: the capabilities table in `docs/reference/identity.md` equals
     `capabilities.json`, and every reference file is named.
@@ -274,22 +274,22 @@ reference passes with exit 0.
 
 ## Phase 8: User Story 6 — tokens for the other systems are read-only too (P3)
 
-- [ ] T030 [US6] Add "Credentials for other systems" to `docs/reference/identity.md`
+- [X] T030 [US6] Add "Credentials for other systems" to `docs/reference/identity.md`
   (FR-019, research R10), covering observability, code host, tickets and chat. For each,
   give the read scopes to choose, the scopes never to choose, how to confirm the result, and
   the keychain rule. The code-host and chat entries must match `docs/reference/standup.md`
   and `docs/reference/daemon.md`.
-- [ ] T031 [P] [US6] Write a failing test in `tests/unit/identity/test_docs.py` (FR-019),
+- [X] T031 [P] [US6] Write a failing test in `tests/unit/identity/test_docs.py` (FR-019),
   then make it pass. The section names the four systems. Its Bitbucket scopes equal the
   ones in `docs/reference/standup.md`, and its Slack scopes equal the ones in
   `docs/reference/daemon.md`. No write scope is listed as one to choose.
 
 ## Phase 9: Polish and gates
 
-- [ ] T032 Build the wheel and confirm that `opscout/data/identity/` is inside it (research
+- [X] T032 Build the wheel and confirm that `opscout/data/identity/` is inside it (research
   R7). Add a test in `tests/unit/identity/test_commands.py` (FR-001) that every reference
   file is reachable through `importlib.resources`.
-- [ ] T033 Update `docs/PLAN.md`:
+- [X] T033 Update `docs/PLAN.md`:
   - §6: replace `deploy/ … reference IAM policies` with `src/opscout/data/identity/`.
   - §7: the readonly-identity paragraph (two identities, the check, the hook); the status
     line says spec 010 is in progress.
@@ -298,9 +298,9 @@ reference passes with exit 0.
     (FR-021).
   - §9: who applies the identity stays open.
   - Add `docs/reference/identity.md` to the docs index if one lists the references.
-- [ ] T034 Write the FR-021 test in `tests/unit/identity/test_traceability.py`: the live
+- [X] T034 Write the FR-021 test in `tests/unit/identity/test_traceability.py`: the live
   check is an open item in PLAN.md §9.
-- [ ] T035 Amend `docs/adr/0010-defense-in-depth-read-only.md`, decision 1 (Constitution,
+- [X] T035 Amend `docs/adr/0010-defense-in-depth-read-only.md`, decision 1 (Constitution,
   definition of done):
   - add an optional host identity per environment, which can only send catalog documents
   - make AWS's `ReadOnlyAccess` the read-only identity's permissions boundary
@@ -311,7 +311,7 @@ reference passes with exit 0.
   - rule 3's gate names `opscout identity check`
   - `src/opscout/data/identity/` is listed
   - `tools/identity_refresh.py` is listed
-- [ ] T036 Run `uv run just check` and `uv run just coverage` (100 % on `core` and
+- [X] T036 Run `uv run just check` and `uv run just coverage` (100 % on `core` and
   `services`)
 - [ ] T037 Converge, then the independent review of the diff in a fresh context. Record the
   findings and fixes in this file.

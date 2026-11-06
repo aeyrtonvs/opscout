@@ -12,3 +12,17 @@
   language: python
   files: ^config\.ya?ml$
   pass_filenames: false
+# An infrastructure repository proves its instantiated read-only identity (spec 010, FR-016):
+#
+#   - repo: https://github.com/aeyrtonvs/opscout
+#     rev: <commit>
+#     hooks:
+#       - id: opscout-identity-check
+#         args: [opscout-identity]
+#         files: ^opscout-identity/
+- id: opscout-identity-check
+  name: opscout read-only identity
+  description: Prove the read-only identity's documents deny secret reads and writes.
+  entry: opscout identity check
+  language: python
+  pass_filenames: false
