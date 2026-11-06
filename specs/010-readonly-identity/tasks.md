@@ -313,13 +313,38 @@ reference passes with exit 0.
   - `tools/identity_refresh.py` is listed
 - [X] T036 Run `uv run just check` and `uv run just coverage` (100 % on `core` and
   `services`)
-- [ ] T037 Converge, then the independent review of the diff in a fresh context. Record the
+- [X] T037 Converge, then the independent review of the diff in a fresh context. Record the
   findings and fixes in this file.
-- [ ] T038 Run the gates again after the review's fixes
-- [ ] T039 Check the staged diff for real data (rule 2). Only `123456789012`,
+  Review findings (an independent agent, 2026-11-05), each reproduced as a test in
+  `tests/unit/identity/test_review.py` before the fix:
+  - **H1**: a resource-scoped guardrail entry was proved with one probe, so a deny narrowed
+    to one region or one key passed. Now an unconditional deny must name a resource that
+    covers the entry's whole pattern (`covers`, `Analysis.denied_on`).
+  - **H2**: `ssm:SendCommand` was only spot-checked against four documents, so
+    `AWS-RunRemoteScript`, a shell document in another region, or another account's
+    document passed. Now every allowed resource must be exactly a catalog document or the
+    instances of the tree's account, and `NotResource` is refused.
+  - **H3**: reads that return plaintext secrets were reachable another way, such as
+    `lambda:ListFunctions`, launch configurations, SageMaker and Batch descriptions,
+    CodeBuild builds, Lightsail, App Runner, Amplify and usage-plan keys. Now they are
+    denied, and the configuration sample read is `lambda:ListEventSourceMappings`.
+  - **M1**: a service-prefix wildcard (`*:GetSecretValue`) earned credit. It now fails as
+    "cannot prove".
+  - **M2**: a hidden file under the documents was skipped. It is now a layout finding, and
+    only `.DS_Store`, `README.md` and dot entries at the top are skipped.
+  - **M3**: duplicate JSON or YAML keys were collapsed. They are now refused.
+  - **M4**: the spec and the docs say that AWS can widen the managed policies between
+    refreshes, and that the cap, not the guardrail, keeps writes out.
+  - **M5**: PLAN.md and FR-002 now state what the check proves.
+  - **L1**: `system:` subjects are refused.
+  - **L2**: the injection corpus has `nginx\n`.
+  - **L3**: the docs test accepts only the listed probe commands.
+  - **L4**: a value of another type is a difference.
+- [X] T038 Run the gates again after the review's fixes
+- [X] T039 Check the staged diff for real data (rule 2). Only `123456789012`,
   `example-prod` and `opscout-*` may appear, and the catalog and managed copies must be
   AWS's public data only.
-- [ ] T040 Remove the traceability `xfail`. Set the spec's status to Implemented and record
+- [X] T040 Remove the traceability `xfail`. Set the spec's status to Implemented and record
   the effort and measured counts in its Actuals.
 
 ## Dependencies

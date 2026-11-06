@@ -103,6 +103,16 @@ def _one_of(ref: str, raw: Mapping[str, Any], key: str) -> tuple[tuple[str, ...]
     return _strings(ref, negated, raw[negated]), True
 
 
+def _check_actions(ref: str, actions: tuple[str, ...]) -> None:
+    """Refuse a wildcard in an action's service prefix: IAM documents none (research R2)."""
+    for action in actions:
+        service, _, _ = action.partition(":")
+        if action != "*" and ("*" in service or "?" in service):
+            raise CannotProveError(
+                ref, f"{action} has a wildcard in its service prefix, which IAM does not document"
+            )
+
+
 def _statement(name: str, index: int, raw: object) -> Statement:
     ref = f"{name}#{index}"
     if not isinstance(raw, dict):
@@ -117,6 +127,7 @@ def _statement(name: str, index: int, raw: object) -> Statement:
     if effect not in ("Allow", "Deny"):
         raise CannotProveError(ref, "Effect must be Allow or Deny")
     actions, not_action = _one_of(ref, raw, "Action")
+    _check_actions(ref, actions)
     resources, not_resource = _one_of(ref, raw, "Resource")
     return Statement(
         ref=ref,
@@ -366,6 +377,17 @@ def managed_policy(data: Mapping[str, Any]) -> ManagedPolicy:
     )
 
 
+def covers(pattern: str, target: str) -> bool:
+    """Whether every resource ``target`` (itself a pattern) matches is matched by ``pattern``.
+
+    Sound but incomplete: a ``*`` in ``target`` must fall inside a ``*`` of ``pattern``, so
+    a ``pattern`` holding ``?`` covers only an identical ``target``.
+    """
+    if pattern in ("*", target):
+        return True
+    return "?" not in pattern and bool(wildcard(pattern, case_sensitive=True).match(target))
+
+
 ADDED = "Allow * (added)"
 
 
@@ -473,6 +495,26 @@ class Analysis:
             return f"no allow in {self.identity.name}"
         if key not in self._bounded:
             return f"no allow in {self.identity.boundary.name}"
+        return None
+
+    def denied_on(self, key: str, pattern: str) -> str | None:
+        """Why ``key`` is denied on every resource ``pattern`` covers, or ``None``.
+
+        A deny counts only when it is unconditional, names its resources (not
+        ``NotResource``) and one of them covers the whole pattern (``covers``).
+        """
+        everywhere = self.denied_everywhere(key)
+        if everywhere is not None:
+            return everywhere
+        for statement in self.identity.statements():
+            if (
+                statement.effect == "Deny"
+                and not statement.conditional
+                and not statement.not_resource
+                and key in self.catalog.covered(statement)
+                and any(covers(resource, pattern) for resource in statement.resources)
+            ):
+                return statement.ref
         return None
 
     def may_allow(self, key: str) -> str | None:

@@ -129,41 +129,37 @@ def _prove_layout(tree: Tree, records: Records, findings: _Findings) -> None:
         findings.add("layout", f"host commands need all of their files; missing {missing}")
 
 
-def _probe(resource: str) -> str:
-    """A concrete resource inside a pattern: the region, then any other wildcard."""
-    return resource.replace("*", REGION, 1).replace("*", "example")
-
-
 def _prove_guardrail(
     identity: Identity, analysis: Analysis, records: Records, findings: _Findings
 ) -> tuple[int, int]:
-    robust = analysis.identity
     denied = total = 0
     for entry in records.guardrail:
-        if entry.resource != "*":
-            total += 1
-            ok, reason = proves_denied(robust, entry.action, _probe(entry.resource))
-            denied += ok
-            if not ok:
-                findings.add(
-                    "secret-allowed",
-                    f"{entry.action} on {entry.resource} is allowed ({reason}) for the "
-                    f"{identity.name}; the guardrail must deny it",
-                )
-            continue
         keys = records.catalog.expand(entry.action)
         if not keys:
             findings.add("unknown-action", f"guardrail entry {entry.action} is not in the catalog")
         for key in sorted(keys):
             total += 1
-            if analysis.denied_everywhere(key) is not None:
-                denied += 1
-                continue
-            findings.add(
-                "secret-allowed",
-                f"{records.catalog.name(key)} is allowed ({analysis.may_allow(key)}) for the "
-                f"{identity.name}; the guardrail must deny it",
+            scoped = entry.resource != "*"
+            reason = (
+                analysis.denied_on(key, entry.resource)
+                if scoped
+                else analysis.denied_everywhere(key)
             )
+            if reason is not None:
+                denied += 1
+            elif scoped:
+                findings.add(
+                    "secret-allowed",
+                    f"{entry.action} on {entry.resource} is not denied on every such resource "
+                    f"for the {identity.name}; the guardrail must deny it with a resource that "
+                    "covers the whole pattern",
+                )
+            else:
+                findings.add(
+                    "secret-allowed",
+                    f"{records.catalog.name(key)} is allowed ({analysis.may_allow(key)}) for "
+                    f"the {identity.name}; the guardrail must deny it",
+                )
     return denied, total
 
 
@@ -346,7 +342,8 @@ def _difference(expected: Any, actual: Any, path: str = "") -> str | None:
             if found is not None:
                 return found
         return None
-    return None if expected == actual else (path.lstrip(".") or "the document")
+    same = type(expected) is type(actual) and expected == actual
+    return None if same else (path.lstrip(".") or "the document")
 
 
 def _prove_host_documents(tree: Tree, records: Records, findings: _Findings) -> tuple[int, int]:
@@ -397,6 +394,44 @@ def _prove_host_exceptions(
     return sendable
 
 
+def _prove_send_command_resources(
+    policies: Iterable[Policy],
+    account: str,
+    documents: list[str],
+    records: Records,
+    findings: _Findings,
+) -> None:
+    """Every resource a host document allows ``ssm:SendCommand`` on must be a catalog
+    document or an instance of this account, named exactly (research R5)."""
+    names = "|".join(re.escape(path.removeprefix(SSM).rsplit(".", 1)[0]) for path in documents)
+    region = r"(\*|[a-z0-9-]+)"
+    allowed = re.compile(
+        rf"^(arn:aws:ssm:{region}:{account}:document/({names or '(?!)'})"
+        rf"|arn:aws:ec2:{region}:{account}:instance/\*"
+        rf"|arn:aws:ssm:{region}:{account}:managed-instance/\*)$"
+    )
+    for policy in policies:
+        for statement in policy.statements:
+            if statement.effect != "Allow":
+                continue
+            if "ssm:sendcommand" not in records.catalog.covered(statement):
+                continue
+            if statement.not_resource:
+                findings.add(
+                    "exception-too-wide",
+                    f"{statement.ref} allows ssm:SendCommand through NotResource; name the "
+                    "catalog documents and the instances",
+                )
+                continue
+            for resource in statement.resources:
+                if not allowed.match(resource):
+                    findings.add(
+                        "exception-too-wide",
+                        f"ssm:SendCommand allowed on {resource} ({statement.ref}); only the "
+                        f"catalog documents and the instances of account {account} may be named",
+                    )
+
+
 def _prove_cluster(tree: Tree, findings: _Findings) -> str:
     parts = []
     if EKS in tree.files:
@@ -440,6 +475,12 @@ def _prove_cluster(tree: Tree, findings: _Findings) -> str:
                 )
             ):
                 findings.add("cluster", f"{KUBERNETES} may bind groups or users only")
+            elif any(str(s.get("name", "")).startswith("system:") for s in subjects):
+                findings.add(
+                    "cluster",
+                    f"{KUBERNETES} binds a system: group or user, such as every "
+                    "unauthenticated caller; bind the identity's own group",
+                )
         parts.append("view binding only")
     return f"Cluster: {'; '.join(parts)}" if parts else "Cluster: not part of this tree"
 
@@ -500,6 +541,13 @@ def prove(tree: Tree, records: Records) -> Report:
         for path in (HOSTS_CAPABILITY, HOSTS_BOUNDARY):
             _prove_declared(_parse(tree, path), _capability(records, "hosts"), records, findings)
         sendable = _prove_host_exceptions(hosts, account, documents, findings)
+        _prove_send_command_resources(
+            (_parse(tree, HOSTS_CAPABILITY), _parse(tree, HOSTS_BOUNDARY)),
+            account,
+            documents,
+            records,
+            findings,
+        )
         exceptions = host_writes[1] - host_writes[0]
         summary.append(
             f"Host identity: writes {host_writes[0]:,}/{host_writes[1]:,} denied, "

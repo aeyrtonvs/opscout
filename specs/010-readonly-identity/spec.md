@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "readonly-identity (Phase 2, PLAN.md §7, need 1–3; ADR-0010 layer
 1 and the host part of layer 2). Ship, in this public repo and with fake IDs only, the
@@ -270,12 +270,14 @@ or role to choose, the ones never to choose, and how to confirm the result.
 - **A permission-set or policy size limit** is reached as capabilities grow: the check
   measures each document, and a capability is split rather than its actions widened.
 - **Wildcards**: an allow with a wildcard can grow when AWS adds actions. Capability
-  documents therefore list exact action names only. The AWS-maintained view-only grant is
-  the only grant with wildcards, and the check expands it against the recorded catalog. A
-  refresh that widens it to a new write action is caught, because writes are denied.
+  documents therefore list exact action names only. The AWS-maintained grant and cap are
+  the only policies with wildcards. The check expands them against the recorded catalog
+  and the recorded copies of the two policies. AWS can widen either between two
+  refreshes. A refresh that widens one to a new write or secret read is caught then, and
+  the reference documentation names this limit.
 - **The recorded catalog is old**: an action missing from the catalog cannot be proved. The
-  check names the catalog's date, and the guardrail denies every write by access level, not
-  by a list.
+  check names the catalog's date. A write AWS adds later stays denied as long as the cap
+  does not allow it; the cap, not the guardrail, keeps writes out.
 - **Host log lines can hold secrets**: the identity cannot prevent a log line from
   containing a secret. Redaction (ADR-0010, layer 4) is the later control, and the live-check
   document says so.
@@ -292,13 +294,16 @@ or role to choose, the ones never to choose, and how to confirm the result.
 - **FR-001**: The repository MUST ship the reference identity as documents with placeholders
   for the account, the environment and the identity's name. They MUST use only reserved fake
   values (Principle I), and MUST be loadable by any infrastructure tool.
-- **FR-002**: The AWS documents MUST consist of capability grants, one per declared
-  capability; a guardrail that explicitly denies secret-value reads, credential issuance,
-  role assumption, data-plane reads, reads that return plaintext secrets (edge cases),
-  sessions and shells, and every write,
-  permissions-management and tagging action except the named exceptions; and a cap on
-  maximum permissions, so that a policy attached later by mistake cannot add a mutation or
-  a secret read.
+- **FR-002**: The AWS documents MUST consist of three parts:
+  - capability grants, one per declared capability
+  - a guardrail that explicitly denies secret-value reads, credential issuance, role
+    assumption, data-plane reads, reads that return plaintext secrets (edge cases), and
+    sessions and shells
+  - a cap on maximum permissions
+
+  Together, the cap and the guardrail MUST deny every write, permissions-management and
+  tagging action except the named exceptions, so that a policy attached later by mistake
+  cannot add a mutation or a secret read.
 - **FR-003**: Each named exception to "every write is denied" MUST state its reason and
   narrow its resources. The only known exception is sending a catalog document to managed
   instances, which belongs to the host identity (FR-009). Log queries are reads (research
@@ -439,3 +444,31 @@ or role to choose, the ones never to choose, and how to confirm the result.
   later spec that needs application data changes this spec first.
 - **The redaction layer** (ADR-0010, layer 4) is built with ops-mcp-server. Until then, no
   agent runs against real systems.
+
+## Actuals
+
+- **Effort**: one session on 2026-11-05, from specify to the pull request.
+- **Records (2026-11-05)**: AWS's service reference has 457 services and 22,444 actions
+  (12,695 writes, 9,749 reads, 483 data plane). The recorded copies are `ViewOnlyAccess`
+  v48 and `ReadOnlyAccess` v191.
+- **The reference, checked by `opscout identity check`, offline in under a second**:
+  - **The read-only identity**: 130/130 secret reads denied and 12,695/12,695 writes denied,
+    both with `Allow *` added; 42/42 declared reads allowed.
+  - **The host identity**: 12,694/12,695 writes denied; the one exception is
+    `ssm:SendCommand`, on exactly the 7 catalog documents and the account's instances.
+  - **The documents**: the 7 host documents match the reference, and the cluster binds only
+    the view level.
+  - **Sizes**: the largest document, the guardrail, is 3,287 of 6,144 characters, and the
+    inline total is 4,840 of 10,240.
+- **Found in implementation** (research R2, R4):
+  - **Writes the managed policies let through**: `ReadOnlyAccess` allows nine actions that
+    AWS classifies as writes, and `ViewOnlyAccess` allows one. `ViewOnlyAccess` also grants
+    21 data-plane reads. The guardrail denies them all, except the CloudWatch metric reads,
+    which the metrics capability declares.
+  - **The cap as a second layer**: with `DenySecretValues` removed, the cap still denies
+    `secretsmanager:GetSecretValue` and `kms:Decrypt`. US1 scenario 2 was corrected to say
+    so.
+- **The independent review** found three faults that passed the check (H1–H3) and five
+  medium ones. Each was reproduced as a test and fixed (tasks.md, T037).
+- **The live check** in a sandbox account is not done yet. It waits for someone to
+  instantiate the identity (FR-021, PLAN.md §9).

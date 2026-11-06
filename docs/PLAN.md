@@ -483,7 +483,8 @@ check proves the following, even with `Allow *` attached:
 - every secret read and every write is denied
 - every declared read is allowed
 - nothing is granted outside a capability
-- the host and cluster documents equal the reference
+- the host command documents equal the reference, the host identity may send nothing else,
+  and the cluster documents bind only the view level
 - everything fits AWS's size limits
 
 `opscout identity export` writes the editable tree, and the `opscout-identity-check`

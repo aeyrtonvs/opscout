@@ -204,6 +204,15 @@ kubectl auth can-i --list  # expect: no secrets; review what installed operators
 
 ## Known limits
 
+- **The managed policies change on AWS's schedule**: `ViewOnlyAccess` and `ReadOnlyAccess`
+  are attached by ARN, so AWS's updates apply at once. The check proves the versions
+  recorded in the package, so a widening shows only at the next refresh, which the
+  maintainer runs and reviews.
+- **Reads that return plaintext secrets are a reviewed list**: the guardrail denies the
+  known ones, such as `lambda:ListFunctions`, which returns each function's environment
+  variables. A read that AWS adds, or one not yet known, is denied once someone finds it.
+  Until then, redaction is the backstop. Because `lambda:ListFunctions` is denied, the
+  agents list Lambda functions from the infrastructure code or from CloudFormation.
 - **Session ARNs in resource policies**: a resource-based policy that names the role's
   *session* ARN as its principal is not limited by the boundary. The guardrail's explicit
   denies still apply.

@@ -12,8 +12,14 @@ from opscout.core.identity import Records
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DOC = REPO_ROOT / "docs" / "reference" / "identity.md"
 SAFE_PROBES = re.compile(
-    r"^(aws iam simulate-principal-policy |kubectl auth can-i |"
-    r"aws .*(--dry-run|does-not-exist|i-0123456789abcdef0))"
+    r"^(aws iam simulate-principal-policy --policy-source-arn \S+ --action-names [\w:\s-]+"
+    r"|aws secretsmanager get-secret-value --secret-id opscout-probe-does-not-exist"
+    r"|aws ssm get-parameter --name /opscout/probe-does-not-exist --with-decryption"
+    r"|aws ec2 (create-tags|run-instances) --dry-run [^#]+"
+    r"|aws ssm start-session --target i-0123456789abcdef0"
+    r"|aws ssm send-command --document-name AWS-RunShellScript --instance-ids "
+    r"i-0123456789abcdef0 --parameters commands=id"
+    r"|kubectl auth can-i (get|create|--list)[^#]*)  # expect: "
 )
 
 
@@ -75,7 +81,6 @@ def test_every_live_probe_cannot_change_anything_and_states_its_outcome() -> Non
     assert len(probes) >= 12
     for probe in probes:
         assert SAFE_PROBES.match(probe), probe
-        assert "  # expect: " in probe, probe
 
 
 @spec("FR-019")

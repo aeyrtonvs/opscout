@@ -48,6 +48,7 @@ INJECTIONS = [
     "-o",
     "",
     "a" * 65,
+    "nginx\n",  # a Java $ would accept it; SSM Agent's Go regexp refuses it (research R5)
 ]
 FORBIDDEN = re.compile(
     r"\{\{|\benv\b|\bprintenv\b|\bset\b|\bcat (?!/proc/loadavg)|systemctl status|args"

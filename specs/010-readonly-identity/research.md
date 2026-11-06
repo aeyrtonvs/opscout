@@ -121,6 +121,15 @@ case-insensitive. Wildcards are `*` and `?`.
 - **Conservative conditions**: a statement with a `Condition` never counts as a deny, and
   always counts as a possible allow. So nothing that needs condition semantics is proved by
   accident.
+- **Resource-scoped entries** (added after the review): a guardrail entry with a resource,
+  such as `apigateway:GET` on `/apikeys/*`, counts as denied only when an unconditional deny
+  names a resource that covers the entry's whole pattern. Covering is checked soundly: a
+  `*` in the entry must fall inside a `*` of the deny. One probe that happens to be denied
+  is no proof, because a narrowed deny (one region, one key) would pass it.
+- **No wildcard in a service prefix**: an action such as `*:GetSecretValue` fails as
+  "cannot prove", since IAM documents no such form (R2) and AWS may not honour it.
+- **Duplicate keys** in JSON or YAML make a file unreadable (exit 2). Which value IAM, SSM
+  or Kubernetes would keep is not something to rely on.
 - **Fail closed**: a document using `Principal`, `NotPrincipal` or an unknown element fails
   the check as "cannot prove".
 - **No wildcards in capability policies**: they list exact action names, so each name must
@@ -159,6 +168,15 @@ each entry denied under the robust evaluation.
   - **A new failure kind**: an allowed data-plane action that no capability declares fails
     as `data-allowed`.
   - **Result**: the guardrail is 2,746 characters.
+- **Added after the review**: more reads that return plaintext secrets. They are
+  `lambda:ListFunctions` (each function's environment, so the configuration capability
+  lists Lambda through `lambda:ListEventSourceMappings` and the infrastructure code instead),
+  `autoscaling:DescribeLaunchConfigurations` (user data), the SageMaker model and job
+  descriptions, `codebuild:BatchGetBuilds`, `batch:DescribeJobDefinitions` and
+  `batch:DescribeJobs`, the Lightsail container services, `apprunner:DescribeService`, and
+  the Amplify apps and branches. Usage-plan keys under API Gateway are denied as well. Over-denying is safe, and an
+  entry that proves unnecessary can be removed by a reviewed change. The guardrail is now
+  3,287 characters.
 - **Residual risk**: `ecs:DescribeTasks` can show run-time environment overrides. ECS triage
   needs it (stopped reasons), so it stays allowed, and the reference documentation names
   this residual risk, which is left to redaction (ADR-0010, layer 4).
@@ -199,6 +217,13 @@ named after its file, with the `opscout-ReadOnly-` prefix:
   and `-o` are refused, while `sshd.service` and `getty@tty1` pass.
 - **No `{{ }}` interpolation**: no command uses it. Parameters arrive only as quoted
   environment variables after `--`.
+- **The host identity's resources** (added after the review): every resource on which
+  `ssm:SendCommand` is allowed, in the capability and in the boundary, must be exactly a
+  catalog document ARN, or `instance/*` or `managed-instance/*`, all in the tree's single
+  account. `NotResource` is refused. So no other document, no other account's shared
+  document and no shell document can be added, whatever the guardrail says.
+- **A trailing newline**: Java's `$` would accept `nginx\n`, but SSM Agent's Go regexp
+  refuses it. Even if it got through, the value would arrive quoted as a literal unit name.
 - **The check compares each instantiated document with the packaged reference**, as parsed
   data, so any added command or loosened pattern fails, named by document. In this
   repository, tests also prove each pattern against an injection corpus (`;`, `$( )`,
@@ -238,6 +263,8 @@ named after its file, with the `opscout-ReadOnly-` prefix:
   `opscout:readonly` to the `ClusterRole` `view`. The check refuses any other object and any
   other role reference.
 - **The IAM side** is the cluster capability: `eks:DescribeCluster` and `eks:ListClusters`.
+- **Subjects**: groups or users only, never a `system:` one, such as
+  `system:unauthenticated`.
 - **Aggregation** is only visible live (US4, scenario 3, and R9).
 
 ## R7. Where the documents live, and the commands (FR-001, FR-016, FR-017)

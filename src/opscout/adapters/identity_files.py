@@ -25,7 +25,7 @@ from opscout.core.identity import (
 
 EDITABLE = ("aws", "ssm", "eks", "kubernetes")
 _SUFFIXES = (".json", ".yaml", ".yml")
-_IGNORED = frozenset({"README.md"})
+_IGNORED = frozenset({"README.md", ".DS_Store"})
 
 
 class TreeError(Exception):
@@ -36,14 +36,50 @@ def _package() -> Traversable:
     return files("opscout").joinpath("data", "identity")
 
 
+class _DuplicateKeyError(ValueError):
+    """A mapping repeats a key; which value a consumer keeps is not something to rely on."""
+
+
+def _unique_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise _DuplicateKeyError(key)
+        result[key] = value
+    return result
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """A safe loader that refuses a mapping with a repeated key."""
+
+
+def _construct_unique_mapping(loader: _UniqueKeyLoader, node: yaml.MappingNode) -> dict[Any, Any]:
+    seen: set[Any] = set()
+    for key_node, _ in node.value:
+        key = loader.construct_object(key_node)
+        if key in seen:
+            raise yaml.constructor.ConstructorError(
+                None, None, f"duplicate key {key}", key_node.start_mark
+            )
+        seen.add(key)
+    return loader.construct_mapping(node)
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_unique_mapping
+)
+
+
 def _parse(relative: str, text: str) -> Any:
     if relative.endswith(".json"):
         try:
-            return json.loads(text)
+            return json.loads(text, object_pairs_hook=_unique_pairs)
         except json.JSONDecodeError as error:
             raise TreeError(f"{relative}:{error.lineno}: {error.msg}") from None
+        except _DuplicateKeyError as error:
+            raise TreeError(f"{relative}: duplicate key {error}") from None
     try:
-        return list(yaml.safe_load_all(text))
+        return list(yaml.load_all(text, Loader=_UniqueKeyLoader))
     except yaml.MarkedYAMLError as error:
         mark = error.problem_mark or error.context_mark
         line = mark.line + 1 if mark is not None else 0
@@ -53,9 +89,11 @@ def _parse(relative: str, text: str) -> Any:
 
 
 def read_tree(directory: Path) -> Tree:
-    """Parse every file under ``directory``; dotfiles and ``README.md`` are skipped.
+    """Parse every file under ``directory``.
 
-    A file with another suffix is kept as ``None`` so the check reports it as not part of
+    Skipped: anything under a dot entry at the top (such as ``.git``), ``.DS_Store`` and
+    ``README.md`` anywhere. Every other file is kept; one with another suffix, or a hidden
+    file inside the documents, is kept as ``None`` so the check reports it as not part of
     the identity.
     """
     if not directory.is_dir():
@@ -65,9 +103,9 @@ def read_tree(directory: Path) -> Tree:
         relative = path.relative_to(directory).as_posix()
         if path.is_dir() or path.name in _IGNORED:
             continue
-        if any(part.startswith(".") for part in path.relative_to(directory).parts):
+        if path.relative_to(directory).parts[0].startswith("."):
             continue
-        if not path.name.endswith(_SUFFIXES):
+        if path.name.startswith(".") or not path.name.endswith(_SUFFIXES):
             parsed[relative] = None
             continue
         try:

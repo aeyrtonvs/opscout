@@ -51,8 +51,11 @@ proved with an exact probe on that resource.
 | `eks/access-policy.json` | `associate-access-policy` input | optional, with `kubernetes/` or alone |
 | `kubernetes/view-binding.yaml` | one `ClusterRoleBinding` | optional |
 
-Any other file is an error, except dotfiles and a `README.md`, which are skipped, so that the
-directory can sit in an infrastructure repository. Attachments follow from the layout (R7):
+Any other file is an error. The exceptions are `.DS_Store` and `README.md` anywhere, and
+anything under a dot entry at the top, such as `.git`; these are skipped, so that the
+directory can sit in an infrastructure repository. A hidden file inside the documents is
+an error, because an infrastructure tool might load it. A repeated key in any file makes it
+unreadable. Attachments follow from the layout (R7):
 
 - **The read-only identity** = the `ViewOnlyAccess` copy, plus `capabilities/*`, plus the
   guardrail; its boundary is the `ReadOnlyAccess` copy.

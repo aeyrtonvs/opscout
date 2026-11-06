@@ -50,7 +50,23 @@
         "glue:GetConnections",
         "cognito-idp:DescribeUserPoolClient",
         "appsync:ListApiKeys",
-        "elasticbeanstalk:DescribeConfigurationSettings"
+        "elasticbeanstalk:DescribeConfigurationSettings",
+        "lambda:ListFunctions",
+        "autoscaling:DescribeLaunchConfigurations",
+        "sagemaker:DescribeModel",
+        "sagemaker:DescribeTrainingJob",
+        "sagemaker:DescribeProcessingJob",
+        "sagemaker:DescribeTransformJob",
+        "codebuild:BatchGetBuilds",
+        "batch:DescribeJobDefinitions",
+        "batch:DescribeJobs",
+        "lightsail:GetContainerServices",
+        "lightsail:GetContainerServiceDeployments",
+        "apprunner:DescribeService",
+        "amplify:GetApp",
+        "amplify:ListApps",
+        "amplify:GetBranch",
+        "amplify:ListBranches"
       ],
       "Resource": "*"
     },
@@ -121,7 +137,9 @@
       "Action": "apigateway:GET",
       "Resource": [
         "arn:aws:apigateway:*::/apikeys",
-        "arn:aws:apigateway:*::/apikeys/*"
+        "arn:aws:apigateway:*::/apikeys/*",
+        "arn:aws:apigateway:*::/usageplans/*/keys",
+        "arn:aws:apigateway:*::/usageplans/*/keys/*"
       ]
     },
     {

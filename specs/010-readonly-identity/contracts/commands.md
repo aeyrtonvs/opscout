@@ -43,8 +43,9 @@ The numbers above illustrate the format and are not measured.
 | 1 | one or more findings |
 | 2 | a usage error, or a directory that does not exist or cannot be parsed (the message names the file and the line) |
 
-Dotfiles and a `README.md` in `DIR` are skipped. Any other file that is not part of the
-identity is a `layout` finding.
+`.DS_Store` and `README.md` anywhere, and anything under a dot entry at the top (such as
+`.git`), are skipped. Any other file that is not part of the identity, a hidden one
+included, is a `layout` finding. A repeated key in a file exits 2.
 
 ## `opscout identity export DIR`
 

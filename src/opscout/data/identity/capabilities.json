@@ -15,7 +15,7 @@
    "ec2:DescribeInstances",
    "ecs:DescribeServices",
    "rds:DescribeDBInstances",
-   "lambda:ListFunctions",
+   "lambda:ListEventSourceMappings",
    "eks:DescribeCluster"
   ]
  },

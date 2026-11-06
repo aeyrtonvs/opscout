@@ -133,6 +133,70 @@
    "why": "environment properties in plaintext"
   },
   {
+   "action": "lambda:ListFunctions",
+   "why": "each function's environment variables"
+  },
+  {
+   "action": "autoscaling:DescribeLaunchConfigurations",
+   "why": "user data, which often holds secrets"
+  },
+  {
+   "action": "sagemaker:DescribeModel",
+   "why": "container environment"
+  },
+  {
+   "action": "sagemaker:DescribeTrainingJob",
+   "why": "job environment"
+  },
+  {
+   "action": "sagemaker:DescribeProcessingJob",
+   "why": "job environment"
+  },
+  {
+   "action": "sagemaker:DescribeTransformJob",
+   "why": "job environment"
+  },
+  {
+   "action": "codebuild:BatchGetBuilds",
+   "why": "build environment variables"
+  },
+  {
+   "action": "batch:DescribeJobDefinitions",
+   "why": "container environment"
+  },
+  {
+   "action": "batch:DescribeJobs",
+   "why": "container environment"
+  },
+  {
+   "action": "lightsail:GetContainerServices",
+   "why": "container environment"
+  },
+  {
+   "action": "lightsail:GetContainerServiceDeployments",
+   "why": "container environment"
+  },
+  {
+   "action": "apprunner:DescribeService",
+   "why": "runtime environment variables"
+  },
+  {
+   "action": "amplify:GetApp",
+   "why": "environment variables and basic-auth credentials"
+  },
+  {
+   "action": "amplify:ListApps",
+   "why": "environment variables and basic-auth credentials"
+  },
+  {
+   "action": "amplify:GetBranch",
+   "why": "environment variables and basic-auth credentials"
+  },
+  {
+   "action": "amplify:ListBranches",
+   "why": "environment variables and basic-auth credentials"
+  },
+  {
    "action": "apigateway:GET",
    "resource": "arn:aws:apigateway:*::/apikeys",
    "why": "API keys with their values"
@@ -141,6 +205,16 @@
    "action": "apigateway:GET",
    "resource": "arn:aws:apigateway:*::/apikeys/*",
    "why": "an API key's value"
+  },
+  {
+   "action": "apigateway:GET",
+   "resource": "arn:aws:apigateway:*::/usageplans/*/keys",
+   "why": "usage plan keys with their values"
+  },
+  {
+   "action": "apigateway:GET",
+   "resource": "arn:aws:apigateway:*::/usageplans/*/keys/*",
+   "why": "a usage plan key's value"
   }
  ],
  "data-plane": [
