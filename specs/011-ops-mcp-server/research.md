@@ -30,7 +30,10 @@ Facts checked on 2026-11-06 unless a date says otherwise.
   in a clone, `uvx --from "opscout[aws]==<version>"` for a release. boto3 is imported only
   when a cloud tool runs, so the server lists its tools without loading it (SC-002).
 - **Rationale**: botocore reads the AWS CLI's profiles and its single sign-on token cache,
-  including `sso-session` sections, so opscout stores no credential (Assumptions). Typing:
+  including `sso-session` sections, so opscout stores no credential (Assumptions).
+  Threads: a boto3 `Session` is not thread-safe and the SDK may run tools in parallel, so
+  each environment's session and clients are created once under a lock and cached; boto3
+  clients are thread-safe. Typing:
   boto3 ships no types; a mypy override marks `boto3` and `botocore` as untyped, and only
   the adapter imports them, behind typed models.
 - **Alternatives**: shelling out to the `aws` CLI: rejected, it is a shell, its operations
@@ -91,7 +94,8 @@ Checked with spec 010's evaluator:
 ## R5. Fixtures and mock mode (FR-025 to FR-027)
 
 - **Decision**: a second gateway adapter answers from a directory:
-  `<dir>/<environment>/<service-prefix>/<Action>.json`. Each file holds a list of
+  `<dir>/<environment>/<service-prefix>/<Action>.json`, where `<dir>` is the directory
+  passed to `--mock`. Each file holds a list of
   `{"match": {<request parameter subset>}, "response": {...}}` or
   `{"match": {...}, "error": {"code": ..., "message": ...}}`. The first match wins. With no
   file or no match, the error names the file and the parameters it looked for, and nothing
@@ -99,8 +103,9 @@ Checked with spec 010's evaluator:
   cannot read a fixture for an action it did not declare.
 - **Selection**: `opscout mcp --mock DIR`. The plugin's `.mcp.json` never passes it. Evals
   start their own server with the flag, through `--strict-mcp-config` (spec 007's runner).
-- **Where**: `evals/mcp/` at the repository root, beside `evals/standup/`, with fake values
-  only. The next spec's evals reuse it.
+- **Where**: `evals/mcp/aws/` at the repository root (the `--mock` directory), beside
+  `evals/mcp/alerts/` (the alert corpus) and `evals/standup/`, with fake values only. The
+  next spec's evals reuse both.
 - **Alternatives**: botocore's `Stubber`, which is kept for the live adapter's unit tests,
   but it is too strict about call order for agent-driven runs. `moto`: a new dependency
   that emulates far more than is needed.
@@ -116,6 +121,11 @@ Checked with spec 010's evaluator:
   - Every string leaf goes through `redact`.
   - A key whose name matches the secret names (`password`, `secret`, `token`, `api_key`
     and the rest) has its value replaced by `[secret]`, whatever its type.
+  - A name-and-value pair is treated the same way: in a dict with a name field (`Key`,
+    `Name`, `ParameterKey`, `OutputKey`) whose value matches the secret names, the value
+    field (`Value`, `ParameterValue`, `OutputValue`) becomes `[secret]`. AWS returns tags,
+    stack outputs and parameters in this shape, where the secret-sounding name is a value,
+    not a key.
   - Counts are summed into the result's `redacted` field.
 - **Alternatives**: redacting the serialized JSON: rejected, a connection-string match can
   swallow a closing quote.
@@ -133,6 +143,7 @@ Hard ceilings live in code. The configuration may lower them, never raise them.
 | Log rows | 100 | 1,000 |
 | Log query wait | 30 s | 50 s |
 | Change items | 50 | 200 |
+| Stacks examined for events | 10 | 25 |
 | Found resources | 25 | 100 |
 | Metric data points | 500 | 1,440 |
 
@@ -141,8 +152,13 @@ Hard ceilings live in code. The configuration may lower them, never raise them.
 - **Trimming**: when a result would exceed its size cap, whole items are dropped from the
   end, and `capped` says how many.
 - **Timeouts**: each AWS call gets a 5-second connect timeout and a 20-second read timeout.
-  With the log query's wait capped at 50 seconds, every tool returns within SC-003's 60
-  seconds.
+- **Deadline**: every tool call has a 45-second deadline, checked before each AWS call.
+  Past it, the tool makes no further call and returns what it has, marked `partial`.
+  - The log query's wait is cut to fit the deadline.
+  - A call in flight at the deadline can still take its read timeout, so that timeout
+    shrinks to the time left plus 10 seconds, never more than 20.
+
+  Every tool therefore returns within about 55 seconds, under SC-003's 60.
 
 ## R8. Errors (FR-004, US5)
 
@@ -187,7 +203,9 @@ Three new optional sections in schema version 1, each an additive change (spec 0
 - **Decision**: `plugins/opscout/.mcp.json` holds one server, `opscout`, that runs
   `${CLAUDE_PLUGIN_ROOT}/bin/opscout` with `["mcp"]`. It passes the configuration directory
   as `OPSCOUT_CONFIG=${user_config.config_dir}`. The CLI already ignores an unsubstituted
-  `${user_config.…}` value (spec 003, FR-009).
+  `${user_config.…}` value (spec 003, FR-009). Whether Claude Code substitutes
+  `${user_config.…}` in a plugin MCP server's `env` is not verified yet; quickstart step 5
+  checks it, and this note records the result.
 - **Launcher**: adds the `aws` extra (R2). Unlike the session hook, it must never print a
   JSON hook message for `mcp`; on a missing `uv` it writes to stderr and exits 1.
 - **Checks**: a test reads `.mcp.json` and runs the same command with `StdioServerParameters`
@@ -213,7 +231,7 @@ One call returns, merged and sorted newest first, with each source capped and na
 - CloudTrail `LookupEvents` with `ReadOnly=false` over the window, optionally narrowed by
   `ResourceName`;
 - the CloudFormation stack events of stacks updated in the window (`DescribeStacks`, then
-  `DescribeStackEvents`);
+  `DescribeStackEvents`), the most recently updated stacks first, up to the stacks cap;
 - when a resource is given and its type has one:
   - ECS service deployments;
   - Auto Scaling activities;
@@ -221,3 +239,15 @@ One call returns, merged and sorted newest first, with each source capped and na
 
 CloudTrail's `LookupEvents` is limited to 2 requests per second per account. One page of
 up to 50 events is read per window, and the result says when more exist.
+
+What a change carries:
+
+- **From a CloudTrail event**: the time, the user identity's ARN or name, the event name,
+  the event source, the resource names and types, and the error code and message.
+- **From a stack event**: the time, the stack, the logical and physical IDs, the type, the
+  status and its reason.
+
+`CloudTrailEvent`'s `requestParameters` and `responseElements` are never read into the
+result: a task definition's registration, for one, logs its environment values. A stack
+event's `ResourceProperties` is never read either: it is the resource's full properties,
+passwords included.

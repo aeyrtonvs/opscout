@@ -260,7 +260,7 @@ unreachable region, and call every tool.
   and the operation on failure.
 - **FR-007**: At run time, a cloud call whose operation the calling tool did not declare
   MUST be refused before it is sent.
-- **FR-008**: No tool MUST write to any system. The only files the server writes are its
+- **FR-008**: Tools MUST NOT write to any system. The only files the server writes are its
   own local run records, if any.
 
 #### Output: redaction, bounds and identity
@@ -268,13 +268,16 @@ unreachable region, and call every tool.
 - **FR-009**: Every tool output MUST pass through redaction before it is returned: private
   keys, connection strings, credentials and access keys, assignments to secret-named keys,
   and secret-shaped values become markers of their kind, counted in the result. This is
-  always on.
+  always on, and it covers a name-and-value pair whose name is secret-sounding (a tag, a
+  stack output, a parameter) as well as a key whose name is.
 - **FR-010**: Account IDs, IP addresses and e-mail addresses MUST be kept by default, and
   the configuration MUST be able to turn on redaction for each of the three kinds. A
   redacted value becomes a marker of its kind, counted like the others.
 - **FR-011**: Every output MUST be capped in size, and every cloud read MUST be capped in
-  time window and in items; the caps have defaults and configurable maximums. A capped
-  result MUST say what was capped.
+  time window and in items; each cap has a default and a fixed ceiling, and the
+  configuration may lower it, never raise it. Every call MUST have an overall deadline,
+  after which it makes no further cloud call and returns what it has, marked partial. A
+  capped result MUST say what was capped.
 - **FR-012**: Every cloud tool result MUST state the environment it read and the kind of
   identity it used: "reference identity" when the configuration declares that the
   environment uses spec 010's identity, "own identity, not verified" otherwise. opscout
@@ -312,7 +315,9 @@ unreachable region, and call every tool.
   to a time limit, stop it at the limit, and return its rows, marked partial when stopped.
 - **FR-022**: A tool MUST list the recent changes in an environment over a window: API
   activity that changed something, stack events, and service deployments, optionally
-  narrowed to a resource.
+  narrowed to a resource. Each change MUST carry who, what, when, on which resource, and
+  any error; it MUST NOT carry an API call's request or response contents, nor a stack
+  event's resource properties, which can hold the values the change set.
 - **FR-023**: A tool MUST describe the deployed configuration of a named resource, with one
   reviewed read per type, for: ECS services (without the task definition's contents), RDS
   instances and clusters, EC2 instances, load balancers and target groups (with target

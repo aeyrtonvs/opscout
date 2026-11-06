@@ -91,6 +91,9 @@ description: "Tasks for the read-only tool server (spec 011)"
     - every string leaf in nested dicts and lists is redacted;
     - a key matching a secret name has its value replaced by `[secret]`, whatever its
       type;
+    - in name-and-value pairs (`Key`/`Value`, `ParameterKey`/`ParameterValue`,
+      `OutputKey`/`OutputValue`, `Name`/`Value`), a secret-sounding name redacts its
+      value;
     - counts are summed by kind;
     - the result is still valid JSON.
   - **Spec 009 is unchanged**: its redaction tests still pass, with no change.
@@ -155,8 +158,8 @@ before it is sent.
     - nine tools, named as in contracts/tools.md;
     - each has a description, an input schema and an output schema;
     - each declares exactly the actions in contracts/tools.md.
-  - **No writes** (FR-008): no handler module imports a write path, and the server writes
-    only through `CallLog`, checked by a test that records file opens during a call.
+  - **No writes** (FR-008): during a call, the server opens no file for writing except
+    through `CallLog`, checked by a test that records file opens.
 - [ ] T017 [P] [US1] Write failing contract tests in `tests/unit/mcp/test_server.py`,
   through `mcp.Client` connected in-process to the `MCPServer` that
   `opscout.entrypoints.mcp.build_server` returns:
@@ -184,7 +187,9 @@ before it is sent.
   - the error mapping of research R8, each with its reason and fix;
   - a throttling error is retried once, then returns `throttled`;
   - the clients use a 5 s connect and 20 s read timeout and `standard` retries with
-    `max_attempts=2`.
+    `max_attempts=2`;
+  - each environment's session and clients are created once under a lock, and eight
+    threads asking for the same environment get the same clients (research R2).
 - [ ] T020 [US1] Write `src/opscout/adapters/aws_live.py`: one session per profile, the
   `before-call` guard through `SERVICE_PREFIX`, the error mapping and the client
   configuration. T019 passes.
@@ -206,8 +211,11 @@ before it is sent.
   - **The launcher** (FR-001):
     - it asks for the `aws` extra in both modes;
     - for `mcp`, a missing `uv` goes to stderr with exit 1 and no hook JSON.
-  - **End to end** (FR-029): the command in `.mcp.json` starts against the clone through
-    `StdioServerParameters`, and the server lists nine tools.
+  - **End to end** (FR-029, SC-002): the command in `.mcp.json` starts against the clone
+    through `StdioServerParameters`, and the server lists nine tools. The time from launch
+    to the tool list is measured and asserted under 2 s. If it does not fit, the measured
+    figure is recorded and SC-002 is revised with that evidence; the assertion is never
+    dropped.
 - [ ] T024 [US1] Write `plugins/opscout/.mcp.json` and update `plugins/opscout/bin/opscout`.
   T023 passes. `uv run just plugin` still passes.
 
@@ -266,16 +274,24 @@ caps, redaction, timezone and identity.
   - **The sources**: CloudTrail write events (`ReadOnly=false`), the events of stacks
     updated in the window, and, for a resource of a matching type, ECS deployments,
     Auto Scaling activities and RDS events.
-  - **The result**: merged newest first; each source capped, with `more` per source.
+  - **The result**: merged newest first; each source capped, with `more` per source; at
+    most the stacks cap of stacks examined, most recently updated first.
   - **A resource narrows CloudTrail** by `ResourceName`.
+  - **No contents** (FR-022): a value planted in a CloudTrail event's `requestParameters`
+    and `responseElements`, and in a stack event's `ResourceProperties`, never appears in
+    the output, under any key.
+  - **Deadline** (FR-011, SC-003): with a gateway that takes 10 s per call, the tool stops
+    calling at the deadline and returns `partial` within 60 s.
 - [ ] T032 [P] [US3] Write failing tests in `tests/unit/mcp/test_resources.py`:
   - **`find_resources`** (FR-024): by tag (`key`, optional `value`), by name (the `Name`
     tag or the ARN's last part), by type; capped, with `more`.
   - **`describe_resource`** (FR-023), for each type in contracts/tools.md: only the
     reviewed fields are returned.
     - An ECS service returns the task definition's ARN, never a call that reads it.
-    - A Lambda function is described through its stack, and a function no stack owns
-      returns `not-found` with the stack reason.
+    - A Lambda function is described through its stack: status, last update, outputs and
+      the function's resource rows, never the stack's parameters or template. A function
+      no stack owns returns `not-found` with the stack reason.
+    - A stack output named like a secret (`DbPassword`) has its value redacted (FR-009).
     - Any other type returns `not-supported` with the list.
   - **Ambiguity** (edge case): several matches are listed up to the cap, and none returns
     `not-found`.
@@ -288,6 +304,8 @@ caps, redaction, timezone and identity.
     region outside the environment returns `invalid-input`.
   - **Parallel calls**: four calls run concurrently, one fails, and the other three
     succeed.
+  - **Deadline** (FR-011, SC-003): every tool, against a slow gateway, returns within
+    60 s.
 - [ ] T034 [US3] Write the handlers in `src/opscout/services/tools/alarms.py`, `logs.py`,
   `changes.py` and `resources.py`. Each calls the gateway with only its declared actions.
   T029 to T033 pass.
@@ -296,7 +314,7 @@ caps, redaction, timezone and identity.
 
 **Goal**: the fixture adapter and the shipped fixtures.
 
-**Independent test**: every tool answers from `evals/mcp/`, with sockets blocked.
+**Independent test**: every tool answers from `evals/mcp/aws/`, with sockets blocked.
 
 - [ ] T035 [P] [US4] Write failing tests in `tests/unit/mcp/test_fixtures.py`:
   - **Lookup** (FR-025): a fixture is found by
@@ -307,7 +325,8 @@ caps, redaction, timezone and identity.
     fail if it is called.
   - **Declarations** (FR-007): an action outside `allowed` is refused here too.
 - [ ] T036 [US4] Write `src/opscout/adapters/aws_fixtures.py`, and wire `--mock DIR` in
-  `src/opscout/entrypoints/mcp.py`. T035 passes.
+  `src/opscout/entrypoints/mcp.py`. `DIR` is the root that holds `<environment>/`, so the
+  shipped fixtures are passed as `--mock evals/mcp/aws`. T035 passes.
 - [ ] T037 [US4] Write the fixtures in `evals/mcp/aws/example-prod/` (FR-027), with fake
   values only. They cover:
   - every declared action;

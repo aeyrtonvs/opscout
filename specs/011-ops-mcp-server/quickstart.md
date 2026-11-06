@@ -44,13 +44,14 @@ it lives in `tests/support/`.
 ## 4. Mock mode
 
 ```sh
-uv run opscout mcp --mock evals/mcp   # started by the test helper, not by hand
+uv run opscout mcp --mock evals/mcp/aws   # started by the test helper, not by hand
 uv run pytest tests/unit/mcp/test_mock.py -q
 ```
 
 Expected:
 
-- every tool answers from `evals/mcp/`, with no network access (the tests block sockets);
+- every tool answers from `evals/mcp/aws/`, with no network access (the tests block
+  sockets);
 - a call with no fixture returns `fixture-missing` with the file and parameters named.
 
 ## 5. In Claude Code
@@ -60,7 +61,8 @@ claude --plugin-dir plugins/opscout
 ```
 
 Then run `/mcp`: `opscout` is connected, with nine tools. Ask Claude to parse a pasted alert
-in the configured format.
+in the configured format; the answer uses the private configuration's formats, which shows
+that `${user_config.config_dir}` reached the server. Record the result in research R10.
 
 ## 6. Live, once (manual; not a gate)
 

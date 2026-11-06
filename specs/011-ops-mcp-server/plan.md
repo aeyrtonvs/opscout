@@ -56,7 +56,7 @@ adapter offline.
 **Storage**:
 
 - the private configuration, read only, with three new optional sections (R9);
-- fixtures in `evals/mcp/` (R5);
+- fixtures in `evals/mcp/aws/` and the alert corpus in `evals/mcp/alerts/` (R5);
 - the call log, `mcp-calls.jsonl` under the platform state directory (R11).
 
 **Testing**: pytest, in three layers:
@@ -163,7 +163,7 @@ plugins/opscout/
 ├── .mcp.json              # new (R10)
 └── bin/opscout            # + the aws extra; mcp-safe errors (R10)
 
-evals/mcp/                 # fixtures, fake values (new, R5)
+evals/mcp/                 # aws/ fixtures and alerts/ corpus, fake values (new, R5)
 schemas/config.schema.json # regenerated
 example-config/config.yaml # + the three sections, fake values
 docs/reference/

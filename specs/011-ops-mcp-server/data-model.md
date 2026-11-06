@@ -52,6 +52,7 @@ of `formats` is the order of precedence.
   - `window`: optional;
   - `capped`: a list of `{cap, limit, dropped}`;
   - `redacted`: a map from kind to count;
+  - `partial`: true when the deadline stopped the tool before it finished (research R7);
   - `data`: the tool's payload.
 - **ToolError**: the `reason` (an enum: `not-configured`, `invalid-config`,
   `unknown-environment`, `profile-missing`, `login-expired`, `no-credentials`,
