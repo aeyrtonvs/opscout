@@ -12,16 +12,17 @@ import os
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import platformdirs
 from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult, TextContent
 from pydantic import BaseModel, Field
 
+from opscout import __version__
 from opscout.core.aws import AwsGateway, CallLog
 from opscout.core.config import ConfigLocationError, Configuration
-from opscout.core.triage import EvidenceStore
+from opscout.core.triage import EvidenceStore, FileReader, TriageStore
 from opscout.entrypoints.config import load_config
 from opscout.services.config import ENV_VAR, resolve_config_dir
 from opscout.services.tools.registry import SPECS
@@ -75,6 +76,9 @@ def build_server(
     gateway_factory: Callable[[], AwsGateway],
     call_log: CallLog,
     evidence: EvidenceStore | None = None,
+    *,
+    records: TriageStore | None = None,
+    files: FileReader | None = None,
 ) -> MCPServer:
     """Build the server with every registered tool (FR-002, FR-003)."""
     context = ToolContext(
@@ -82,6 +86,9 @@ def build_server(
         gateway_factory=gateway_factory,
         call_log=call_log,
         evidence=evidence,
+        records=records,
+        files=files,
+        engine_version=__version__,
     )
     server = MCPServer("opscout", instructions=INSTRUCTIONS)
 
@@ -194,6 +201,10 @@ def build_server(
         until: Until = None,
         last: Last = None,
         region: Region = None,
+        include_background: Annotated[
+            bool,
+            Field(description="Keep agent heartbeats, which are dropped by default (spec 012)."),
+        ] = False,
     ) -> Result:
         return respond(
             "recent_changes",
@@ -204,6 +215,7 @@ def build_server(
             until=until,
             last=last,
             region=region,
+            include_background=include_background,
         )
 
     def find_resources(
@@ -244,6 +256,63 @@ def build_server(
             "describe_resource", environment=environment, type=type, name=name, region=region
         )
 
+    def begin_triage(
+        text: Annotated[str, Field(description="The alert's text, as pasted.", max_length=20_000)],
+        alert_time: Annotated[
+            str | None,
+            Field(description="The time the user named, ISO 8601 with an offset."),
+        ] = None,
+    ) -> Result:
+        return respond("begin_triage", text=text, alert_time=alert_time)
+
+    def check_verdict(
+        run_id: Annotated[str, Field(description="The run id begin_triage returned.")],
+        verdict: Annotated[
+            dict[str, Any],
+            Field(description="The verdict, as the skill's verdict reference defines it."),
+        ],
+    ) -> Result:
+        return respond("check_verdict", run_id=run_id, verdict=verdict)
+
+    def record_agreement(
+        run_id: Annotated[str, Field(description="The run id.")],
+        answer: Annotated[
+            Literal["agree", "disagree", "not-answered"], Field(description="The user's answer.")
+        ],
+        reason: Annotated[
+            str | None, Field(description="The user's reason, if given.", max_length=500)
+        ] = None,
+    ) -> Result:
+        return respond("record_agreement", run_id=run_id, answer=answer, reason=reason)
+
+    def show_evidence(
+        ids: Annotated[
+            list[str], Field(description="Evidence ids, 1 to 20.", min_length=1, max_length=20)
+        ],
+    ) -> Result:
+        return respond("show_evidence", ids=ids)
+
+    def search_iac(
+        pattern: Annotated[
+            str,
+            Field(
+                description="A literal, matched case-insensitively.", min_length=2, max_length=200
+            ),
+        ],
+        environment: Annotated[
+            str | None, Field(description="Search this environment's clones first.")
+        ] = None,
+        clone: Annotated[str | None, Field(description="Search only this clone.")] = None,
+    ) -> Result:
+        return respond("search_iac", pattern=pattern, environment=environment, clone=clone)
+
+    def read_iac(
+        path: Annotated[str, Field(description="<clone>/<path inside the clone>.")],
+        start: Annotated[int, Field(description="The first line, from 1.", ge=1)],
+        end: Annotated[int, Field(description="The last line; at most start + 199.", ge=1)],
+    ) -> Result:
+        return respond("read_iac", path=path, start=start, end=end)
+
     functions = (
         list_environments,
         parse_alert,
@@ -254,6 +323,12 @@ def build_server(
         recent_changes,
         find_resources,
         describe_resource,
+        begin_triage,
+        check_verdict,
+        record_agreement,
+        show_evidence,
+        search_iac,
+        read_iac,
     )
     for function in functions:
         server.add_tool(
@@ -300,11 +375,13 @@ def serve(flag: Path | None, mock: Path | None) -> int:
     """Run ``opscout mcp [--mock DIR]`` until the client closes stdin."""
     from opscout.adapters.call_log import JsonlCallLog
     from opscout.adapters.evidence_files import FileEvidence
+    from opscout.adapters.triage_files import FileRecords
 
     environ = dict(os.environ)
     if mock is None and environ.get(MOCK_ENV):
         mock = Path(environ[MOCK_ENV])
-    evidence = FileEvidence(data_directory(environ))
+    data = data_directory(environ)
+    evidence = FileEvidence(data)
     evidence.prune(datetime.now(UTC) - timedelta(hours=EVIDENCE_HOURS))
 
     def gateway() -> AwsGateway:
@@ -316,6 +393,12 @@ def serve(flag: Path | None, mock: Path | None) -> int:
 
         return LiveGateway()
 
-    server = build_server(config_loader(flag, environ), gateway, JsonlCallLog(), evidence)
+    server = build_server(
+        config_loader(flag, environ),
+        gateway,
+        JsonlCallLog(),
+        evidence,
+        records=FileRecords(data),
+    )
     server.run("stdio")
     return 0

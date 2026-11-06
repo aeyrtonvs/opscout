@@ -356,6 +356,7 @@ class TriageRecord(BaseModel):
     verdict: Verdict | None = None
     check: CheckSummary = Field(default_factory=CheckSummary)
     revised: bool = False
+    revision_tried: bool = False
     tools: dict[str, int] = Field(default_factory=dict)
     observability_tools: list[str] = Field(default_factory=list)
     duration_seconds: float | None = None

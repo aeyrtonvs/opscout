@@ -31,7 +31,7 @@ from opscout.core.tools import (
     fit,
     parse_window,
 )
-from opscout.core.triage import EvidenceStore
+from opscout.core.triage import EvidenceStore, FileReader, TriageStore
 from opscout.services.redact import redact_structure
 from opscout.services.tools.settings import kept_kinds, tool_timezone
 
@@ -70,6 +70,10 @@ class Call:
     deadline: float
     clock: Callable[[], float] = time.monotonic
     sleep: Callable[[float], None] = time.sleep
+    evidence: EvidenceStore | None = None
+    records: TriageStore | None = None
+    files: FileReader | None = None
+    engine_version: str = "0.0.0"
     resolved: AwsEnvironment | None = None
     """The environment this call resolved, kept if the deadline stops the handler."""
     partial: bool = False
@@ -137,6 +141,9 @@ class ToolContext:
     deadline_seconds: float = DEADLINE_SECONDS
     evidence: EvidenceStore | None = None
     """Where every result is kept for the triage check (spec 012, research R2)."""
+    records: TriageStore | None = None
+    files: FileReader | None = None
+    engine_version: str = "0.0.0"
     _gateway: AwsGateway | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -229,6 +236,10 @@ def run_tool(
             deadline=started + context.deadline_seconds,
             clock=context.clock,
             sleep=context.sleep,
+            evidence=context.evidence,
+            records=context.records,
+            files=context.files,
+            engine_version=context.engine_version,
         )
         try:
             outcome = handler(call)
@@ -254,7 +265,7 @@ def run_tool(
         logger.exception("tool %s failed", name)
         result = _error_result(ToolError(ErrorReason.INTERNAL, type(error).__name__), zone, keep)
         failed, status = True, ErrorReason.INTERNAL.value
-    result["evidence"] = _keep(name, result, context)
+    result["evidence"] = _keep(name, result, context) if spec.evidence else None
     entry = CallEntry(
         time=context.now(),
         tool=name,

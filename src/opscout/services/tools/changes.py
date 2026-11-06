@@ -6,17 +6,20 @@ CloudTrail event's request or response, nor a stack event's resource properties:
 hold the values a change set, such as a task definition's environment.
 """
 
+import functools
 import json
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import Any, Final
 
+from opscout.core.aws import BACKGROUND_ACTIONS
 from opscout.core.config import AwsEnvironment
 from opscout.core.tools import Capped, Window
 from opscout.services.tools.runtime import Call, DeadlineReachedError, Outcome
 
 _SOURCE_TYPE: Final = {"rds-instance": "db-instance", "rds-cluster": "db-cluster"}
 TRAIL_PAGE: Final = 50
+TRAIL_PAGES: Final = 4
 
 
 def _change(
@@ -41,25 +44,49 @@ def _change(
 
 
 def _trail(
-    call: Call, env: AwsEnvironment, region: str, window: Window, items: int
+    call: Call,
+    env: AwsEnvironment,
+    region: str,
+    window: Window,
+    items: int,
+    *,
+    background: frozenset[str] = frozenset(),
+    dropped: list[int] | None = None,
 ) -> tuple[list[dict[str, Any]], bool]:
+    """CloudTrail writes; background actions are dropped and counted (spec 012, R7).
+
+    A page that lost events to the filter is followed by the next one, up to
+    ``TRAIL_PAGES`` pages, so heartbeats do not spend the page.
+    """
     resource = call.argument("resource")
     attribute = (
         {"AttributeKey": "ResourceName", "AttributeValue": _short(resource)}
         if resource
         else {"AttributeKey": "ReadOnly", "AttributeValue": "false"}
     )
-    response = call.aws(
-        env,
-        region,
-        "cloudtrail:LookupEvents",
-        LookupAttributes=[attribute],
-        StartTime=window.start,
-        EndTime=window.end,
-        MaxResults=min(TRAIL_PAGE, items),
-    )
+    events: list[Mapping[str, Any]] = []
+    token: str | None = None
+    for _ in range(TRAIL_PAGES):
+        response = call.aws(
+            env,
+            region,
+            "cloudtrail:LookupEvents",
+            LookupAttributes=[attribute],
+            StartTime=window.start,
+            EndTime=window.end,
+            MaxResults=min(TRAIL_PAGE, items),
+            **({"NextToken": token} if token else {}),
+        )
+        page = response.get("Events", [])
+        kept = [event for event in page if event.get("EventName") not in background]
+        if dropped is not None:
+            dropped.append(len(page) - len(kept))
+        events += kept
+        token = response.get("NextToken")
+        if not token or len(kept) == len(page) or len(events) >= items:
+            break
     changes = []
-    for event in response.get("Events", []):
+    for event in events:
         if str(event.get("ReadOnly", "false")).lower() == "true":
             continue
         try:
@@ -79,7 +106,7 @@ def _trail(
                 error=f"{code}: {message}" if code else None,
             )
         )
-    return changes, bool(response.get("NextToken"))
+    return changes, bool(token)
 
 
 def _stacks(
@@ -238,7 +265,15 @@ def recent_changes(call: Call) -> Outcome:
     window, window_cap = call.window("change_window_hours")
     capped: list[Capped] = [window_cap] if window_cap else []
     items = call.caps.default("change_items")
-    sources: list[tuple[str, Source]] = [("cloudtrail", _trail), ("cloudformation", _stacks)]
+    background: frozenset[str] = frozenset()
+    if not call.argument("include_background"):
+        configured = (
+            call.config.triage.background_actions if call.config and call.config.triage else []
+        )
+        background = BACKGROUND_ACTIONS | frozenset(configured)
+    dropped: list[int] = []
+    trail = functools.partial(_trail, background=background, dropped=dropped)
+    sources: list[tuple[str, Source]] = [("cloudtrail", trail), ("cloudformation", _stacks)]
     resource_type = call.argument("resource_type")
     if call.argument("resource") and resource_type in _BY_TYPE:
         sources.append(_BY_TYPE[resource_type])
@@ -258,7 +293,7 @@ def recent_changes(call: Call) -> Outcome:
         changes += found[:items]
     changes.sort(key=_newest, reverse=True)
     return Outcome(
-        data={"changes": changes, "more": more},
+        data={"changes": changes, "more": more, "background_dropped": sum(dropped)},
         environment=environment,
         window=window,
         capped=capped,

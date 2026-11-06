@@ -124,3 +124,17 @@ class CallLog(Protocol):
     def append(self, entry: CallEntry) -> None:
         """Record the call; never raises."""
         ...
+
+
+BACKGROUND_ACTIONS: Final[frozenset[str]] = frozenset(
+    {
+        "UpdateInstanceInformation",
+        "PutInventory",
+        "PutComplianceItems",
+        "UpdateInstanceAssociationStatus",
+        "ListInstanceAssociations",
+        "PutConfigurationAggregator",
+    }
+)
+"""CloudTrail writes agents make on their own, dropped from recent changes by default
+(spec 012, research R7): in an account with managed instances they fill the change cap."""

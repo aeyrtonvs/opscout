@@ -54,6 +54,13 @@ CONTRACT = {
         "cloudformation:ListStackResources",
         "cloudformation:DescribeStacks",
     },
+    # Spec 012 (research R15): the triage tools declare no AWS action.
+    "begin_triage": set(),
+    "check_verdict": set(),
+    "record_agreement": set(),
+    "show_evidence": set(),
+    "search_iac": set(),
+    "read_iac": set(),
 }
 
 
@@ -63,7 +70,7 @@ def spec(requirement: str) -> pytest.MarkDecorator:
 
 
 @spec("FR-003")
-def test_nine_tools_each_with_a_description_and_a_handler() -> None:
+def test_every_tool_has_a_description_and_a_handler() -> None:
     assert [tool.name for tool in REGISTRY] == list(CONTRACT)
     for tool in REGISTRY:
         assert len(tool.description) >= 40, tool.name

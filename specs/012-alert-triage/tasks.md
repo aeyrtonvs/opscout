@@ -116,7 +116,7 @@ the check, with no question about account, profile, region or timezone.
 
 **Independent test**: the `012-us1-*` eval cases in mock mode, and the service tests.
 
-- [ ] T013 [P] [US1] Write failing tests in `tests/unit/triage/test_begin.py`:
+- [X] T013 [P] [US1] Write failing tests in `tests/unit/triage/test_begin.py`:
   - **FR-003**: a parsed alert in a configured environment returns `run_id`, `alert`,
     `resolution`, the settings and the windows, and writes an `open` record.
   - **FR-008, the alert's time**:
@@ -128,9 +128,9 @@ the check, with no question about account, profile, region or timezone.
     or 7.
   - **FR-004 is not triggered**: the result says when a cloud read is allowed.
   - **Pruning**: `begin` prunes evidence older than 24 hours.
-- [ ] T014 [US1] Write `begin` in `src/opscout/services/triage.py`, reusing spec 011's
+- [X] T014 [US1] Write `begin` in `src/opscout/services/triage.py`, reusing spec 011's
   `parse_alert` and `resolve_environment` logic. T013 passes.
-- [ ] T015 [P] [US1] Write failing tests in `tests/unit/triage/test_check_flow.py`
+- [X] T015 [P] [US1] Write failing tests in `tests/unit/triage/test_check_flow.py`
   (FR-019, research R9):
   - **A pass** closes the run as `checked`, with the verdict and the duration.
   - **A first failure** returns `retry: true` and the failures, and the run stays `open`
@@ -142,9 +142,9 @@ the check, with no question about account, profile, region or timezone.
   - **A verdict that is not valid JSON for the schema** counts as a failed attempt, with the
     validator's message.
   - **The record's `tools`** counts the evidence stored in the run's window, by tool.
-- [ ] T016 [US1] Write `check_verdict` in `src/opscout/services/triage.py`. The secret
+- [X] T016 [US1] Write `check_verdict` in `src/opscout/services/triage.py`. The secret
   finder is `services.redact`'s detector, passed into `core.triage.check`. T015 passes.
-- [ ] T017 [P] [US1] Write failing tests in `tests/unit/triage/test_background.py`
+- [X] T017 [P] [US1] Write failing tests in `tests/unit/triage/test_background.py`
   (FR-009, research R7):
   - `recent_changes` without `include_background` drops CloudTrail events whose action is
     in the built-in list or in `triage.background_actions`, and returns
@@ -152,10 +152,10 @@ the check, with no question about account, profile, region or timezone.
   - with `include_background: true`, it drops nothing;
   - other sources are never dropped;
   - the dropped events do not count against `change_items`.
-- [ ] T018 [US1] Add `include_background` to `src/opscout/services/tools/changes.py`, its
+- [X] T018 [US1] Add `include_background` to `src/opscout/services/tools/changes.py`, its
   input to `recent_changes` in `src/opscout/entrypoints/mcp.py`, and the list to
   `src/opscout/core/aws.py`. T017 and spec 011's change tests pass.
-- [ ] T019 [P] [US1] Write failing tests in `tests/unit/triage/test_server.py`, through
+- [X] T019 [P] [US1] Write failing tests in `tests/unit/triage/test_server.py`, through
   `mcp.Client` against the real server with fixture stores:
   - the server lists `begin_triage`, `check_verdict`, `record_agreement`, `show_evidence`,
     `search_iac` and `read_iac`, each with input and output schemas (FR-001);
@@ -163,7 +163,7 @@ the check, with no question about account, profile, region or timezone.
     (FR-006);
   - `begin_triage` then `check_verdict` round-trips through the server;
   - `OPSCOUT_MCP_MOCK` turns on mock mode when `--mock` is not given (contracts/cli.md).
-- [ ] T020 [US1] Write the handlers in `src/opscout/services/tools/triage.py`, their
+- [X] T020 [US1] Write the handlers in `src/opscout/services/tools/triage.py`, their
   `ToolSpec`s in `src/opscout/services/tools/registry.py`, and the six typed functions,
   `OPSCOUT_MCP_MOCK` and `OPSCOUT_DATA_DIR` in `src/opscout/entrypoints/mcp.py`.
   `search_iac`, `read_iac` and `show_evidence` return `not-supported` until T037 and T043.
