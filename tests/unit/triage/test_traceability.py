@@ -19,6 +19,8 @@ EVALS = REPO_ROOT / "plugins" / "opscout" / "evals"
 TESTS = Path(__file__).parent
 
 SCENARIOS_PROVEN_BY_TESTS = {
+    # A headless eval cannot answer the agreement question (test_agreement.py).
+    "012-us3-s2": "FR-024",
     "012-us3-s4": "FR-026",  # the CLI lists and shows records (test_cli.py)
 }
 
@@ -47,7 +49,6 @@ def _scenarios() -> set[str]:
     return found
 
 
-@pytest.mark.xfail(strict=True, reason="until T050, when every case exists")
 @spec("FR-027")
 def test_every_requirement_has_a_test_or_an_eval_case() -> None:
     required = set(re.findall(r"\*\*(FR-\d{3})\*\*", SPEC_FILE.read_text(encoding="utf-8")))
@@ -62,7 +63,6 @@ def test_every_requirement_has_a_test_or_an_eval_case() -> None:
     assert sorted(proven - required) == []
 
 
-@pytest.mark.xfail(strict=True, reason="until T050, when every case exists")
 @spec("FR-027")
 def test_every_scenario_has_an_eval_case() -> None:
     scenarios = _scenarios()

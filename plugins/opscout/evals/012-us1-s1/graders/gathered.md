@@ -1,5 +1,5 @@
 ---
 type: tool_used
-tool: 'Agent'
+tool: Agent
 min: 4
 ---

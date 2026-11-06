@@ -1,0 +1,14 @@
+[
+ {
+  "match": {},
+  "response": {
+   "status": "Complete",
+   "results": [],
+   "statistics": {
+    "recordsMatched": 0.0,
+    "recordsScanned": 5100.0,
+    "bytesScanned": 400000.0
+   }
+  }
+ }
+]

@@ -147,9 +147,10 @@ plugins/opscout/
 ├── agents/triage-{metrics,logs,changes,config,skeptic}.md
 └── evals/012-*/           # cases named after the scenarios
 
-evals/triage/              # per-scenario configuration, aws fixtures, infra trees, the
-                           # observability stand-in, skeptic-on configuration (new)
-tools/skill_evals.py       # + mock, mcp_config, arms; OPSCOUT_DATA_DIR per run; record grader
+evals/triage/              # per-scenario configuration, aws fixtures layered over
+                           # evals/mcp/aws, infra trees, the observability stand-in (new)
+tools/skill_evals.py       # + fixture, mcp_config, arms; OPSCOUT_DATA_DIR per run; record
+                           # grader; --fixtures, --config-override, --keep-data
 schemas/config.schema.json # regenerated
 example-config/config.yaml # + triage, fake values
 docs/reference/

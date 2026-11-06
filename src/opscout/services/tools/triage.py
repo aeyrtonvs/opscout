@@ -67,11 +67,12 @@ def show_evidence(call: Call) -> Outcome:
     ids = call.argument("ids")
     if not isinstance(ids, list) or not 1 <= len(ids) <= MAX_IDS:
         raise ToolError(ErrorReason.INVALID_INPUT, f"give 1 to {MAX_IDS} evidence ids")
-    stores = _stores(call)
+    if call.evidence is None:
+        raise ToolError(ErrorReason.NOT_CONFIGURED, "the evidence store is not available")
     items: list[dict[str, Any]] = []
     missing: list[str] = []
     for evidence_id in ids:
-        stored = stores.evidence.get(str(evidence_id))
+        stored = call.evidence.get(str(evidence_id))
         if stored is None:
             missing.append(str(evidence_id))
         else:

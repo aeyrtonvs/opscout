@@ -270,7 +270,7 @@ question, stored with the run.
 
 **Independent test**: the `012-us3-*` eval cases and the CLI tests.
 
-- [ ] T033 [P] [US3] Write failing tests in `tests/unit/triage/test_agreement.py` and
+- [X] T033 [P] [US3] Write failing tests in `tests/unit/triage/test_agreement.py` and
   `tests/unit/triage/test_cli.py`:
   - **The ticket format** (FR-022): `begin_triage` returns the configured `ticket` format,
     or spec 003's built-in one.
@@ -285,7 +285,7 @@ question, stored with the run.
     - `opscout triage show <id>` prints the record, and an unknown id exits 1;
     - an `open` run older than 24 hours shows as `abandoned`;
     - `OPSCOUT_DATA_DIR` is honored.
-- [ ] T034 [US3] Write `record_agreement` in `src/opscout/services/triage.py`, the rendering
+- [X] T034 [US3] Write `record_agreement` in `src/opscout/services/triage.py`, the rendering
   of runs, `src/opscout/entrypoints/triage.py`, and the `triage` commands in
   `src/opscout/entrypoints/cli.py`. T033 passes.
 - [ ] T035 [US3] Write the cases `012-us3-s1` to `012-us3-s3` on the `real-deploy`
@@ -305,7 +305,7 @@ by file and line.
 
 **Independent test**: the `012-us4-*` eval cases and `test_iac.py`.
 
-- [ ] T036 [P] [US4] Write failing tests in `tests/unit/triage/test_iac.py` (FR-012,
+- [X] T036 [P] [US4] Write failing tests in `tests/unit/triage/test_iac.py` (FR-012,
   FR-013, research R6):
   - **`search_iac`**:
     - it finds a literal case-insensitively in the clones, with the environment's clones
@@ -321,7 +321,7 @@ by file and line.
     - a binary file.
   - **Redaction**: every result is redacted, so a secret-shaped value in a `.tf` file is
     replaced.
-- [ ] T037 [US4] Write `src/opscout/services/iac.py`, `src/opscout/adapters/local_files.py`
+- [X] T037 [US4] Write `src/opscout/services/iac.py`, `src/opscout/adapters/local_files.py`
   (the `FileReader`), and the two handlers in `src/opscout/services/tools/triage.py`.
   T036 passes.
 - [ ] T038 [US4] Build `evals/triage/drift/`: an `infra/` tree declaring the alarm at
@@ -341,13 +341,13 @@ subagents may read it, and every claim citing it is marked not checked.
 
 **Independent test**: the `012-us5-*` eval cases with the local stand-in.
 
-- [ ] T039 [P] [US5] Write failing tests in `tests/unit/triage/test_observability.py`:
+- [X] T039 [P] [US5] Write failing tests in `tests/unit/triage/test_observability.py`:
   - **The stand-in** `evals/triage/observability_server.py` lists two tools
     (`get_metrics`, `search_traces`) and answers from its fixture, through `mcp.Client`.
   - **Its `mcp_config` file** names the server `observability`.
   - **`begin_triage`** returns `observability: true` only when the configuration says so
     (FR-014, FR-016).
-- [ ] T040 [US5] Write `evals/triage/observability_server.py`, its fixture and
+- [X] T040 [US5] Write `evals/triage/observability_server.py`, its fixture and
   `evals/triage/observability.mcp.json`. T039 passes.
 - [ ] T041 [US5] Build `evals/triage/monitor-alert/`: a monitor-format alert, an
   observability fixture with traces naming the cause, and AWS fixtures that support it.
@@ -367,19 +367,20 @@ subagents may read it, and every claim citing it is marked not checked.
 
 **Independent test**: two runs of the public suite, with and without.
 
-- [ ] T042 [P] [US6] Write failing tests in `tests/unit/triage/test_skeptic.py`:
+- [X] T042 [P] [US6] Write failing tests in `tests/unit/triage/test_skeptic.py`:
   - **`show_evidence`** returns stored results by id, lists the missing ones, and stores
     no new evidence.
   - **A revision after a pass** (research R9) replaces the verdict when it passes, sets
     `revised` and `skeptic.disagreed`, and keeps the earlier verdict when it fails.
   - **A second revision** is refused.
   - **`begin_triage`** returns `skeptic` from the configuration (FR-029).
-- [ ] T043 [US6] Write `show_evidence` and the revision rule in
+- [X] T043 [US6] Write `show_evidence` and the revision rule in
   `src/opscout/services/triage.py` and `src/opscout/services/tools/triage.py`, then:
   - write `plugins/opscout/agents/triage-skeptic.md`;
   - add the skeptic step to the skill;
-  - create `evals/triage/skeptic-on/` (the evaluation configuration with
-    `triage.skeptic: true`).
+  - give the runner `--config-override`, which merges YAML such as
+    `triage: {skeptic: true}` into every scenario's configuration (done in place of a
+    separate `skeptic-on` configuration, research R13).
 
   T042 and T021 pass.
 - [ ] T044 [US6] Write the cases `012-us6-s1` and `012-us6-s2`:

@@ -251,6 +251,18 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         help="answer every AWS call from the fixtures in DIR; never reach AWS",
     )
+    triage_parser = commands.add_parser(
+        "triage",
+        help="the local records of alert triage runs",
+        description="List and show the local records the alert-triage skill leaves (spec 012).",
+    )
+    triage_commands = triage_parser.add_subparsers(
+        dest="triage_command", metavar="COMMAND", required=True
+    )
+    triage_runs = triage_commands.add_parser("runs", help="list triage runs, newest first")
+    triage_runs.add_argument("--limit", type=int, default=20, metavar="N", help="at most N runs")
+    triage_show = triage_commands.add_parser("show", help="print one run's record")
+    triage_show.add_argument("run_id", help="the run's id, as runs lists it")
     secret = commands.add_parser(
         "secret",
         help="the harness's own secrets in the OS keychain",
@@ -327,6 +339,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         from opscout.entrypoints import mcp
 
         return mcp.serve(_given_directory(args.config), Path(args.mock) if args.mock else None)
+    if args.command == "triage":
+        from opscout.entrypoints import triage
+
+        if args.triage_command == "runs":
+            return triage.runs_command(args.limit)
+        return triage.show_command(args.run_id)
     if args.command == "gateway":
         return daemon.gateway_command(_given_directory(args.config))
     if args.command == "secret" and args.secret_command == "set":  # noqa: S105  (a command name)

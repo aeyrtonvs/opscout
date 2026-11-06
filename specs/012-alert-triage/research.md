@@ -306,9 +306,10 @@ answer for the same metric.
   confirms or returns a revised verdict. A revised verdict goes through `check_verdict` again,
   as a second attempt. The verdict shown is the last one that passed, and the record notes
   the disagreement.
-- **The ablation**: the public suite runs twice, with two evaluation configurations that
-  differ only in `triage.skeptic`. FR-029's rule decides, and Actuals records both scores and
-  both costs.
+- **The ablation**: the public suite runs twice, the second time with
+  `--config-override 'triage: {skeptic: true}'`, which the runner merges into every
+  scenario's configuration. FR-029's rule decides, and Actuals records both scores and both
+  costs.
 
 **Rationale**: ADR-0018 says the pass ships only with an ablation result; the setting makes
 the ablation a configuration change, not a code change.

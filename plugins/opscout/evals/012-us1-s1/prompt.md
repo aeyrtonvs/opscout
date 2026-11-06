@@ -2,8 +2,15 @@
 fixture: real-deploy
 arms: plugin
 max_turns: 40
-allowed_tools: [Skill, Agent, "mcp__plugin_opscout_opscout"]
-tags: ["FR-001", "FR-003", "FR-005", "FR-017"]
+allowed_tools:
+- Skill
+- Agent
+- mcp__plugin_opscout_opscout
+tags:
+- FR-001
+- FR-003
+- FR-005
+- FR-017
 ---
 
 Is this alert real?

@@ -47,7 +47,13 @@ def fixture_tree(root: Path) -> Path:
         encoding="utf-8",
     )
     (tree / "observability.mcp.json").write_text(
-        json.dumps({"mcpServers": {"observability": {"command": "@CASE_ROOT@/server"}}}),
+        json.dumps(
+            {
+                "mcpServers": {
+                    "observability": {"command": "@CASE_ROOT@/server", "args": ["@REPO_ROOT@"]}
+                }
+            }
+        ),
         encoding="utf-8",
     )
     return tree
@@ -117,6 +123,7 @@ def test_a_fixture_case_runs_one_arm_with_its_tree(
     assert "--strict-mcp-config" not in reply["args"]  # it would drop the plugin's server
     assert "@CASE_ROOT@" not in reply["mcp"]
     assert reply["mcp"].count("/server") == 1
+    assert "@REPO_ROOT@" not in reply["mcp"]
     assert result["lowest_score"] == 1.0
 
 
@@ -208,3 +215,33 @@ def test_existing_two_arm_cases_still_run_both_arms(
           "--max-cost-usd", "2", "--out", str(out)])  # fmt: skip
     (case,) = json.loads(out.read_text(encoding="utf-8"))["cases"]
     assert {"with", "without"} <= set(case)
+
+
+@spec("FR-027")
+def test_a_tool_used_grader_may_name_a_server_by_prefix() -> None:
+    arm = Arm(text="", tools=[("mcp__observability__search_traces", "{}")], cost=0.0)
+    every = Grader(name="g", type="tool_used", tool="mcp__observability__*")
+    exact = Grader(name="g", type="tool_used", tool="mcp__observability__get_metrics")
+    assert grade(every, arm, lambda *_: True)
+    assert not grade(exact, arm, lambda *_: True)
+
+
+@spec("FR-029")
+def test_a_configuration_override_reaches_every_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fixture_tree(tmp_path)
+    evals = tmp_path / "evals"
+    write_case(evals, "012-us6-s1", "fixture: real-deploy\narms: plugin\n", {})
+    result = run(
+        tmp_path,
+        monkeypatch,
+        evals,
+        "--fixtures",
+        str(tmp_path / "fixtures"),
+        "--config-override",
+        "triage: {skeptic: true}",
+    )
+    config = json.loads(result["cases"][0]["with"]["reply"])["config"]
+    assert "skeptic: true" in config
+    assert "example-infra" in config  # merged, not replaced

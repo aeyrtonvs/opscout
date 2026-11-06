@@ -1,0 +1,14 @@
+{
+  "metrics": [
+    {"service": "example-api", "metric": "trace.http.request.errors", "points": [
+      {"time": "2026-11-06T11:25:00+00:00", "value": 1},
+      {"time": "2026-11-06T11:35:00+00:00", "value": 74},
+      {"time": "2026-11-06T11:45:00+00:00", "value": 109}]}
+  ],
+  "traces": [
+    {"service": "example-api", "resource": "POST /checkout", "status": 502,
+     "error": "upstream example-payments.example.com timed out after 2000 ms",
+     "first_seen": "2026-11-06T11:31:10+00:00", "count": 412,
+     "version": "example-api:42"}
+  ]
+}

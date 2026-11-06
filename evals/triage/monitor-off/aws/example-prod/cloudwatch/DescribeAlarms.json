@@ -1,0 +1,29 @@
+[
+ {
+  "match": {},
+  "response": {
+   "MetricAlarms": [
+    {
+     "AlarmName": "example-api-5xx",
+     "StateValue": "ALARM",
+     "StateReason": "Threshold Crossed: 3 datapoints [112.0, 96.0, 78.0] were greater than the threshold (50.0).",
+     "StateUpdatedTimestamp": "2026-11-06T11:45:00Z",
+     "Threshold": 50.0,
+     "ComparisonOperator": "GreaterThanThreshold",
+     "Namespace": "AWS/ApplicationELB",
+     "MetricName": "HTTPCode_Target_5XX_Count",
+     "Dimensions": [
+      {
+       "Name": "LoadBalancer",
+       "Value": "app/example-api-alb/0123456789abcdef"
+      }
+     ],
+     "Period": 300,
+     "Statistic": "Sum",
+     "EvaluationPeriods": 3,
+     "DatapointsToAlarm": 3
+    }
+   ]
+  }
+ }
+]

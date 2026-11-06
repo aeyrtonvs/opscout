@@ -31,6 +31,8 @@ from pydantic_core import PydanticCustomError
 
 EVIDENCE_PATTERN = r"^ev-[0-9a-f]{10}$"
 RUN_ID_PATTERN = r"^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$"
+SKIPPED_DIRECTORIES = frozenset({".git", ".terraform", ".terragrunt-cache", "node_modules"})
+"""Directories the infrastructure-code tools never read (research R6)."""
 EVIDENCE_KINDS = ("metrics", "logs", "changes", "configuration", "observability")
 SHORT_QUOTE = 3
 """A quote shorter than this must equal a whole value, or "5" would match any number."""

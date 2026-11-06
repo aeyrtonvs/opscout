@@ -1,4 +1,4 @@
 ---
 type: regex
-pattern: '(?i)(deploy|despliegue)'
+pattern: (?i)(deploy|despliegue)
 ---

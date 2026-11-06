@@ -9,12 +9,11 @@ gateway is built on the first cloud call, so listing tools never loads the AWS S
 
 import json
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-import platformdirs
 from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult, TextContent
 from pydantic import BaseModel, Field
@@ -24,6 +23,7 @@ from opscout.core.aws import AwsGateway, CallLog
 from opscout.core.config import ConfigLocationError, Configuration
 from opscout.core.triage import EvidenceStore, FileReader, TriageStore
 from opscout.entrypoints.config import load_config
+from opscout.entrypoints.triage import data_directory
 from opscout.services.config import ENV_VAR, resolve_config_dir
 from opscout.services.tools.registry import SPECS
 from opscout.services.tools.runtime import ConfigLoader, ToolContext, run_tool
@@ -358,23 +358,15 @@ def config_loader(flag: Path | None, environ: dict[str, str]) -> ConfigLoader:
     return load
 
 
-DATA_ENV = "OPSCOUT_DATA_DIR"
 MOCK_ENV = "OPSCOUT_MCP_MOCK"
 EVIDENCE_HOURS = 24
-
-
-def data_directory(environ: Mapping[str, str]) -> Path:
-    """``OPSCOUT_DATA_DIR``, else the platform data directory (spec 012, research R2)."""
-    given = environ.get(DATA_ENV, "")
-    if given and not given.startswith("${"):
-        return Path(given)
-    return Path(platformdirs.user_data_dir("opscout", appauthor=False))
 
 
 def serve(flag: Path | None, mock: Path | None) -> int:
     """Run ``opscout mcp [--mock DIR]`` until the client closes stdin."""
     from opscout.adapters.call_log import JsonlCallLog
     from opscout.adapters.evidence_files import FileEvidence
+    from opscout.adapters.local_files import LocalFiles
     from opscout.adapters.triage_files import FileRecords
 
     environ = dict(os.environ)
@@ -400,6 +392,7 @@ def serve(flag: Path | None, mock: Path | None) -> int:
         JsonlCallLog(),
         evidence,
         records=FileRecords(data),
+        files=LocalFiles(),
     )
     server.run("stdio")
     return 0

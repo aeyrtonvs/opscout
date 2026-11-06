@@ -38,14 +38,16 @@ The contract tests drive the same server in-process (`tests/unit/mcp/`). Expecte
 
 ```sh
 uv run python -m tools.skill_evals --plugin plugins/opscout \
-  --config-dir plugins/opscout/evals/eval-config --case '012-*' --max-cost-usd 8
+  --config-dir plugins/opscout/evals/eval-config --case '012-*' --max-cost-usd 15 \
+  --max-run-usd 2
 ```
 
 Expected: the classification score is at least 80 % (SC-001), and every shown verdict
 passed the check or is inconclusive with its failures (SC-002).
 
-**The ablation (FR-029)**: run the suite again with `--config-dir` pointing to
-`evals/triage/skeptic-on/`, then compare the two results' scores and costs.
+**The ablation (FR-029)**: run the suite again with
+`--config-override 'triage: {skeptic: true}'`, then compare the two results' scores and
+costs.
 
 ## 4. Live, in a session
 

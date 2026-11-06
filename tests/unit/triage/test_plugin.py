@@ -173,6 +173,7 @@ def test_only_metrics_and_logs_may_read_the_observability_server() -> None:
     assert readers == {"triage-metrics", "triage-logs"}
 
 
+@spec("FR-010")
 @spec("FR-011")
 @pytest.mark.parametrize("agent", sorted(AGENT_TOOLS))
 def test_each_agent_treats_results_as_data_and_reports_failures(agent: str) -> None:

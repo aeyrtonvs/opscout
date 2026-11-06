@@ -168,8 +168,10 @@ def grade(grader: Grader, arm: Arm, judge: Judge) -> bool:
             return len(found) == int(grader.match.removeprefix("count:"))
         return bool(found)
     if grader.type == "tool_used":
+        # A tool ending in * names every tool with that prefix, such as one server's tools.
         calls = sum(
-            name == grader.tool and bool(re.search(grader.input_match or "", arguments))
+            fnmatch.fnmatchcase(name, grader.tool)
+            and bool(re.search(grader.input_match or "", arguments))
             for name, arguments in arm.tools
         )
         return calls >= grader.minimum and (grader.maximum is None or calls <= grader.maximum)
@@ -257,17 +259,39 @@ def _claude(arguments: list[str], environment: dict[str, str], scaffold: Path | 
 
 
 ROOT_MARK = "@CASE_ROOT@"
+REPO_MARK = "@REPO_ROOT@"
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def _prepare(source: Path, root: Path, files: Sequence[str]) -> None:
-    """Copy a fixture tree and write its path into the files that name ``@CASE_ROOT@``."""
+def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _prepare(
+    source: Path, root: Path, files: Sequence[str], override: dict[str, Any] | None = None
+) -> None:
+    """Copy a fixture tree and write its path into the files that name ``@CASE_ROOT@``.
+
+    ``override`` is merged into the copy's ``config.yaml``, such as the skeptic pass's
+    setting for the ablation (research R13).
+    """
     shutil.copytree(source, root)
+    if override:
+        config = root / "config.yaml"
+        document = yaml.safe_load(config.read_text(encoding="utf-8")) or {}
+        config.write_text(yaml.safe_dump(_merge(document, override)), encoding="utf-8")
     for name in files:
         path = root / name
         if path.is_file():
-            path.write_text(
-                path.read_text(encoding="utf-8").replace(ROOT_MARK, str(root)), encoding="utf-8"
-            )
+            text = path.read_text(encoding="utf-8")
+            text = text.replace(ROOT_MARK, str(root)).replace(REPO_MARK, str(REPO_ROOT))
+            path.write_text(text, encoding="utf-8")
 
 
 def _records(data: Path) -> list[dict[str, Any]]:
@@ -287,6 +311,7 @@ def _run(
     budget: float,
     fixtures: Path | None = None,
     keep: Path | None = None,
+    override: dict[str, Any] | None = None,
 ) -> Arm:
     # --strict-mcp-config also drops the plugin's own servers, so a case that needs the tool
     # server keeps MCP and turns off the account's claude.ai connectors instead (spec 012).
@@ -306,7 +331,12 @@ def _run(
         if case.fixture is not None:
             root = Path(scratch) / "case"
             source = (fixtures or FIXTURES) / case.fixture
-            _prepare(source, root, ["config.yaml", *([case.mcp_config] if case.mcp_config else [])])
+            _prepare(
+                source,
+                root,
+                ["config.yaml", *([case.mcp_config] if case.mcp_config else [])],
+                override,
+            )
             run_environment["OPSCOUT_CONFIG"] = str(root)
             # The scenario's own files first, then spec 011's shared fixtures.
             layers = [root / "aws"] if (root / "aws").is_dir() else []
@@ -381,6 +411,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--keep-data", type=Path, help="copy each run's evidence and records into this directory"
     )
+    parser.add_argument(
+        "--config-override",
+        type=yaml.safe_load,
+        help="YAML merged into each fixture's configuration, e.g. 'triage: {skeptic: true}'",
+    )
     return parser
 
 
@@ -414,7 +449,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             notes.clear()
             started = time.monotonic()
             arm = _run(
-                case, loaded, case_environment, args.max_run_usd, args.fixtures, args.keep_data
+                case,
+                loaded,
+                case_environment,
+                args.max_run_usd,
+                args.fixtures,
+                args.keep_data,
+                args.config_override,
             )
             spent.append(arm.cost)
             passed = {g.name: grade(g, arm, judge) for g in case.graders}
