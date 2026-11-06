@@ -51,7 +51,8 @@ The JSON object passed to `check_verdict`. Unknown keys are refused.
 A citation is exactly one of:
 
 - `{"evidence": "ev-…", "quote": "…"}`: the id of an opscout tool result in this run, and
-  text copied from one value in it (a number, a name, a time, part of a log line). The
+  text copied from it: part of one value (a number, a name, a time, part of a log line),
+  or a `"key": value` fragment exactly as the result shows it (`"running": 1`). The
   harness checks it.
 - `{"observability": "<tool name>", "quote": "…"}`: something the observability server
   returned. It cannot be checked, so it never supports a classification, a cause or a
@@ -60,8 +61,9 @@ A citation is exactly one of:
 ## What fails the check
 
 - an evidence id that this run did not produce;
-- a quote that is not in one value of that result (field names do not count; a quote of
-  one or two characters must be a whole value);
+- a quote that is not in one value of that result, nor a `"key": value` fragment of it
+  (a field name alone does not count; a quote of one or two characters must be a whole
+  value);
 - `real` or `false-positive` with no checked citation among the claims;
 - a cause, or a `keep` or `tune` assessment, with no checked citation of its own;
 - an `environment` or `identity` that differs from the cited results;

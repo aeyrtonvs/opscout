@@ -62,7 +62,7 @@ A citation is exactly one of:
 |---|---|
 | The verdict validates against the schema above | `invalid: <pydantic message>` |
 | Each evidence ID is in the store and was stored at or after the run's start | `unknown evidence` or `evidence from another run` |
-| Each quote is found in one scalar of that result (whitespace collapsed; numbers by value; a quote under 3 characters must equal a whole scalar) | `quote not found` |
+| Each quote is found in one scalar of that result (whitespace collapsed; numbers by value; a quote under 3 characters must equal a whole scalar), or is a `"key": value` fragment of the result as the model saw it (whitespace ignored; it must hold a key and its value) | `quote not found` |
 | `real` and `false-positive` have a checked citation among the claims | `no checked support for the classification` |
 | A cause has a checked citation | `no checked support for the cause` |
 | `keep` and `tune` have a checked citation | `no checked support for the threshold assessment` |
@@ -70,4 +70,5 @@ A citation is exactly one of:
 | No text field holds a secret-shaped value | `secret-shaped value in <path>` (the value is never repeated) |
 | `timezone` and `alert_timezone` are IANA names | `unknown timezone` |
 
-`inconclusive` needs no citation.
+`inconclusive` needs no citation. Each failure `check_verdict` returns also carries a `hint`:
+what to change in the retry.

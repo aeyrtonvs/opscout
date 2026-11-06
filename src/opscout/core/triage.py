@@ -9,6 +9,7 @@ environment matches its evidence; and no text holds a secret-shaped value (FR-01
 FR-021).
 """
 
+import json
 import math
 import re
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -205,11 +206,28 @@ def _number(text: str) -> float | None:
     return number if math.isfinite(number) else None
 
 
+_PAIR = re.compile(r'"[^"]+":(?:"|-?\d|true|false|null|\[|\{)')
+"""A JSON key followed by its value: a fragment must hold one, so a field name alone never
+counts as a quote."""
+
+
+def _fragment_found(quote: str, result: Mapping[str, Any]) -> bool:
+    """Whether the quote is a ``"key": value`` fragment of the result as the model saw it."""
+    wanted = "".join(quote.split())
+    if not _PAIR.search(wanted):
+        return False
+    shown = json.dumps(result, ensure_ascii=False, separators=(",", ":"), default=str)
+    return wanted in "".join(shown.split())
+
+
 def quote_found(quote: str, result: Mapping[str, Any]) -> bool:
-    """Whether the quote appears in one value of the result (research R5)."""
+    """Whether the quote appears in one value of the result, or is a ``"key": value``
+    fragment of it as the model saw it (research R5)."""
     wanted = _collapse(quote)
     if not wanted:
         return False
+    if _fragment_found(quote, result):
+        return True
     as_number = _number(wanted)
     for value in _scalars(result):
         if isinstance(value, bool):

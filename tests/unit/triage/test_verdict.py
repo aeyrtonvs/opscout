@@ -182,6 +182,12 @@ def test_unknown_evidence_and_evidence_from_another_run_fail() -> None:
         ("53", False),
         ("5", False),  # under 3 characters: must equal a whole scalar
         ("rose sharply indeed", False),
+        ('"value": 52.0', True),  # a key-and-value fragment as the model saw it
+        ('{"time":"2026-11-06T09:40:00+00:00","value":52.0}', True),
+        ('"metric":"HTTPCode_Target_5XX_Count"', True),
+        ('"value": 53.0', False),
+        ('"datapoints"', False),  # a key with no value is not a quote
+        ('"datapoints":', False),
     ],
 )
 def test_a_quote_must_appear_in_one_value_of_its_result(quote: str, found: bool) -> None:

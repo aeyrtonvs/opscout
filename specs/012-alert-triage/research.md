@@ -130,7 +130,11 @@ The check:
    - its quote, with whitespace collapsed, is a substring of one scalar of the stored result
      rendered as text;
    - a numeric quote also matches a number equal to it, so "52" finds `52.0`;
-   - a quote shorter than 3 characters must equal a whole scalar.
+   - a quote shorter than 3 characters must equal a whole scalar;
+   - or, found in the first eval run (T028): the quote is a `"key": value` fragment of the
+     result as the model saw it, whitespace ignored, holding at least one key and its value.
+     The subagents quote such fragments naturally, and the fragment is in the output; a
+     field name alone still never counts.
 3. **Requires checked support**:
    - "real" and "false positive" need at least one checked citation among the claims;
    - the cause needs one among its own citations;

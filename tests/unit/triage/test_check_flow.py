@@ -89,7 +89,9 @@ def test_one_retry_then_inconclusive() -> None:
         False,
         "open",
     )
-    assert {"where": "claims[0].cites[0]", "reason": "quote not found"} in first["failures"]
+    failure = next(f for f in first["failures"] if f["where"] == "claims[0].cites[0]")
+    assert failure["reason"] == "quote not found"
+    assert "copy one value exactly" in failure["hint"]
     record = used.records.get(run_id)
     assert record is not None
     assert (record.outcome, record.check.attempts) == ("open", 1)

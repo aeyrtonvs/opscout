@@ -378,17 +378,18 @@ def serve(flag: Path | None, mock: Path | None) -> int:
     from opscout.adapters.triage_files import FileRecords
 
     environ = dict(os.environ)
+    roots = [mock] if mock is not None else []
     if mock is None and environ.get(MOCK_ENV):
-        mock = Path(environ[MOCK_ENV])
+        roots = [Path(part) for part in environ[MOCK_ENV].split(os.pathsep) if part]
     data = data_directory(environ)
     evidence = FileEvidence(data)
     evidence.prune(datetime.now(UTC) - timedelta(hours=EVIDENCE_HOURS))
 
     def gateway() -> AwsGateway:
-        if mock is not None:
+        if roots:
             from opscout.adapters.aws_fixtures import FixtureGateway
 
-            return FixtureGateway(mock)
+            return FixtureGateway(roots)
         from opscout.adapters.aws_live import LiveGateway
 
         return LiveGateway()

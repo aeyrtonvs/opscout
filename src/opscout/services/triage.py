@@ -205,6 +205,27 @@ def _validation_failures(error: ValidationError) -> list[dict[str, str]]:
     ]
 
 
+_HINTS: Final = {
+    "quote not found": (
+        'copy one value exactly as the result shows it, or a "key": value fragment of it'
+    ),
+    "unknown evidence": "cite only evidence ids that this run's tool results carried",
+    "evidence from another run": "cite only evidence read in this run",
+    "no checked support for the classification": (
+        "give a claim that cites opscout evidence, or classify as inconclusive"
+    ),
+    "no checked support for the cause": "cite opscout evidence for the cause, or set it to null",
+    "no checked support for the threshold assessment": (
+        "cite the alarm or metric evidence the assessment rests on, or use not-assessable"
+    ),
+}
+
+
+def _hint(reason: str) -> dict[str, str]:
+    hint = _HINTS.get(reason)
+    return {"hint": hint} if hint else {}
+
+
 def _observability_tools(verdict: Verdict) -> list[str]:
     cites = [*verdict.threshold.cites, *(c for claim in verdict.claims for c in claim.cites)]
     if verdict.cause is not None:
@@ -236,7 +257,9 @@ def check_verdict(
         verdict, failures = None, _validation_failures(error)
     if verdict is not None:
         result = check(verdict, stores.evidence.get, record.started_at, find_secrets)
-        failures = [{"where": f.where, "reason": f.reason} for f in result.failures]
+        failures = [
+            {"where": f.where, "reason": f.reason, **_hint(f.reason)} for f in result.failures
+        ]
     passed = verdict is not None and not failures
     attempts = record.check.attempts + 1
     closing = {

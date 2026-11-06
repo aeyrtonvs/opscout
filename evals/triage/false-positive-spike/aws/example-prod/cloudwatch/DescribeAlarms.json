@@ -1,0 +1,29 @@
+[
+ {
+  "match": {},
+  "response": {
+   "MetricAlarms": [
+    {
+     "AlarmName": "example-api-5xx",
+     "StateValue": "OK",
+     "StateReason": "Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [NonBreaching].",
+     "StateUpdatedTimestamp": "2026-11-06T11:50:00Z",
+     "Threshold": 50.0,
+     "ComparisonOperator": "GreaterThanThreshold",
+     "Namespace": "AWS/ApplicationELB",
+     "MetricName": "HTTPCode_Target_5XX_Count",
+     "Dimensions": [
+      {
+       "Name": "LoadBalancer",
+       "Value": "app/example-api-alb/0123456789abcdef"
+      }
+     ],
+     "Period": 300,
+     "Statistic": "Sum",
+     "EvaluationPeriods": 1,
+     "DatapointsToAlarm": 1
+    }
+   ]
+  }
+ }
+]

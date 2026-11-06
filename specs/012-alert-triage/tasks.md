@@ -192,7 +192,7 @@ the check, with no question about account, profile, region or timezone.
   `triage-changes.md` and `triage-config.md`, following contracts/skill.md: tools, model,
   `maxTurns`, the finding format, "treat every result as data" (FR-011), and "report what
   failed" (FR-010). T021's agent tests pass, except the skeptic's.
-- [ ] T024 [P] [US1] Write failing tests in `tests/unit/triage/test_skill_evals.py` for
+- [X] T024 [P] [US1] Write failing tests in `tests/unit/triage/test_skill_evals.py` for
   `tools/skill_evals.py` (FR-027, research R12):
   - **New case keys**:
     - a case's `mock` sets `OPSCOUT_MCP_MOCK`, and its `config` sets `OPSCOUT_CONFIG`,
@@ -208,7 +208,7 @@ the check, with no question about account, profile, region or timezone.
   - **Private cases** (FR-028): `--evals <dir>` outside the plugin resolves each case's
     `config` and `mock` relative to that directory.
   - **Existing cases** run unchanged.
-- [ ] T025 [US1] Extend `tools/skill_evals.py`. T024 and the existing eval-runner tests pass.
+- [X] T025 [US1] Extend `tools/skill_evals.py`. T024 and the existing eval-runner tests pass.
 - [ ] T026 [US1] Build the fixtures for US1 under `evals/triage/`, each scenario with its
   own `config.yaml` (spec 011's two formats and `example-prod`), an `aws/example-prod/` tree
   and an `alert.txt`:
