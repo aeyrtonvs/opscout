@@ -20,7 +20,7 @@ from opscout.core.config import (
 )
 from opscout.core.context import PendingChange
 from opscout.core.sso import AwsConfigError
-from opscout.entrypoints import daemon, identity
+from opscout.entrypoints import daemon, identity, mcp
 from opscout.entrypoints.config import config_file, load_config
 from opscout.entrypoints.context import TargetError, default_target, pending, write
 from opscout.entrypoints.hook import (
@@ -235,6 +235,22 @@ def build_parser() -> argparse.ArgumentParser:
             "clicks in the run records (spec 008). Runs until stopped."
         ),
     )
+    mcp_server = commands.add_parser(
+        "mcp",
+        help="serve the read-only tools over stdio (the plugin starts it)",
+        description=(
+            "Serve the read-only investigation tools over stdio for Claude Code (spec 011). "
+            "Runs until the client closes the connection."
+        ),
+    )
+    mcp_server.add_argument(
+        "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
+    )
+    mcp_server.add_argument(
+        "--mock",
+        metavar="DIR",
+        help="answer every AWS call from the fixtures in DIR; never reach AWS",
+    )
     secret = commands.add_parser(
         "secret",
         help="the harness's own secrets in the OS keychain",
@@ -306,6 +322,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return identity.check_command(Path(args.directory) if args.directory else None)
     if args.command == "identity":
         return identity.export_command(Path(args.directory))
+    if args.command == "mcp":
+        return mcp.serve(_given_directory(args.config), Path(args.mock) if args.mock else None)
     if args.command == "gateway":
         return daemon.gateway_command(_given_directory(args.config))
     if args.command == "secret" and args.secret_command == "set":  # noqa: S105  (a command name)

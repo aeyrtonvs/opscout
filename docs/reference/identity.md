@@ -41,7 +41,8 @@ Every permission belongs to a capability. Leave out an optional one by deleting 
 | secret-metadata | readonly | no | alert-triage, ask | `secretsmanager:ListSecrets`, `secretsmanager:DescribeSecret`, `ssm:DescribeParameters` | Say whether a secret or parameter exists and where, never its value. |
 | metrics | readonly | no | alert-triage | `cloudwatch:GetMetricData`, `cloudwatch:GetMetricStatistics`, `cloudwatch:GetMetricWidgetImage`, `cloudwatch:ListMetrics`, `cloudwatch:DescribeAlarms`, `cloudwatch:DescribeAlarmHistory`, `cloudwatch:DescribeAlarmsForMetric` | Read metrics and alarms around an alert. |
 | logs | readonly | no | alert-triage | `logs:DescribeLogGroups`, `logs:DescribeLogStreams`, `logs:FilterLogEvents`, `logs:GetLogEvents`, `logs:StartQuery`, `logs:StopQuery`, `logs:GetQueryResults`, `logs:DescribeQueries` | Query and read log events around an alert. |
-| changes | readonly | no | alert-triage, ask | `cloudtrail:LookupEvents`, `ecs:ListServiceDeployments`, `ecs:DescribeServiceDeployments`, `codedeploy:ListDeployments`, `codedeploy:GetDeployment`, `codedeploy:BatchGetDeployments`, `autoscaling:DescribeScalingActivities`, `rds:DescribeEvents`, `health:DescribeEvents` | Find recent changes: the audit trail, deployments and scaling events. |
+| changes | readonly | no | alert-triage, ask | `cloudtrail:LookupEvents`, `ecs:ListServiceDeployments`, `ecs:DescribeServiceDeployments`, `codedeploy:ListDeployments`, `codedeploy:GetDeployment`, `codedeploy:BatchGetDeployments`, `autoscaling:DescribeScalingActivities`, `rds:DescribeEvents`, `health:DescribeEvents`, `cloudformation:DescribeStackEvents` | Find recent changes: the audit trail, stack events, deployments and scaling events. |
+| inventory | readonly | no | alert-triage, ask | `tag:GetResources`, `cloudformation:DescribeStackResources` | Find resources by tag, and the CloudFormation stack that owns a resource. |
 | cost | readonly | no | cost-triage | `ce:GetCostAndUsage`, `ce:GetCostAndUsageWithResources`, `ce:GetCostForecast`, `ce:GetDimensionValues`, `ce:GetAnomalies`, `ce:GetAnomalyMonitors`, `ce:GetTags`, `budgets:ViewBudget` | Break down cost and usage, forecasts and anomalies. |
 | cluster | readonly | yes | alert-triage, ask | `eks:DescribeCluster`, `eks:ListClusters` | Find EKS clusters and reach them with the view access policy. |
 | hosts | hosts | yes | alert-triage | `ssm:SendCommand`, `ssm:GetCommandInvocation`, `ssm:ListCommandInvocations`, `ssm:ListCommands`, `ssm:DescribeInstanceInformation` | Run the catalog's fixed read-only commands on managed Linux hosts, and read their output. |
@@ -59,6 +60,7 @@ attached.
 - `aws/readonly/capabilities/metrics.json`
 - `aws/readonly/capabilities/logs.json`
 - `aws/readonly/capabilities/changes.json`
+- `aws/readonly/capabilities/inventory.json`
 - `aws/readonly/capabilities/cost.json`
 - `aws/readonly/capabilities/cluster.json`
 - `aws/hosts/capability.json`

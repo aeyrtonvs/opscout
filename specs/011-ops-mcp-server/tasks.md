@@ -119,7 +119,7 @@ the run-time guard and the plugin's server definition.
 passes on the registry and fails on every planted tool. An undeclared call is refused
 before it is sent.
 
-- [ ] T012 [P] [US1] Write failing tests in `tests/unit/identity/test_capabilities.py` and
+- [X] T012 [P] [US1] Write failing tests in `tests/unit/identity/test_capabilities.py` and
   `tests/unit/identity/test_docs.py` for spec 010's amendment (research R4):
   - `changes` declares `cloudformation:DescribeStackEvents`;
   - a new capability, `inventory`, declares `tag:GetResources` and
@@ -130,7 +130,7 @@ before it is sent.
 
   Update the counts in spec 010's existing tests to the new totals. That is a change in
   the reference, not a weaker check: each assertion keeps its exact value.
-- [ ] T013 [US1] Amend spec 010's records. T012 passes.
+- [X] T013 [US1] Amend spec 010's records. T012 passes.
   - `src/opscout/data/identity/capabilities.json`;
   - `src/opscout/data/identity/aws/readonly/capabilities/changes.json`;
   - a new `src/opscout/data/identity/aws/readonly/capabilities/inventory.json`;
@@ -138,7 +138,7 @@ before it is sent.
   - spec 010's Actuals, with a dated note that spec 011 added the three reads.
 
   Then `uv run opscout identity check` must print `Pass.`.
-- [ ] T014 [P] [US1] Write failing tests in `tests/unit/mcp/test_surface.py`:
+- [X] T014 [P] [US1] Write failing tests in `tests/unit/mcp/test_surface.py`:
   - **The real registry** (FR-006, SC-001): `prove_surface(registry, records)` finds
     nothing.
   - **Planted tools** (FR-006): each of these fails, and the finding names the tool and the
@@ -151,16 +151,16 @@ before it is sent.
     - an action not in the catalog
     - `cloudwatch:*`
   - **Declarations** (FR-005): a tool with no cloud access declares none.
-- [ ] T015 [US1] Write `src/opscout/services/surface.py`. It reuses `Catalog`,
+- [X] T015 [US1] Write `src/opscout/services/surface.py`. It reuses `Catalog`,
   `readonly_identity` and `proves_allowed`, and refuses wildcards. T014 passes.
-- [ ] T016 [P] [US1] Write failing tests in `tests/unit/mcp/test_registry.py`:
+- [X] T016 [P] [US1] Write failing tests in `tests/unit/mcp/test_registry.py`:
   - **The registry** (FR-003, FR-005):
     - nine tools, named as in contracts/tools.md;
     - each has a description, an input schema and an output schema;
     - each declares exactly the actions in contracts/tools.md.
   - **No writes** (FR-008): during a call, the server opens no file for writing except
     through `CallLog`, checked by a test that records file opens.
-- [ ] T017 [P] [US1] Write failing contract tests in `tests/unit/mcp/test_server.py`,
+- [X] T017 [P] [US1] Write failing contract tests in `tests/unit/mcp/test_server.py`,
   through `mcp.Client` connected in-process to the `MCPServer` that
   `opscout.entrypoints.mcp.build_server` returns:
   - **Startup** (FR-002, SC-002): the server lists nine tools, whatever the configuration:
@@ -171,7 +171,7 @@ before it is sent.
     succeeds.
   - **Invalid configuration** (FR-004): every tool that needs it returns `invalid-config`,
     with the fix `opscout config validate`.
-- [ ] T018 [US1] Write the server, the CLI command and the handlers' skeleton. T016 and T017
+- [X] T018 [US1] Write the server, the CLI command and the handlers' skeleton. T016 and T017
   pass.
   - `src/opscout/services/tools/registry.py`: the nine specs and their handlers' skeletons.
   - `src/opscout/services/tools/envelope.py`: applies caps, redaction, timezone and
@@ -179,7 +179,7 @@ before it is sent.
   - `src/opscout/entrypoints/mcp.py`: `build_server(config_loader, gateway_factory,
     call_log)`. Every exception becomes a ToolError, and boto3 is imported lazily.
   - `opscout mcp [--mock DIR]` in `src/opscout/entrypoints/cli.py`.
-- [ ] T019 [P] [US1] Write failing tests in `tests/unit/mcp/test_aws_live.py` (FR-007),
+- [X] T019 [P] [US1] Write failing tests in `tests/unit/mcp/test_aws_live.py` (FR-007),
   with botocore's `Stubber`:
   - a call whose operation is not in `allowed` is refused before the stubbed response is
     consumed, with reason `undeclared-action`;
@@ -187,22 +187,22 @@ before it is sent.
   - the error mapping of research R8, each with its reason and fix;
   - a throttling error is retried once, then returns `throttled`;
   - the clients use a 5 s connect and 20 s read timeout and `standard` retries with
-    `max_attempts=2`;
+    `total_max_attempts=2` (one retry);
   - each environment's session and clients are created once under a lock, and eight
     threads asking for the same environment get the same clients (research R2).
-- [ ] T020 [US1] Write `src/opscout/adapters/aws_live.py`: one session per profile, the
+- [X] T020 [US1] Write `src/opscout/adapters/aws_live.py`: one session per profile, the
   `before-call` guard through `SERVICE_PREFIX`, the error mapping and the client
   configuration. T019 passes.
-- [ ] T021 [P] [US1] Write failing tests in `tests/unit/mcp/test_call_log.py` (FR-008,
+- [X] T021 [P] [US1] Write failing tests in `tests/unit/mcp/test_call_log.py` (FR-008,
   research R11):
   - one line per call, with the time, the tool, the environment, the outcome, the duration
     in ms and the redaction counts;
   - no argument value and no output appears in it, which a test plants a unique marker in
     both to check;
   - a log that cannot be written never fails the call.
-- [ ] T022 [US1] Write `src/opscout/adapters/call_log.py`, under the platform state
+- [X] T022 [US1] Write `src/opscout/adapters/call_log.py`, under the platform state
   directory. T021 passes.
-- [ ] T023 [P] [US1] Write failing tests in `tests/unit/mcp/test_plugin.py`:
+- [X] T023 [P] [US1] Write failing tests in `tests/unit/mcp/test_plugin.py`:
   - **The server definition** (FR-001, FR-029):
     - `plugins/opscout/.mcp.json` defines one stdio server, `opscout`, run by
       `${CLAUDE_PLUGIN_ROOT}/bin/opscout` with `["mcp"]`;
@@ -216,7 +216,7 @@ before it is sent.
     to the tool list is measured and asserted under 2 s. If it does not fit, the measured
     figure is recorded and SC-002 is revised with that evidence; the assertion is never
     dropped.
-- [ ] T024 [US1] Write `plugins/opscout/.mcp.json` and update `plugins/opscout/bin/opscout`.
+- [X] T024 [US1] Write `plugins/opscout/.mcp.json` and update `plugins/opscout/bin/opscout`.
   T023 passes. `uv run just plugin` still passes.
 
 ## Phase 4: User Story 2: an alert becomes structured facts and an environment (P1)
@@ -316,7 +316,7 @@ caps, redaction, timezone and identity.
 
 **Independent test**: every tool answers from `evals/mcp/aws/`, with sockets blocked.
 
-- [ ] T035 [P] [US4] Write failing tests in `tests/unit/mcp/test_fixtures.py`:
+- [X] T035 [P] [US4] Write failing tests in `tests/unit/mcp/test_fixtures.py`:
   - **Lookup** (FR-025): a fixture is found by
     `<environment>/<service-prefix>/<Action>.json`, the first `match` wins, and an `error`
     entry becomes the mapped GatewayError.
@@ -324,7 +324,7 @@ caps, redaction, timezone and identity.
     the file and the parameters, and nothing goes live. A test patches the live adapter to
     fail if it is called.
   - **Declarations** (FR-007): an action outside `allowed` is refused here too.
-- [ ] T036 [US4] Write `src/opscout/adapters/aws_fixtures.py`, and wire `--mock DIR` in
+- [X] T036 [US4] Write `src/opscout/adapters/aws_fixtures.py`, and wire `--mock DIR` in
   `src/opscout/entrypoints/mcp.py`. `DIR` is the root that holds `<environment>/`, so the
   shipped fixtures are passed as `--mock evals/mcp/aws`. T035 passes.
 - [ ] T037 [US4] Write the fixtures in `evals/mcp/aws/example-prod/` (FR-027), with fake

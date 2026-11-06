@@ -93,8 +93,12 @@ class AwsGateway(Protocol):
         action: str,
         params: Mapping[str, Any],
         allowed: frozenset[str],
+        remaining: float,
     ) -> Mapping[str, Any]:
         """Call ``action`` (``prefix:Operation``) and return its response.
+
+        ``remaining`` is how many seconds the tool's deadline leaves; the call may take its
+        read timeout beyond it, never more than ``remaining`` plus 10 seconds (research R7).
 
         Raises ``ToolError``: ``UNDECLARED_ACTION`` when ``action`` is not in ``allowed``,
         before anything is sent; otherwise the reason AWS or the transport gave.

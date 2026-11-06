@@ -100,7 +100,7 @@
  },
  {
   "name": "changes",
-  "purpose": "Find recent changes: the audit trail, deployments and scaling events.",
+  "purpose": "Find recent changes: the audit trail, stack events, deployments and scaling events.",
   "agents": [
    "alert-triage",
    "ask"
@@ -117,7 +117,8 @@
    "codedeploy:BatchGetDeployments",
    "autoscaling:DescribeScalingActivities",
    "rds:DescribeEvents",
-   "health:DescribeEvents"
+   "health:DescribeEvents",
+   "cloudformation:DescribeStackEvents"
   ],
   "reads": [
    "cloudtrail:LookupEvents",
@@ -128,7 +129,27 @@
    "codedeploy:BatchGetDeployments",
    "autoscaling:DescribeScalingActivities",
    "rds:DescribeEvents",
-   "health:DescribeEvents"
+   "health:DescribeEvents",
+   "cloudformation:DescribeStackEvents"
+  ]
+ },
+ {
+  "name": "inventory",
+  "purpose": "Find resources by tag, and the CloudFormation stack that owns a resource.",
+  "agents": [
+   "alert-triage",
+   "ask"
+  ],
+  "identity": "readonly",
+  "optional": false,
+  "grant": "actions",
+  "actions": [
+   "tag:GetResources",
+   "cloudformation:DescribeStackResources"
+  ],
+  "reads": [
+   "tag:GetResources",
+   "cloudformation:DescribeStackResources"
   ]
  },
  {

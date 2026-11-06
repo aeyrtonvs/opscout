@@ -163,7 +163,7 @@ def test_too_many_capability_files_exceed_the_attachment_limit(records: Records)
 
     report = prove(Tree(files), records)
 
-    assert "the read-only identity has 28 policies (limit 20)" in _messages(report, "too-large")
+    assert "the read-only identity has 29 policies (limit 20)" in _messages(report, "too-large")
 
 
 @spec("FR-012")

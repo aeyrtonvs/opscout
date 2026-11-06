@@ -79,6 +79,7 @@ class ErrorReason(StrEnum):
     NOT_SUPPORTED = "not-supported"
     INVALID_INPUT = "invalid-input"
     FIXTURE_MISSING = "fixture-missing"
+    INTERNAL = "internal-error"
 
     def describe(self) -> str:
         """The fixed first part of every message with this reason."""
@@ -100,6 +101,7 @@ _DESCRIPTIONS: Final[Mapping[ErrorReason, str]] = {
     ErrorReason.NOT_SUPPORTED: "not supported",
     ErrorReason.INVALID_INPUT: "invalid input",
     ErrorReason.FIXTURE_MISSING: "no fixture matches this call",
+    ErrorReason.INTERNAL: "the tool failed unexpectedly",
 }
 
 _FIXES: Final[Mapping[ErrorReason, str]] = {

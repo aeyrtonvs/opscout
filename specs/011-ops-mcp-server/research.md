@@ -100,7 +100,9 @@ Checked with spec 010's evaluator:
   `<dir>/<environment>/<service-prefix>/<Action>.json`, where `<dir>` is the directory
   passed to `--mock`. Each file holds a list of
   `{"match": {<request parameter subset>}, "response": {...}}` or
-  `{"match": {...}, "error": {"code": ..., "message": ...}}`. The first match wins. With no
+  `{"match": {...}, "error": {"reason": ..., "fix": ...}}`, where `reason` is a tool error
+  reason (data-model.md). The first match wins. Timestamps written as ISO 8601 with an
+  offset become datetimes, as botocore returns them. With no
   file or no match, the error names the file and the parameters it looked for, and nothing
   falls back to a live call. The same `before-call` declaration check runs, so a tool
   cannot read a fixture for an action it did not declare.
@@ -176,8 +178,9 @@ botocore's errors map to fixed reasons:
 | `ClientError` with a throttling code | throttled | none |
 | `ClientError` with `AccessDenied*` or `UnauthorizedOperation` | the identity does not allow it | none; the result names the action |
 
-Throttling uses botocore's `standard` retry mode with `max_attempts=2`: one retry, after the
-delay botocore computes. No error stops the server.
+Throttling uses botocore's `standard` retry mode with `total_max_attempts=2`: one retry,
+after the delay botocore computes. (botocore reads `max_attempts` as retries, so
+`max_attempts=2` would be three calls; found in T019.) No error stops the server.
 
 ## R9. Configuration (FR-014 to FR-016)
 

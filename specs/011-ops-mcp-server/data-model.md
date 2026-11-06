@@ -57,7 +57,8 @@ of `formats` is the order of precedence.
 - **ToolError**: the `reason` (an enum: `not-configured`, `invalid-config`,
   `unknown-environment`, `profile-missing`, `login-expired`, `no-credentials`,
   `unreachable`, `throttled`, `denied`, `undeclared-action`, `not-found`, `not-supported`,
-  `invalid-input`, `fixture-missing`), the `message`, and an optional `fix`, the command
+  `invalid-input`, `fixture-missing`, `internal-error` for any other failure, whose
+  message names only the exception's type), the `message`, and an optional `fix`, the command
   to run.
 - **ParsedAlert**: `format` (the name), `fields` (a map from field to `{value, source}`)
   and `also_matched` (the names of later formats that matched too). Or `NoMatch`.

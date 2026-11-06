@@ -13,7 +13,8 @@
         "codedeploy:BatchGetDeployments",
         "autoscaling:DescribeScalingActivities",
         "rds:DescribeEvents",
-        "health:DescribeEvents"
+        "health:DescribeEvents",
+        "cloudformation:DescribeStackEvents"
       ],
       "Resource": "*"
     }
