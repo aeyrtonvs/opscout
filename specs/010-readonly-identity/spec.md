@@ -146,8 +146,9 @@ fixed, read-only commands: load and uptime, memory, disk usage, the processes th
 most CPU or memory (names only, without arguments), the state of a named service, the last
 lines of a named service's log, and the listening ports. Any parameter is constrained to a
 pattern, such as a service name or a bounded line count, so it cannot carry a command. The
-identity can send only these documents. An interactive session, a generic shell document, an
-automation and a temporary SSH key are all denied.
+host identity, kept separate from the read-only one, can send only these documents. An
+interactive session, a generic shell document, an automation and a temporary SSH key are all
+denied.
 
 **Why this priority**: hosts are where a shell would turn an injected instruction into an
 action (ADR-0010, layer 2). Alert triage needs host facts, but it comes after US1 and US2.
@@ -297,9 +298,9 @@ or role to choose, the ones never to choose, and how to confirm the result.
   maximum permissions, so that a policy attached later by mistake cannot add a mutation or
   a secret read.
 - **FR-003**: Each named exception to "every write is denied" MUST state its reason and
-  narrow its resources. The known exceptions are sending a catalog document to managed
-  instances, and starting and stopping read-only log queries if AWS classifies them as
-  writes.
+  narrow its resources. The only known exception is sending a catalog document to managed
+  instances, which belongs to the host identity (FR-009). Log queries are reads (research
+  R1).
 - **FR-004**: The capabilities MUST be listed with their purpose, the planned agents that use
   them and their actions: configuration metadata, metrics and alarms, log queries, recent
   changes, cost and usage, cluster access, and host commands. Configuration metadata is
@@ -320,9 +321,11 @@ or role to choose, the ones never to choose, and how to confirm the result.
   list of values that cannot express a shell metacharacter, a path or a command. No document
   may print environment variables, read a file named by a parameter, or run a command
   outside the allowed list.
-- **FR-009**: The AWS documents MUST let the identity send only catalog documents, and MUST
-  deny the generic shell and PowerShell documents, sessions, automations and temporary SSH
-  keys.
+- **FR-009**: Host commands MUST belong to a separate, optional host identity in the same
+  account, whose own cap allows only the host capability. The read-only identity's cap
+  admits no write, so it cannot send commands (research R2). The AWS documents MUST let the
+  host identity send only catalog documents, and MUST deny both identities the generic
+  shell and PowerShell documents, sessions, automations and temporary SSH keys.
 
 #### Clusters
 
@@ -335,9 +338,9 @@ or role to choose, the ones never to choose, and how to confirm the result.
 - **FR-011**: A check MUST evaluate the AWS documents as AWS evaluates identity policies
   (explicit deny, then allow, otherwise deny), including the cap on maximum permissions,
   action wildcards, resources and the conditions the documents use. It MUST evaluate them
-  over a recorded catalog of every AWS action with its access level, and over a recorded
-  copy of the AWS-maintained view-only policy's current version. The source, version and
-  date of each MUST be recorded.
+  over a recorded catalog of every AWS action with its access level, and over recorded
+  copies of the current versions of the two AWS-maintained policies: the view-only grant
+  and the read-only cap. The source, version and date of each MUST be recorded.
 - **FR-012**: The check MUST fail, naming the action, the statement and the capability, when
   a listed secret or credential action is allowed; when a write, permissions-management or
   tagging action is allowed and is not a named exception within its resources; when a
@@ -379,6 +382,8 @@ or role to choose, the ones never to choose, and how to confirm the result.
 
 - **Capability**: a named group of read permissions, with a purpose and the planned agents
   that use it. It is the unit the identity grants and the agents declare.
+- **Identities**: the read-only identity, which every agent uses, and the optional host
+  identity, which can only send catalog documents; one of each per environment.
 - **Guardrail**: the explicit denies and the cap on maximum permissions that hold whatever
   else is attached.
 - **Exception**: a write action the identity needs, with its reason and narrowed resources.
