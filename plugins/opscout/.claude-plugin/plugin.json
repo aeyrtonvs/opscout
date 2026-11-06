@@ -13,8 +13,8 @@
     "config_dir": {
       "type": "directory",
       "title": "Configuration directory",
-      "description": "The directory that holds your private opscout configuration, usually a clone of your private configuration repository.",
-      "required": true
+      "description": "The directory that holds your private opscout configuration, usually a clone of your private configuration repository. Leave it empty to use OPSCOUT_CONFIG or ~/.config/opscout.",
+      "default": ""
     }
   }
 }

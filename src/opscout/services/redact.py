@@ -54,6 +54,14 @@ _BEARER = re.compile(r"(?i)\b(bearer\s+)[A-Za-z0-9._~+/=-]{8,}")
 _SECRET_KEY = re.compile(rf"(?i)(?:{_NAMES})|(?<![a-z])auth(?![a-z])|authorization")
 """A key or pair name whose value is hidden whole (spec 011, research R6)."""
 _SECRET_LIKE = re.compile(r"(?<![\w+=])(?=[\w+=]*\d)(?=[\w+=]*[A-Za-z])[\w+=]{32,}(?![\w+=])")
+_IDENTIFIER = re.compile(
+    r"\barn:aws[\w-]*:[\w-]+:[\w-]*:\d{0,12}:[\w/+.@:-]+(?![\w/+.@:=-])"
+    r"|(?<=\btask )[0-9a-f]{32}(?![\w=])"
+)
+"""An ARN or an ECS task ID: it says where something is, which rule 3 allows, so the rules
+for secret shapes skip it; the other rules still apply (spec 011, SC-006). An ARN followed
+by ``=`` is not one, so ``arn:…/password=value`` is still redacted."""
+_STASHED = re.compile("\x00(\\d+)\x00")
 
 
 OPTIONAL_KINDS: Final = frozenset({"account-id", "ip", "email"})
@@ -78,6 +86,26 @@ def redact(
 
         return pattern.sub(marker, value)
 
+    def general(value: str) -> str:
+        """The rules that apply to any text, identifiers included."""
+        for kind, pattern in RULES[3:]:
+            if kind not in keep:
+                value = replace(kind, pattern, value)
+        for term in terms:
+            # Any case, anywhere: inside a longer word, and with the words of a term joined
+            # by spaces, hyphens, underscores or nothing ("Example Corp", "examplecorp_api").
+            words = r"[\s_-]*".join(re.escape(word) for word in term.split())
+            value = replace("deny-listed", re.compile(rf"(?i){words}"), value)
+        return value
+
+    stashed: list[str] = []
+
+    def stash(match: re.Match[str]) -> str:
+        stashed.append(match.group(0))
+        return f"\x00{len(stashed) - 1}\x00"
+
+    # A NUL in the text could pose as a stash marker; text never needs one.
+    text = _IDENTIFIER.sub(stash, text.replace("\x00", ""))
     for kind, pattern in RULES[:3]:
         text = replace(kind, pattern, text)
 
@@ -88,15 +116,8 @@ def redact(
     text = _ASSIGNMENT.sub(assignment, text)
     text = _FLAG.sub(assignment, text)
     text = _BEARER.sub(assignment, text)
-    for kind, pattern in RULES[3:]:
-        if kind not in keep:
-            text = replace(kind, pattern, text)
-    for term in terms:
-        # Any case, anywhere: inside a longer word, and with the words of a term joined by
-        # spaces, hyphens, underscores or nothing ("Example Corp", "examplecorp_api").
-        words = r"[\s_-]*".join(re.escape(word) for word in term.split())
-        text = replace("deny-listed", re.compile(rf"(?i){words}"), text)
-    return replace("secret-like", _SECRET_LIKE, text), counts
+    text = replace("secret-like", _SECRET_LIKE, general(text))
+    return _STASHED.sub(lambda match: general(stashed[int(match.group(1))]), text), counts
 
 
 _PAIRS: Final = (

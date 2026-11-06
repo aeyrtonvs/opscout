@@ -23,7 +23,7 @@ alert tools work, and every AWS tool answers `not-configured`.
 | `resolve_environment` | The environment an alert belongs to, by account ID, name or alias; or "out of scope", with what did not match. |
 | `read_alarm` | A CloudWatch alarm's state, reason, threshold and state changes, and its metric over the window. |
 | `read_metric` | A metric's data points, by namespace, name, dimensions, statistic and period. |
-| `query_logs` | The rows and statistics of a Logs Insights query over one to ten log groups. A query still running at the wait limit is stopped and marked partial. |
+| `query_logs` | The rows and statistics of a Logs Insights query over one to ten log groups. The rows are capped by `log_rows` or the query's own `limit`, whichever is smaller; `@timestamp` and `@ingestionTime` are given in the configured timezone. A query still running at the wait limit is stopped and marked partial. |
 | `recent_changes` | Who changed what, when, newest first: API activity that changed something, stack events, and deployments, scaling activities or database events for a given resource. |
 | `find_resources` | Resources found by name, tag or type. Only tagged resources appear, because the tagging API lists only those. |
 | `describe_resource` | One resource's reviewed configuration. |
@@ -81,6 +81,9 @@ Before a result reaches the model, every string in it is redacted:
   is secret-sounding, as AWS returns tags, stack outputs and parameters.
 - **Kept by default:** account IDs, IP addresses and e-mail addresses, because an
   investigation needs them as evidence. Turn on their redaction in `tools.redact`.
+- **Identifiers:** an ARN or an ECS task ID says where something is, so the rules for
+  secret shapes skip it; the other rules, such as account IDs and the deny-list, still
+  apply to it.
 
 ## Caps and the deadline
 

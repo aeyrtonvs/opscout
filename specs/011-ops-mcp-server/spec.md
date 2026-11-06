@@ -434,4 +434,22 @@ unreachable region, and call every tool.
   secret-named tags, unredacted error messages, a data-points cap that could not fire,
   and two deadline gaps; and two LOW ones. Each was reproduced as a test and fixed
   (tasks.md, T045).
-- **The live run** (SC-006, quickstart step 6) is not done yet. PLAN.md §9 holds it.
+- **The live run** (SC-006, 2026-11-06): passed against one sandbox environment, run with
+  the user's own SSO role, so every result said "own identity, not verified". Through the
+  launcher, ten calls covered every AWS tool, each within 4 s. Then, in a headless Claude
+  Code session with the plugin loaded from the clone, the model read an alarm, a log
+  query, recent changes and an ECS service through the tools, each result naming its
+  environment and identity kind. It found four faults, each reproduced as a test and fixed
+  (tasks.md, T052):
+  - Claude Code does not start a plugin's MCP server whose definition names an unset
+    option (`Plugin option "config_dir" isn't set`), and it gives MCP servers no
+    `CLAUDE_PLUGIN_OPTION_*` variables. `config_dir` is now optional with an empty
+    default, which the server reads as "use the usual resolution order";
+  - StartQuery's `limit` overrode a smaller `limit` in the query (asked 20, got 90);
+  - `@timestamp` and `@ingestionTime` came in UTC without an offset (FR-013);
+  - ECS task IDs and ARNs, a Secrets Manager secret's included, were redacted as secret
+    shapes, which hid where things are.
+- **Seen in the live run, for the next spec**: in an account with SSM-managed instances, the
+  last 24 hours of API changes are mostly agent heartbeats (`UpdateInstanceInformation`,
+  `PutInventory`), which fill the change cap. Alert triage should ask for changes to a
+  resource, or filter by source.
