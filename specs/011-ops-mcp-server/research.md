@@ -88,7 +88,7 @@ Checked with spec 010's evaluator:
     `cloudformation:DescribeStackResources`. `opscout identity check` must still pass,
     and its counts change: reads go from 42 to 45, and policies from 8 to 9.
 
-## R5. Fixtures and mock mode (FR-024 to FR-026)
+## R5. Fixtures and mock mode (FR-025 to FR-027)
 
 - **Decision**: a second gateway adapter answers from a directory:
   `<dir>/<environment>/<service-prefix>/<Action>.json`. Each file holds a list of
@@ -160,7 +160,7 @@ botocore's errors map to fixed reasons:
 Throttling uses botocore's `standard` retry mode with `max_attempts=2`: one retry, after the
 delay botocore computes. No error stops the server.
 
-## R9. Configuration (FR-013 to FR-016)
+## R9. Configuration (FR-014 to FR-016)
 
 Three new optional sections in schema version 1, each an additive change (spec 002, ADR-0014):
 
