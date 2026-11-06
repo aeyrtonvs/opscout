@@ -72,8 +72,10 @@ Every tool returns the same envelope:
 
 Before a result reaches the model, every string in it is redacted:
 
-- **Always:** private keys, connection strings, credentials and access keys, values
-  assigned to secret-sounding names, secret-shaped values, and phone numbers.
+- **Always:** private keys, connection strings, credentials and access keys, bearer
+  tokens, values assigned to secret-sounding names (in `name=value`, `"name": "value"` and
+  `--name value` forms), secret-shaped values, and phone numbers. Error messages are
+  redacted too.
 - **Secret-named values:** a key named like a secret (`password`, `token`, `api_key` and
   the like) has its value replaced by `[secret]`. So does a name-and-value pair whose name
   is secret-sounding, as AWS returns tags, stack outputs and parameters.
@@ -104,6 +106,7 @@ How the caps apply:
 - **Oversized results:** whole items are dropped from the end of the result until it fits
   `result_chars`.
 - **Long alerts:** alert text beyond 20,000 characters is cut (`alert_chars`).
+- **Data points:** a series keeps its newest points.
 - **The deadline:** every call has a 45-second deadline. Past it, the tool makes no further
   AWS call and returns what it has, marked `partial`. Every tool returns within 60 seconds.
 
@@ -150,7 +153,7 @@ they do for the AWS CLI. opscout stores no credential.
 | `login-expired` | The single sign-on login expired. | `aws sso login --profile <profile>` |
 | `no-credentials` | No credentials were found for the profile. | — |
 | `unreachable` | AWS could not be reached, or failed. | — |
-| `throttled` | AWS throttled the call; botocore retried once. | — |
+| `throttled` | AWS throttled the call; botocore retried once if time allowed. | — |
 | `denied` | The identity does not allow the call. The message names the action. | — |
 | `undeclared-action` | A tool tried an action it did not declare. This is a defect in opscout. | — |
 | `not-found` | No such alarm, metric, log group or resource. | — |

@@ -47,6 +47,8 @@ def _datapoints(
     window: Window,
 ) -> tuple[list[dict[str, Any]], list[Capped]]:
     limit = call.caps.default("datapoints")
+    # Newest first, one more than the cap: the cap then drops the oldest points, and a
+    # point beyond it, or a next page, shows that something was dropped (review M3).
     response = call.aws(
         environment,
         region,
@@ -56,8 +58,8 @@ def _datapoints(
         ],
         StartTime=window.start,
         EndTime=window.end,
-        ScanBy="TimestampAscending",
-        MaxDatapoints=limit,
+        ScanBy="TimestampDescending",
+        MaxDatapoints=limit + 1,
     )
     results = response.get("MetricDataResults", [])
     points: list[dict[str, Any]] = []
@@ -68,10 +70,13 @@ def _datapoints(
                 results[0].get("Timestamps", []), results[0].get("Values", []), strict=False
             )
         ]
+    points.sort(key=lambda point: point["time"], reverse=True)
     capped = []
-    if len(points) > limit:
-        capped.append(Capped("datapoints", limit, len(points) - limit))
+    if len(points) > limit or response.get("NextToken"):
+        # ``dropped`` is a lower bound when AWS has a further page.
+        capped.append(Capped("datapoints", limit, max(len(points) - limit, 1)))
         points = points[:limit]
+    points.reverse()
     return points, capped
 
 

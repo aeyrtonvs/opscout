@@ -8,7 +8,7 @@ hold the values a change set, such as a task definition's environment.
 
 import json
 from collections.abc import Callable, Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Final
 
 from opscout.core.config import AwsEnvironment
@@ -129,6 +129,15 @@ def _stacks(
     return changes, more
 
 
+_NO_TIME: Final = datetime.min.replace(tzinfo=UTC)
+
+
+def _newest(change: dict[str, Any]) -> datetime:
+    """Sort key: a change without a time sorts last (review L1)."""
+    time: datetime | None = change["time"]
+    return time if time is not None else _NO_TIME
+
+
 def _short(resource: str) -> str:
     """The last part of a name or ARN: ``cluster/service`` or an ARN gives ``service``."""
     return resource.rstrip("/").rsplit("/", 1)[-1].rsplit(":", 1)[-1]
@@ -242,12 +251,12 @@ def recent_changes(call: Call) -> Outcome:
         except DeadlineReachedError:
             partial = True
             break
-        found.sort(key=lambda change: change["time"], reverse=True)
+        found.sort(key=_newest, reverse=True)
         if len(found) > items:
             capped.append(Capped(f"change_items:{name}", items, len(found) - items))
             more[name] = True
         changes += found[:items]
-    changes.sort(key=lambda change: change["time"], reverse=True)
+    changes.sort(key=_newest, reverse=True)
     return Outcome(
         data={"changes": changes, "more": more},
         environment=environment,

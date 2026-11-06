@@ -59,6 +59,19 @@ _INVALID: Final = ("Validation", "InvalidParameter", "MalformedQuery", "InvalidQ
 SessionFactory = Callable[[str], Any]
 
 
+def budget(remaining: float) -> tuple[int, int]:
+    """The read timeout and attempts for a call made with ``remaining`` seconds left.
+
+    Every attempt, connect plus read, must fit in the time left plus the grace, so a call
+    never runs past the deadline by more than ``GRACE`` (research R7, review M4). A retry,
+    for throttling or a timeout, is allowed only when two full attempts fit.
+    """
+    available = max(remaining, 0) + GRACE
+    if available >= 2 * (CONNECT_TIMEOUT + READ_TIMEOUT) + 2:
+        return READ_TIMEOUT, 2
+    return max(1, min(READ_TIMEOUT, math.floor(available - CONNECT_TIMEOUT))), 1
+
+
 def _profile_session(profile: str) -> Any:
     return boto3.session.Session(profile_name=profile)
 
@@ -109,7 +122,7 @@ class LiveGateway:
     def __init__(self, session_factory: SessionFactory = _profile_session) -> None:
         self._session_factory = session_factory
         self._sessions: dict[str, Any] = {}
-        self._clients: dict[tuple[str, str, str, int], Any] = {}
+        self._clients: dict[tuple[str, str, str, int, int], Any] = {}
         self._lock = threading.Lock()
         self._local = threading.local()
 
@@ -134,8 +147,8 @@ class LiveGateway:
     ) -> Any:
         """The client for this environment, region and service, with a read timeout that
         fits the time ``remaining``; created once and shared across threads."""
-        timeout = min(READ_TIMEOUT, 5 * math.ceil((max(remaining, 0) + GRACE) / 5))
-        key = (environment.profile, region, service, timeout)
+        timeout, attempts = budget(remaining)
+        key = (environment.profile, region, service, timeout, attempts)
         with self._lock:
             if key not in self._clients:
                 if environment.profile not in self._sessions:
@@ -146,7 +159,7 @@ class LiveGateway:
                     config=Config(
                         connect_timeout=CONNECT_TIMEOUT,
                         read_timeout=timeout,
-                        retries={"mode": "standard", "total_max_attempts": 2},
+                        retries={"mode": "standard", "total_max_attempts": attempts},
                     ),
                 )
                 client.meta.events.register_first("before-parameter-build", self._guard)

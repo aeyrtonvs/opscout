@@ -159,9 +159,13 @@ Hard ceilings live in code. The configuration may lower them, never raise them.
 - **Timeouts**: each AWS call gets a 5-second connect timeout and a 20-second read timeout.
 - **Deadline**: every tool call has a 45-second deadline, checked before each AWS call.
   Past it, the tool makes no further call and returns what it has, marked `partial`.
-  - The log query's wait is cut to fit the deadline.
-  - A call in flight at the deadline can still take its read timeout, so that timeout
-    shrinks to the time left plus 10 seconds, never more than 20.
+  - The log query's wait is measured by the clock, polls included, and ends 12 seconds
+    before the deadline, which leaves time to stop the query.
+  - Each AWS call gets a budget: the time left plus 10 seconds. Every attempt, connect
+    plus read, fits in it. There is one retry only when two full attempts fit; otherwise
+    the read timeout is the budget minus the connect timeout, at most 20 seconds.
+  - A handler stopped by the deadline keeps its environment, and returns what it found
+    where it can (review M4, M5).
 
   Every tool therefore returns within about 55 seconds, under SC-003's 60.
 
@@ -178,8 +182,9 @@ botocore's errors map to fixed reasons:
 | `ClientError` with a throttling code | throttled | none |
 | `ClientError` with `AccessDenied*` or `UnauthorizedOperation` | the identity does not allow it | none; the result names the action |
 
-Throttling uses botocore's `standard` retry mode with `total_max_attempts=2`: one retry,
-after the delay botocore computes. (botocore reads `max_attempts` as retries, so
+Throttling uses botocore's `standard` retry mode with `total_max_attempts=2`, one retry
+after the delay botocore computes, when the call's budget fits two attempts; with less time
+left, a call gets one attempt (R7). (botocore reads `max_attempts` as retries, so
 `max_attempts=2` would be three calls; found in T019.) No error stops the server.
 
 ## R9. Configuration (FR-014 to FR-016)

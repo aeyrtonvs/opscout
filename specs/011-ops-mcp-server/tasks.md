@@ -383,8 +383,30 @@ caps, redaction, timezone and identity.
   map lists `.mcp.json` and `evals/mcp/`.
 - [X] T044 Run `uv run just check` and `uv run just coverage` (100 % on `core` and
   `services`). Run the quickstart's steps 1 to 5.
-- [ ] T045 Converge, then run the independent review of the diff in a fresh context. Record
+- [X] T045 Converge, then run the independent review of the diff in a fresh context. Record
   the findings and fixes in this file, each reproduced as a test before its fix.
+  Converge (2026-11-06) appended T048–T050, done. The independent review (a fresh agent,
+  2026-11-06) found the read-only guard sound and no real data. Its seven findings were
+  each reproduced in `tests/unit/mcp/test_review.py` before the fix:
+  - **H1**: redaction missed common secret shapes, and `query_logs` sends application logs
+    through it. The missed shapes: JSON-quoted keys (`"DB_PASSWORD":"x"`), `PWD` and
+    `PASS` names, `--password x` flags, `Bearer` tokens, and a password with a `/` in a
+    connection string. All are now redacted, and ordinary words (`author`, `passport`)
+    still pass.
+  - **M1**: tags and keys named `DB_PASS`, `AdminPwd`, `auth` or `DbCredentials` kept
+    their values. Their values are now hidden.
+  - **M2**: error messages reached the model unredacted. They are now redacted and counted.
+  - **M3**: the data-points cap could not fire against real AWS, and it would have kept the
+    oldest points. The series is now read newest first, one point past the cap, and the
+    cap is recorded.
+  - **M4**: the read timeout's rounding, plus a retry, could pass 60 s. Each attempt now
+    fits the call's budget, and a retry is allowed only when two attempts fit.
+  - **M5**: a deadline threw away a log query's rows, its environment and its StopQuery,
+    because the wait was measured by sleeps alone. The wait is now measured by the clock,
+    with a margin for StopQuery, and a stopped handler keeps its environment and what it
+    found.
+  - **L1**: a change with no time crashed the sort.
+  - **L2**: sliced matches were not recorded, and only one page of ECS clusters was read.
 - [ ] T046 Check the staged diff for real data (rule 2). Only reserved values and the
   allow-listed fake account ID may appear. No real alert text, profile, region choice or
   timezone from the private configuration.

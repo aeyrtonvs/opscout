@@ -161,11 +161,11 @@ def test_an_unexpected_exception_is_not_mapped() -> None:
 
 @spec("FR-004")
 def test_clients_use_the_timeouts_and_standard_retries(gateway: LiveGateway) -> None:
-    config: Any = gateway.client(PROD, "us-east-1", "logs", 40.0).meta.config
+    config: Any = gateway.client(PROD, "us-east-1", "logs", 45.0).meta.config
     assert (config.connect_timeout, config.read_timeout) == (5, 20)
     assert config.retries == {"mode": "standard", "total_max_attempts": 2}
     near: Any = gateway.client(PROD, "us-east-1", "logs", 2.0).meta.config
-    assert near.read_timeout == 15
+    assert (near.read_timeout, near.retries["total_max_attempts"]) == (7, 1)
 
 
 @spec("FR-004")

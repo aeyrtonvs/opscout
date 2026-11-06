@@ -14,7 +14,7 @@ from opscout.core.aws import RESOURCE_TYPES
 from opscout.core.config import AwsEnvironment
 from opscout.core.tools import Capped, ErrorReason, ToolError
 from opscout.services.tools.alarms import alarm_summary
-from opscout.services.tools.runtime import Call, Outcome
+from opscout.services.tools.runtime import Call, DeadlineReachedError, Outcome
 
 TAG_TYPES: Final[Mapping[str, str]] = {
     "ecs-service": "ecs:service",
@@ -39,6 +39,7 @@ _ARN_TYPES: Final = (
     ("lambda", "function:", "lambda-function"),
 )
 TAG_PAGES: Final = 5
+CLUSTER_PAGES: Final = 5
 EVENTS: Final = 10
 _INSTANCE_ID = re.compile(r"^i-[0-9a-f]{8,17}$")
 NO_STACK: Final = "described only through its CloudFormation stack"
@@ -117,13 +118,25 @@ def _ecs(call: Call, env: AwsEnvironment, region: str, name: str) -> dict[str, A
     service = parts[-1]
     clusters = [parts[-2]] if len(parts) > 1 else []
     if not clusters:
-        listed = call.aws(env, region, "ecs:ListClusters", maxResults=100)
-        clusters = [arn.rsplit("/", 1)[-1] for arn in listed.get("clusterArns", [])]
+        token: str | None = None
+        for _ in range(CLUSTER_PAGES):
+            page = {"nextToken": token} if token else {}
+            listed = call.aws(env, region, "ecs:ListClusters", maxResults=100, **page)
+            clusters += [arn.rsplit("/", 1)[-1] for arn in listed.get("clusterArns", [])]
+            token = listed.get("nextToken")
+            if not token:
+                break
     matches: list[dict[str, Any]] = []
     for cluster in clusters:
-        response = call.aws(
-            env, region, "ecs:DescribeServices", cluster=cluster, services=[service]
-        )
+        try:
+            response = call.aws(
+                env, region, "ecs:DescribeServices", cluster=cluster, services=[service]
+            )
+        except DeadlineReachedError:
+            if not matches:
+                raise
+            call.partial = True  # what was found so far is returned (review M5)
+            break
         for found in response.get("services", []):
             network = (found.get("networkConfiguration") or {}).get("awsvpcConfiguration", {})
             matches.append(
@@ -173,7 +186,7 @@ def _ecs(call: Call, env: AwsEnvironment, region: str, name: str) -> dict[str, A
                 }
             )
     if len(matches) > 1:
-        return {"matches": matches[: call.caps.default("resources")]}
+        return {"matches": matches}
     if matches:
         return matches[0]
     raise ToolError(ErrorReason.NOT_FOUND, f"no ECS service {service} in {env.name}")
@@ -283,7 +296,7 @@ def _ec2(call: Call, env: AwsEnvironment, region: str, name: str) -> dict[str, A
     if not instances:
         raise ToolError(ErrorReason.NOT_FOUND, f"no EC2 instance {name} in {env.name}")
     if len(instances) > 1:
-        return {"matches": instances[: call.caps.default("resources")]}
+        return {"matches": instances}
     return instances[0]
 
 
@@ -475,8 +488,13 @@ def describe_resource(call: Call) -> Outcome:
     if not isinstance(name, str) or not name:
         raise ToolError(ErrorReason.INVALID_INPUT, "name is required")
     described = _DESCRIBERS[kind](call, environment, region, name)
+    capped = []
+    limit = call.caps.default("resources")
+    if len(described.get("matches", [])) > limit:
+        capped.append(Capped("resources", limit, len(described["matches"]) - limit))
+        described["matches"] = described["matches"][:limit]
     if "stack" in described or "matches" in described:
         data = {"type": kind, **described}
     else:
         data = {"type": kind, "configuration": described}
-    return Outcome(data=data, environment=environment)
+    return Outcome(data=data, environment=environment, capped=capped)

@@ -9,6 +9,8 @@ from opscout.services.tools.runtime import Call, Outcome
 MAX_QUERY_CHARS: Final = 10_000
 MAX_GROUPS: Final = 10
 POLL_SECONDS: Final = 1.0
+STOP_MARGIN: Final = 12.0
+"""Seconds kept for StopQuery before the deadline."""
 _RUNNING: Final = frozenset({"Scheduled", "Running", "Unknown"})
 
 
@@ -63,15 +65,18 @@ def query_logs(call: Call) -> Outcome:
             raise ToolError(ErrorReason.NOT_FOUND, f"a log group does not exist{hint}") from None
         raise
     query_id = started["queryId"]
-    waited = 0.0
-    wait = min(call.caps.default("log_wait_seconds"), max(call.remaining() - 5, 0))
+    # The wait is measured by the clock, polls included, and stops early enough to leave
+    # time for StopQuery inside the deadline (review M5).
+    wait = min(call.caps.default("log_wait_seconds"), max(call.remaining() - STOP_MARGIN, 0))
+    wait_until = call.clock() + wait
     while True:
         response = call.aws(environment, region, "logs:GetQueryResults", queryId=query_id)
         status = response.get("status", "Unknown")
-        if status not in _RUNNING or waited >= wait:
+        if status not in _RUNNING:
+            break
+        if call.clock() >= wait_until or call.remaining() < STOP_MARGIN:
             break
         call.sleep(POLL_SECONDS)
-        waited += POLL_SECONDS
     partial = status in _RUNNING
     if partial:
         call.aws(environment, region, "logs:StopQuery", queryId=query_id)

@@ -69,6 +69,10 @@ class Call:
     deadline: float
     clock: Callable[[], float] = time.monotonic
     sleep: Callable[[float], None] = time.sleep
+    resolved: AwsEnvironment | None = None
+    """The environment this call resolved, kept if the deadline stops the handler."""
+    partial: bool = False
+    """Set by a handler that stopped early but still returns what it found."""
 
     def argument(self, name: str) -> Any:
         """The argument, or None when it was not given."""
@@ -81,7 +85,8 @@ class Call:
         name = self.argument("environment")
         if not isinstance(name, str) or not name:
             raise ToolError(ErrorReason.INVALID_INPUT, "environment is required")
-        return find_environment(self.config.aws, name)
+        self.resolved = find_environment(self.config.aws, name)
+        return self.resolved
 
     def region(self, environment: AwsEnvironment) -> str:
         """The region the call names, or the environment's default."""
@@ -140,17 +145,19 @@ class ToolContext:
             return self._gateway
 
 
-def _error_result(error: ToolError, zone: ZoneInfo) -> dict[str, Any]:
+def _error_result(error: ToolError, zone: ZoneInfo, keep: frozenset[str]) -> dict[str, Any]:
+    """The failure as a tool returns it; its message is redacted like data (review M2)."""
+    rendered, counts = redact_structure(error.render(), keep)
     return {
         "environment": None,
         "identity": None,
         "timezone": zone.key,
         "window": None,
         "capped": [],
-        "redacted": {},
+        "redacted": counts,
         "partial": False,
         "data": None,
-        "error": error.render(),
+        "error": rendered,
     }
 
 
@@ -190,10 +197,12 @@ def run_tool(
     spec = (specs or {tool.name: tool for tool in registry.REGISTRY})[name]
     started = context.clock()
     zone = ZoneInfo("UTC")
+    keep = kept_kinds(None)
     environment: str | None = None
     try:
         config = context.config_loader()
         zone = tool_timezone(config)
+        keep = kept_kinds(config)
         caps = Caps.from_config(config.tools.caps) if config else Caps()
         call = Call(
             spec=spec,
@@ -210,7 +219,8 @@ def run_tool(
         try:
             outcome = handler(call)
         except DeadlineReachedError:
-            outcome = Outcome(data={}, partial=True)
+            outcome = Outcome(data={}, environment=call.resolved, partial=True)
+        outcome.partial = outcome.partial or call.partial
         environment = outcome.environment.name if outcome.environment else None
         result = _render(outcome, call)
         failed = False
@@ -220,14 +230,15 @@ def run_tool(
         result = _error_result(
             ToolError(ErrorReason.INVALID_CONFIG, f"{count} problem(s) in the configuration"),
             zone,
+            keep,
         )
         failed, status = True, ErrorReason.INVALID_CONFIG.value
     except ToolError as error:
-        result = _error_result(error, zone)
+        result = _error_result(error, zone, keep)
         failed, status = True, error.reason.value
     except Exception as error:  # every other failure stays inside this call (FR-004)
         logger.exception("tool %s failed", name)
-        result = _error_result(ToolError(ErrorReason.INTERNAL, type(error).__name__), zone)
+        result = _error_result(ToolError(ErrorReason.INTERNAL, type(error).__name__), zone, keep)
         failed, status = True, ErrorReason.INTERNAL.value
     entry = CallEntry(
         time=context.now(),

@@ -10,7 +10,10 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any, Final
 
-_NAMES = r"password|passwd|secret|token|api[_-]?key|apikey|access[_-]?key|private[_-]?key"
+_NAMES = (
+    r"password|passwd|pwd|pass(?![a-z])|secret|token|credentials?"
+    r"|api[_-]?key|apikey|access[_-]?key|private[_-]?key"
+)
 
 RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     (
@@ -21,7 +24,7 @@ RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ),
     (
         "connection-string",
-        re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s:/@]+:[^\s@/]+@\S+", re.IGNORECASE),
+        re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s:/@]+:[^\s@]+@\S+", re.IGNORECASE),
     ),
     (
         "credential",
@@ -43,8 +46,13 @@ RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("ip", re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")),
 )
 _ASSIGNMENT = re.compile(
-    rf"(?i)((?<![\w.-])[\w.-]*(?:{_NAMES})[\w.-]*\s*[:=]\s*)(\"[^\"]*\"|'[^']*'|[^\s,;]+)"
+    rf"(?i)((?<![\w.-])[\"']?[\w.-]*(?:{_NAMES})[\w.-]*[\"']?\s*[:=]\s*)"
+    r"(\"[^\"]*\"|'[^']*'|[^\s,;}]+)"
 )
+_FLAG = re.compile(rf"(?i)((?<!\S)--?[\w-]*(?:{_NAMES})[\w-]*\s+)([^\s-]\S*)")
+_BEARER = re.compile(r"(?i)\b(bearer\s+)[A-Za-z0-9._~+/=-]{8,}")
+_SECRET_KEY = re.compile(rf"(?i)(?:{_NAMES})|(?<![a-z])auth(?![a-z])|authorization")
+"""A key or pair name whose value is hidden whole (spec 011, research R6)."""
 _SECRET_LIKE = re.compile(r"(?<![\w+=])(?=[\w+=]*\d)(?=[\w+=]*[A-Za-z])[\w+=]{32,}(?![\w+=])")
 
 
@@ -78,6 +86,8 @@ def redact(
         return f"{match.group(1)}[credential]"
 
     text = _ASSIGNMENT.sub(assignment, text)
+    text = _FLAG.sub(assignment, text)
+    text = _BEARER.sub(assignment, text)
     for kind, pattern in RULES[3:]:
         if kind not in keep:
             text = replace(kind, pattern, text)
@@ -89,7 +99,6 @@ def redact(
     return replace("secret-like", _SECRET_LIKE, text), counts
 
 
-_SECRET_NAME = re.compile(_NAMES, re.IGNORECASE)
 _PAIRS: Final = (
     ("Key", "Value"),
     ("Name", "Value"),
@@ -124,11 +133,11 @@ def redact_structure(
                 for name_field, value_field in _PAIRS
                 if isinstance(item.get(name_field), str)
                 and value_field in item
-                and _SECRET_NAME.search(item[name_field])
+                and _SECRET_KEY.search(item[name_field])
             }
             result: dict[str, object] = {}
             for key, child in item.items():
-                if key in hidden or (isinstance(key, str) and _SECRET_NAME.search(key)):
+                if key in hidden or (isinstance(key, str) and _SECRET_KEY.search(key)):
                     add({"secret": 1})
                     result[key] = "[secret]"
                 else:
