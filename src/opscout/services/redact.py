@@ -7,10 +7,13 @@ the most general, so a value is named by its narrowest kind.
 """
 
 import re
-from collections.abc import Sequence
-from typing import Final
+from collections.abc import Mapping, Sequence
+from typing import Any, Final
 
-_NAMES = r"password|passwd|secret|token|api[_-]?key|apikey|access[_-]?key|private[_-]?key"
+_NAMES = (
+    r"password|passwd|pwd|pass(?![a-z])|secret|token|credentials?"
+    r"|api[_-]?key|apikey|access[_-]?key|private[_-]?key"
+)
 
 RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     (
@@ -21,7 +24,7 @@ RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ),
     (
         "connection-string",
-        re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s:/@]+:[^\s@/]+@\S+", re.IGNORECASE),
+        re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s:/@]+:[^\s@]+@\S+", re.IGNORECASE),
     ),
     (
         "credential",
@@ -43,13 +46,29 @@ RULES: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("ip", re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")),
 )
 _ASSIGNMENT = re.compile(
-    rf"(?i)((?<![\w.-])[\w.-]*(?:{_NAMES})[\w.-]*\s*[:=]\s*)(\"[^\"]*\"|'[^']*'|[^\s,;]+)"
+    rf"(?i)((?<![\w.-])[\"']?[\w.-]*(?:{_NAMES})[\w.-]*[\"']?\s*[:=]\s*)"
+    r"(\"[^\"]*\"|'[^']*'|[^\s,;}]+)"
 )
+_FLAG = re.compile(rf"(?i)((?<!\S)--?[\w-]*(?:{_NAMES})[\w-]*\s+)([^\s-]\S*)")
+_BEARER = re.compile(r"(?i)\b(bearer\s+)[A-Za-z0-9._~+/=-]{8,}")
+_SECRET_KEY = re.compile(rf"(?i)(?:{_NAMES})|(?<![a-z])auth(?![a-z])|authorization")
+"""A key or pair name whose value is hidden whole (spec 011, research R6)."""
 _SECRET_LIKE = re.compile(r"(?<![\w+=])(?=[\w+=]*\d)(?=[\w+=]*[A-Za-z])[\w+=]{32,}(?![\w+=])")
 
 
-def redact(text: str, terms: Sequence[str] = ()) -> tuple[str, dict[str, int]]:
-    """Return the text with every secret, personal datum and term replaced, and the counts."""
+OPTIONAL_KINDS: Final = frozenset({"account-id", "ip", "email"})
+"""The kinds a caller may keep; every other kind is always redacted (spec 011, FR-010)."""
+
+
+def redact(
+    text: str, terms: Sequence[str] = (), *, keep: frozenset[str] = frozenset()
+) -> tuple[str, dict[str, int]]:
+    """Return the text with every secret, personal datum and term replaced, and the counts.
+
+    ``keep`` names kinds of ``OPTIONAL_KINDS`` to leave as they are; spec 009 keeps none.
+    """
+    if not keep <= OPTIONAL_KINDS:
+        raise ValueError(f"only {sorted(OPTIONAL_KINDS)} may be kept")
     counts: dict[str, int] = {}
 
     def replace(kind: str, pattern: re.Pattern[str], value: str) -> str:
@@ -67,11 +86,65 @@ def redact(text: str, terms: Sequence[str] = ()) -> tuple[str, dict[str, int]]:
         return f"{match.group(1)}[credential]"
 
     text = _ASSIGNMENT.sub(assignment, text)
+    text = _FLAG.sub(assignment, text)
+    text = _BEARER.sub(assignment, text)
     for kind, pattern in RULES[3:]:
-        text = replace(kind, pattern, text)
+        if kind not in keep:
+            text = replace(kind, pattern, text)
     for term in terms:
         # Any case, anywhere: inside a longer word, and with the words of a term joined by
         # spaces, hyphens, underscores or nothing ("Example Corp", "examplecorp_api").
         words = r"[\s_-]*".join(re.escape(word) for word in term.split())
         text = replace("deny-listed", re.compile(rf"(?i){words}"), text)
     return replace("secret-like", _SECRET_LIKE, text), counts
+
+
+_PAIRS: Final = (
+    ("Key", "Value"),
+    ("Name", "Value"),
+    ("ParameterKey", "ParameterValue"),
+    ("OutputKey", "OutputValue"),
+)
+"""Name-and-value shapes AWS returns tags, parameters and outputs in (spec 011, R6)."""
+
+
+def redact_structure(
+    value: object, keep: frozenset[str] = frozenset()
+) -> tuple[Any, dict[str, int]]:
+    """Redact every string in a JSON-like value, keeping its shape (spec 011, FR-009).
+
+    A key named like a secret hides its value, whatever its type; so does a name-and-value
+    pair whose name is. Counts are summed by kind.
+    """
+    counts: dict[str, int] = {}
+
+    def add(found: Mapping[str, int]) -> None:
+        for kind, count in found.items():
+            counts[kind] = counts.get(kind, 0) + count
+
+    def walk(item: object) -> object:
+        if isinstance(item, str):
+            text, found = redact(item, keep=keep)
+            add(found)
+            return text
+        if isinstance(item, Mapping):
+            hidden = {
+                value_field
+                for name_field, value_field in _PAIRS
+                if isinstance(item.get(name_field), str)
+                and value_field in item
+                and _SECRET_KEY.search(item[name_field])
+            }
+            result: dict[str, object] = {}
+            for key, child in item.items():
+                if key in hidden or (isinstance(key, str) and _SECRET_KEY.search(key)):
+                    add({"secret": 1})
+                    result[key] = "[secret]"
+                else:
+                    result[key] = walk(child)
+            return result
+        if isinstance(item, list | tuple):
+            return [walk(child) for child in item]
+        return item
+
+    return walk(value), counts

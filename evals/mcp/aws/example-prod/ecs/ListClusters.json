@@ -1,0 +1,10 @@
+[
+ {
+  "match": {},
+  "response": {
+   "clusterArns": [
+    "arn:aws:ecs:us-east-1:123456789012:cluster/example"
+   ]
+  }
+ }
+]

@@ -1,0 +1,4 @@
+{"format": "example-monitor",
+ "fields": {"project": "example-api", "environment": "prod",
+            "title": "p99 latency above 2s"},
+ "environment": "example-prod"}

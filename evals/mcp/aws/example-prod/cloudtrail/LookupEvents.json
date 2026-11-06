@@ -1,0 +1,39 @@
+[
+ {
+  "match": {},
+  "response": {
+   "Events": [
+    {
+     "EventId": "e-1",
+     "EventName": "UpdateService",
+     "ReadOnly": "false",
+     "EventTime": "2026-11-06T11:30:00Z",
+     "EventSource": "ecs.amazonaws.com",
+     "Username": "deployer",
+     "Resources": [
+      {
+       "ResourceType": "AWS::ECS::Service",
+       "ResourceName": "example-api"
+      }
+     ],
+     "CloudTrailEvent": "{\"userIdentity\": {\"arn\": \"arn:aws:sts::123456789012:assumed-role/example-deployer/ci\"}, \"requestParameters\": {\"service\": \"example-api\", \"note\": \"postgres://app:fixture-pass-1@example-db.example.com:5432/app\"}}"
+    },
+    {
+     "EventId": "e-2",
+     "EventName": "RegisterTaskDefinition",
+     "ReadOnly": "false",
+     "EventTime": "2026-11-06T11:28:00Z",
+     "EventSource": "ecs.amazonaws.com",
+     "Username": "deployer",
+     "Resources": [
+      {
+       "ResourceType": "AWS::ECS::TaskDefinition",
+       "ResourceName": "example-api:42"
+      }
+     ],
+     "CloudTrailEvent": "{\"userIdentity\": {\"arn\": \"arn:aws:sts::123456789012:assumed-role/example-deployer/ci\"}, \"requestParameters\": {\"containerDefinitions\": [{\"environment\": [{\"name\": \"DB_PASSWORD\", \"value\": \"fixture-pass-2\"}]}]}}"
+    }
+   ]
+  }
+ }
+]

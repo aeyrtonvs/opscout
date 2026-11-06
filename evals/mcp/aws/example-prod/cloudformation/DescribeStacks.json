@@ -1,0 +1,51 @@
+[
+ {
+  "match": {
+   "StackName": "example-worker-stack"
+  },
+  "response": {
+   "Stacks": [
+    {
+     "StackName": "example-worker-stack",
+     "StackStatus": "UPDATE_COMPLETE",
+     "CreationTime": "2026-10-01T10:00:00Z",
+     "LastUpdatedTime": "2026-11-06T10:15:00Z",
+     "Parameters": [
+      {
+       "ParameterKey": "DbPassword",
+       "ParameterValue": "fixture-pass-3"
+      }
+     ],
+     "Outputs": [
+      {
+       "OutputKey": "QueueUrl",
+       "OutputValue": "https://sqs.example.com/example-queue"
+      },
+      {
+       "OutputKey": "ServiceApiKey",
+       "OutputValue": "fixture-pass-4"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "match": {},
+  "response": {
+   "Stacks": [
+    {
+     "StackName": "example-api",
+     "StackStatus": "UPDATE_ROLLBACK_COMPLETE",
+     "CreationTime": "2026-10-01T10:00:00Z",
+     "LastUpdatedTime": "2026-11-06T11:25:00Z"
+    },
+    {
+     "StackName": "example-old",
+     "StackStatus": "CREATE_COMPLETE",
+     "CreationTime": "2026-09-01T10:00:00Z"
+    }
+   ]
+  }
+ }
+]

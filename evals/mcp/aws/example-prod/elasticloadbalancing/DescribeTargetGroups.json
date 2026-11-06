@@ -1,0 +1,20 @@
+[
+ {
+  "match": {},
+  "response": {
+   "TargetGroups": [
+    {
+     "TargetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/example-api/0123456789abcdef",
+     "TargetGroupName": "example-api",
+     "Protocol": "HTTP",
+     "Port": 8080,
+     "TargetType": "ip",
+     "HealthCheckPath": "/health",
+     "LoadBalancerArns": [
+      "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/example-alb/0123456789abcdef"
+     ]
+    }
+   ]
+  }
+ }
+]

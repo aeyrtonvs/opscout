@@ -231,6 +231,43 @@ The section needs at least one folder or project. The job `standup` in `daemon.j
 this section; a `code_host` needs
 `daemon.secrets.bitbucket_token`.
 
+### `alerts` (optional; spec 011)
+
+The alert formats the tools recognize. See [tools.md](tools.md) for the tools that use them.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `formats` | required | 1–50 formats, tried in order; the first that matches wins |
+| `formats[].name` | required | lowercase letters, digits and hyphens; unique |
+| `formats[].recognize` | required | a regular expression (multi-line) that matches alerts in this format |
+| `formats[].fields` | required | each field (`severity`, `title`, `project`, `environment`, `resource`, `account`, `region`, `metric`, `threshold`, `value`, `time`) with a regular expression that has exactly one capture group |
+
+Every expression has at most 500 characters.
+
+### `aws` (optional; spec 011)
+
+The AWS environments the tools may read, one account each.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `environments` | required | 1–50 environments |
+| `environments[].name` | required | letters, digits, `.`, `_` and `-`; unique |
+| `environments[].account_id` | required | the 12-digit account ID, quoted; unique |
+| `environments[].profile` | required | the AWS profile, from your AWS config, that reaches the account |
+| `environments[].regions` | required | 1–10 regions; the first is the default |
+| `environments[].aliases` | none | other names alerts use for the environment; unique across environments, ignoring case |
+| `environments[].identity` | `own` | `reference` when the profile uses opscout's reference read-only identity (spec 010); results state it, and nothing checks it (ADR-0023) |
+
+### `tools` (optional; spec 011)
+
+How tool results are shaped.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `timezone` | `personal_context.timezone`, then UTC | the IANA timezone results are written in |
+| `redact.account_ids`, `redact.ips`, `redact.emails` | false | redact these values too; secrets are always redacted |
+| `caps.<name>` | each cap's ceiling | lower a cap; the caps and their ceilings are in [tools.md](tools.md) |
+
 ## Rules for every section
 
 These hold for each section a later spec adds. Review checks them; tests enforce the

@@ -36,8 +36,9 @@ missing is an open item in `docs/PLAN.md` §9.
    document, not an open shell. The reference read-only identity is the recommended outer
    layer, never a requirement: a user may run with their own identity at their own risk
    (ADR-0023).
-   *Gate:* the reference identity and allow-listed host documents, proved by
-   `opscout identity check` (spec 010); tool allow-lists still to come (ADR-0010).
+   *Gate:* the tool surface, proved read-only by `tests/unit/mcp/test_surface.py` and
+   refused at run time by the AWS gateway (spec 011); the reference identity and
+   allow-listed host documents, proved by `opscout identity check` (spec 010).
 4. **English** for code, comments, docs and commit messages. *Gate:* review only.
 5. **Nothing leaves the machine without asking each time:** creating the GitHub remote,
    pushing, publishing a release or a plugin.
@@ -93,8 +94,11 @@ Spec-Driven Development with GitHub Spec Kit (ADR-0008):
   holds the read-only identity's reference documents and the AWS records they are proved
   against (spec 010). `plugins/opscout/`: the
   plugin, listed by `.claude-plugin/marketplace.json`: `bin/opscout` runs the engine
-  (ADR-0022), `hooks/hooks.json` holds the push guard (spec 004) and the SSO check
-  (spec 005), `skills/` holds the skills, and `evals/` their eval cases (ADR-0013).
+  (ADR-0022), `.mcp.json` starts the read-only tool server, `opscout mcp` (spec 011),
+  `hooks/hooks.json` holds the push guard (spec 004) and the SSO check (spec 005),
+  `skills/` holds the skills, and `evals/` their eval cases (ADR-0013).
+- `evals/`: engine-side evaluation data: `evals/standup/` (spec 009), and `evals/mcp/`, the
+  tool server's mock-mode fixtures and alert corpus (spec 011).
 - `tools/`: this repository's development hooks and checks, including the headless eval
   runner `tools/skill_evals.py` and `tools/identity_refresh.py`, which refreshes the
   identity's AWS records; not shipped.

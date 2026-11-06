@@ -1,0 +1,43 @@
+[
+ {
+  "match": {
+   "DBInstanceIdentifier": "example-db"
+  },
+  "response": {
+   "DBInstances": [
+    {
+     "DBInstanceIdentifier": "example-db",
+     "Engine": "postgres",
+     "EngineVersion": "16.4",
+     "DBInstanceClass": "db.t4g.medium",
+     "DBInstanceStatus": "available",
+     "MultiAZ": true,
+     "AllocatedStorage": 100,
+     "StorageType": "gp3",
+     "MasterUsername": "example_admin",
+     "Endpoint": {
+      "Address": "example-db.example.com",
+      "Port": 5432
+     },
+     "DBParameterGroups": [
+      {
+       "DBParameterGroupName": "example-pg16"
+      }
+     ],
+     "PreferredBackupWindow": "06:00-06:30",
+     "BackupRetentionPeriod": 7,
+     "PreferredMaintenanceWindow": "sun:07:00-sun:07:30",
+     "PendingModifiedValues": {
+      "MasterUserPassword": "****"
+     }
+    }
+   ]
+  }
+ },
+ {
+  "match": {},
+  "response": {
+   "DBInstances": []
+  }
+ }
+]

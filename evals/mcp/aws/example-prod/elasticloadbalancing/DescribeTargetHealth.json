@@ -1,0 +1,29 @@
+[
+ {
+  "match": {},
+  "response": {
+   "TargetHealthDescriptions": [
+    {
+     "Target": {
+      "Id": "192.0.2.31",
+      "Port": 8080
+     },
+     "TargetHealth": {
+      "State": "healthy"
+     }
+    },
+    {
+     "Target": {
+      "Id": "192.0.2.32",
+      "Port": 8080
+     },
+     "TargetHealth": {
+      "State": "unhealthy",
+      "Reason": "Target.Timeout",
+      "Description": "Request timed out"
+     }
+    }
+   ]
+  }
+ }
+]

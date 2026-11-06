@@ -116,3 +116,52 @@ standup:
   # Terms never sent to the model.
   redact: [Example Corp]
 
+
+# The read-only tools' configuration (spec 011). All three sections are optional; without
+# them the tool server still starts, and its AWS tools say AWS is not configured.
+# Alert formats the alert tools recognize, tried in order.
+alerts:
+  # Each format: a name, how to recognize it, and how to extract each field.
+  formats:
+    - name: example-notifier
+      # A regular expression that matches alerts in this format.
+      recognize: '^(CRITICAL|WARNING): '
+      # Each field with a regular expression that has exactly one capture group.
+      fields:
+        # The alert's severity.
+        severity: '^(CRITICAL|WARNING): '
+        # The alert's one-line title.
+        title: '^(?:CRITICAL|WARNING): (.+)$'
+        # The environment the alert names.
+        environment: '^Environment: (.+)$'
+        # The resource that fired.
+        resource: '^Resource: (.+)$'
+        # The AWS account ID the alert names.
+        account: '^Account: (\d{12})'
+        # The AWS region the alert names.
+        region: '^Region: ([a-z0-9-]+)$'
+# The AWS environments the tools may read; each is one account.
+aws:
+  # One entry per environment.
+  environments:
+    - name: example-prod
+      # The AWS account ID, quoted.
+      account_id: "123456789012"
+      # The AWS profile, from your AWS config, that reaches the account.
+      profile: example-prod
+      # The regions in scope; the first is the default.
+      regions: [us-east-1]
+      # Other names alerts use for this environment.
+      aliases: [Production]
+      # reference when the profile uses opscout's reference identity (spec 010); own otherwise.
+      identity: reference
+# How tool results are shaped.
+tools:
+  # Which operational values to redact; secrets are always redacted.
+  redact:
+    # Redact e-mail addresses.
+    emails: true
+  # Lower limits for the tools' caps.
+  caps:
+    # The most log rows a query returns.
+    log_rows: 200

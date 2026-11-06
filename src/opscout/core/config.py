@@ -34,6 +34,8 @@ from pydantic import (
 )
 from pydantic_core import PydanticCustomError
 
+from opscout.core.tools import CAP_CEILINGS
+
 SCHEMA_VERSION: Final = 1
 """The only major version of the schema this engine reads."""
 
@@ -590,6 +592,246 @@ class Standup(BaseModel):
         return self
 
 
+ALERT_FIELDS: Final = (
+    "severity",
+    "title",
+    "project",
+    "environment",
+    "resource",
+    "account",
+    "region",
+    "metric",
+    "threshold",
+    "value",
+    "time",
+)
+"""The fields an alert format may extract (spec 011, FR-014)."""
+AlertField = Literal[
+    "severity",
+    "title",
+    "project",
+    "environment",
+    "resource",
+    "account",
+    "region",
+    "metric",
+    "threshold",
+    "value",
+    "time",
+]
+
+
+def _compiles(value: str) -> str:
+    """Refuse an expression Python cannot compile."""
+    try:
+        re.compile(value, re.MULTILINE)
+    except re.error:
+        raise PydanticCustomError("opscout_regex", "not a valid regular expression") from None
+    return value
+
+
+def _one_group(value: str) -> str:
+    """Refuse a field expression without exactly one capture group."""
+    if re.compile(value, re.MULTILINE).groups != 1:
+        raise PydanticCustomError("opscout_regex", "needs exactly one capture group")
+    return value
+
+
+_Regex = Annotated[str, StringConstraints(min_length=1, max_length=500), AfterValidator(_compiles)]
+_FieldRegex = Annotated[_Regex, AfterValidator(_one_group)]
+
+
+class AlertFormat(BaseModel):
+    """How to recognize one kind of alert text and extract its fields (spec 011)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    name: Annotated[
+        str, StringConstraints(min_length=1, max_length=64, pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")
+    ] = Field(description="The format's name, as the tools report it.")
+    recognize: _Regex = Field(
+        description="A regular expression that matches alerts in this format (multi-line)."
+    )
+    fields: Annotated[dict[AlertField, _FieldRegex], Field(min_length=1)] = Field(
+        description=(
+            "Each field to extract, with a regular expression that has exactly one capture "
+            "group (multi-line)."
+        ),
+    )
+
+
+class Alerts(BaseModel):
+    """The alert formats the alert tools recognize, in order of precedence (spec 011)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    formats: Annotated[list[AlertFormat], Field(min_length=1, max_length=50)] = Field(
+        description="The formats, tried in this order; the first that matches wins."
+    )
+
+    @model_validator(mode="after")
+    def _unique_formats(self) -> "Alerts":
+        names = [entry.name for entry in self.formats]
+        for name in names:
+            if names.count(name) > 1:
+                raise PydanticCustomError("opscout_alerts", "two formats share a name")
+        return self
+
+
+_Region = Annotated[str, StringConstraints(pattern=r"^[a-z]{2}(-[a-z]+)+-[0-9]$")]
+
+
+def _unique_regions(regions: list[str]) -> list[str]:
+    if len(set(regions)) != len(regions):
+        raise PydanticCustomError("opscout_regions", "each region may be listed only once")
+    return regions
+
+
+class AwsEnvironment(BaseModel):
+    """One AWS account in scope, and how the tools reach it (spec 011, FR-015)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    name: Annotated[
+        str, StringConstraints(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
+    ] = Field(description="The environment's name, as tools and alerts refer to it.")
+    account_id: Annotated[str, StringConstraints(pattern=r"^[0-9]{12}$")] = Field(
+        description="The AWS account ID, as a quoted 12-digit string."
+    )
+    profile: Annotated[
+        str, StringConstraints(min_length=1, max_length=128, pattern=r"^[^\s\x00-\x1f\x7f]+$")
+    ] = Field(description="The AWS profile, from your AWS config, that reaches this account.")
+    regions: Annotated[
+        list[_Region], Field(min_length=1, max_length=10), AfterValidator(_unique_regions)
+    ] = Field(description="The regions in scope; the first is the default.")
+    aliases: Annotated[
+        list[Annotated[str, StringConstraints(min_length=1, max_length=64, pattern=_OneLine)]],
+        Field(max_length=20),
+    ] = Field(
+        default_factory=list,
+        description="Other names alerts use for this environment, such as a project name.",
+    )
+    identity: Literal["reference", "own"] = Field(
+        default="own",
+        description=(
+            "reference when the profile uses opscout's reference read-only identity (spec "
+            "010); own otherwise. Results state it; nothing checks or requires it (ADR-0023)."
+        ),
+    )
+
+
+class Aws(BaseModel):
+    """The AWS environments the tools may read (spec 011, FR-015)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    environments: Annotated[list[AwsEnvironment], Field(min_length=1, max_length=50)] = Field(
+        description="The environments in scope, one AWS account each."
+    )
+
+    @model_validator(mode="after")
+    def _unique_environments(self) -> "Aws":
+        seen: dict[str, str] = {}
+        accounts: set[str] = set()
+        for environment in self.environments:
+            if environment.name.casefold() in seen:
+                raise PydanticCustomError("opscout_aws", "two environments share a name")
+            if environment.account_id in accounts:
+                raise PydanticCustomError("opscout_aws", "two environments share an account ID")
+            seen[environment.name.casefold()] = environment.name
+            accounts.add(environment.account_id)
+        for environment in self.environments:
+            for alias in environment.aliases:
+                owner = seen.get(alias.casefold())
+                if owner is not None and owner != environment.name:
+                    raise PydanticCustomError(
+                        "opscout_aws",
+                        "an alias is already the name or an alias of another environment",
+                    )
+                seen[alias.casefold()] = environment.name
+        return self
+
+
+class ToolRedaction(BaseModel):
+    """Which operational values the tools redact; secrets are always redacted (FR-010)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    account_ids: bool = Field(default=False, description="Redact AWS account IDs.")
+    ips: bool = Field(default=False, description="Redact IP addresses.")
+    emails: bool = Field(default=False, description="Redact e-mail addresses.")
+
+
+_CAP_NAMES: Final = ", ".join(CAP_CEILINGS)
+
+
+def _known_caps(caps: dict[str, int]) -> dict[str, int]:
+    """Refuse an unknown cap or one above its ceiling (FR-011)."""
+    for name, value in caps.items():
+        if name not in CAP_CEILINGS:
+            raise PydanticCustomError(
+                "opscout_caps", "unknown cap; the caps are {names}", {"names": _CAP_NAMES}
+            )
+        if not 1 <= value <= CAP_CEILINGS[name]:
+            raise PydanticCustomError(
+                "opscout_caps",
+                "expected at least 1 and at most {ceiling}",
+                {"ceiling": CAP_CEILINGS[name]},
+            )
+    return caps
+
+
+CAP_DESCRIPTIONS: Final[Mapping[str, str]] = {
+    "result_chars": "The most characters in one tool result.",
+    "metric_window_hours": "The longest window, in hours, for alarms and metrics.",
+    "log_window_hours": "The longest window, in hours, for a log query.",
+    "change_window_hours": "The longest window, in hours, for recent changes.",
+    "log_rows": "The most rows a log query returns.",
+    "log_wait_seconds": "The longest a log query is waited for, in seconds.",
+    "change_items": "The most changes returned per source.",
+    "stacks": "The most CloudFormation stacks examined for events.",
+    "resources": "The most resources a search returns.",
+    "datapoints": "The most metric data points returned.",
+}
+
+
+def _caps_schema() -> dict[str, Any]:
+    return {
+        "additionalProperties": False,
+        "properties": {
+            name: {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": ceiling,
+                "description": f"{CAP_DESCRIPTIONS[name]} At most {ceiling}.",
+            }
+            for name, ceiling in CAP_CEILINGS.items()
+        },
+    }
+
+
+class Tools(BaseModel):
+    """How the tool server shapes its results (spec 011)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    timezone: _TimeZone | None = Field(
+        default=None,
+        description=(
+            "The IANA time zone results are written in; without it, personal_context's, then UTC."
+        ),
+    )
+    redact: ToolRedaction = Field(
+        default_factory=ToolRedaction,
+        description="Which operational values to redact; secrets are always redacted.",
+    )
+    caps: Annotated[dict[str, int], AfterValidator(_known_caps)] = Field(
+        default_factory=dict,
+        description="Lower limits for the tools' caps; none may exceed its ceiling.",
+        json_schema_extra=_caps_schema(),
+    )
+
+
 class Configuration(BaseModel):
     """The private opscout configuration (config.yaml in the configuration directory)."""
 
@@ -631,6 +873,16 @@ class Configuration(BaseModel):
     )
     standup: Standup | None = Field(
         default=None, description="The daily standup's sources and projects (spec 009)."
+    )
+    alerts: Alerts | None = Field(
+        default=None, description="The alert formats the alert tools recognize (spec 011)."
+    )
+    aws: Aws | None = Field(
+        default=None, description="The AWS environments the tools may read (spec 011)."
+    )
+    tools: Tools = Field(
+        default_factory=Tools,
+        description="Timezone, redaction and caps for the tool server's results (spec 011).",
     )
 
     @model_validator(mode="after")

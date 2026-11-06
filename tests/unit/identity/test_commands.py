@@ -132,6 +132,6 @@ def test_every_reference_file_ships_in_the_package() -> None:
     for name in ("ViewOnlyAccess.json", "ReadOnlyAccess.json"):
         assert root.joinpath("managed", name).is_file()
     paths = [path for path, _ in reference_files()]
-    assert len(paths) == 18
+    assert len(paths) == 19
     for path in paths:
         assert root.joinpath(*path.split("/")).is_file()

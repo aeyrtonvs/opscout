@@ -71,7 +71,17 @@ def main() -> None:
         sys.exit(0)
     root = clone_root()
     if root is not None:
-        command = ["uv", "run", "--quiet", "--frozen", "--project", str(root), "opscout"]
+        command = [
+            "uv",
+            "run",
+            "--quiet",
+            "--frozen",
+            "--extra",
+            "aws",
+            "--project",
+            str(root),
+            "opscout",
+        ]
     else:
         manifest = PLUGIN / ".claude-plugin" / "plugin.json"
         version = json.loads(manifest.read_text(encoding="utf-8"))["version"]
@@ -95,7 +105,7 @@ def main() -> None:
                 "  claude --plugin-dir opscout/plugins/opscout\n"
             )
             sys.exit(1)
-        command = ["uvx", "--quiet", "--from", f"opscout=={version}", "opscout"]
+        command = ["uvx", "--quiet", "--from", f"opscout[aws]=={version}", "opscout"]
     program = shutil.which(command[0])
     if program is None and session_start:
         _session_checks_could_not_run(f"{command[0]} is required: https://docs.astral.sh/uv/")

@@ -1,0 +1,4 @@
+{"format": "example-notifier",
+ "fields": {"severity": "CRITICAL", "title": "example-billing CPU above 90%",
+            "environment": "example-qa", "account": "000000000000"},
+ "environment": null}

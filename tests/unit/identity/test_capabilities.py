@@ -56,6 +56,7 @@ def test_every_capability_states_its_purpose_agents_and_actions(records: Records
         "metrics",
         "logs",
         "changes",
+        "inventory",
         "cost",
         "cluster",
         "hosts",
@@ -73,6 +74,28 @@ def test_every_capability_states_its_purpose_agents_and_actions(records: Records
             assert all("*" not in action for action in capability.actions)
     optional = {c.name for c in records.capabilities if c.optional}
     assert optional == {"cluster", "hosts"}
+
+
+@spec("FR-004")
+def test_the_tool_server_reads_are_declared(records: Records) -> None:
+    """Spec 011 (research R4) added three reads its tools need, each to a capability."""
+    by_name = {c.name: c for c in records.capabilities}
+    assert "cloudformation:DescribeStackEvents" in by_name["changes"].actions
+    inventory = by_name["inventory"]
+    assert inventory.actions == ("tag:GetResources", "cloudformation:DescribeStackResources")
+    assert set(inventory.agents) == {"alert-triage", "ask"}
+    assert (inventory.identity, inventory.optional, inventory.grant) == (
+        "readonly",
+        False,
+        "actions",
+    )
+    report = prove(records.reference, records)
+    assert report.passed, report.findings
+    assert "reads 45/45 allowed" in "\n".join(report.summary)
+    identity = readonly_identity(records.reference, records)
+    assert len(identity.policies) == 9
+    for action in inventory.actions:
+        assert proves_allowed(identity, action, "*") == (True, None)
 
 
 @spec("FR-004")

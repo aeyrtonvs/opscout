@@ -487,7 +487,7 @@ def test_an_installed_plugin_runs_exactly_its_release(tmp_path: Path) -> None:
     assert json.loads(result.stdout) == [
         "--quiet",
         "--from",
-        "opscout==1.2.3",
+        "opscout[aws]==1.2.3",
         "opscout",
         "writeup",
         "formats",

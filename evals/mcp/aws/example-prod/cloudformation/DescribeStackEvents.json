@@ -1,0 +1,19 @@
+[
+ {
+  "match": {},
+  "response": {
+   "StackEvents": [
+    {
+     "StackName": "example-api",
+     "LogicalResourceId": "Service",
+     "PhysicalResourceId": "arn:aws:ecs:us-east-1:123456789012:service/example/example-api",
+     "ResourceType": "AWS::ECS::Service",
+     "Timestamp": "2026-11-06T11:26:00Z",
+     "ResourceStatus": "UPDATE_FAILED",
+     "ResourceStatusReason": "Service did not stabilize",
+     "ResourceProperties": "{\"Environment\": [{\"Value\": \"fixture-pass-5\"}]}"
+    }
+   ]
+  }
+ }
+]

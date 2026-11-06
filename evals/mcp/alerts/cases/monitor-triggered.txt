@@ -1,0 +1,2 @@
+Triggered: [example-api][prod] p99 latency above 2s
+The monitor fired at 10:05.

@@ -1,0 +1,44 @@
+# Every field of the alerts, aws and tools sections (spec 011), added to schema version 1
+# (spec 002, FR-030).
+schema_version: 1
+alerts:
+  formats:
+    - name: example-notifier
+      recognize: '^(CRITICAL|WARNING): '
+      fields:
+        severity: '^(CRITICAL|WARNING): '
+        title: '^(?:CRITICAL|WARNING): (.+)$'
+        project: '^Project: (.+)$'
+        environment: '^Environment: (.+)$'
+        resource: '^Resource: (.+)$'
+        account: '^Account: (\d{12})'
+        region: '^Region: ([a-z0-9-]+)$'
+        metric: '^Metric: (.+)$'
+        threshold: '^Threshold: (.+)$'
+        value: '^Value: (.+)$'
+        time: '^Time: (.+)$'
+aws:
+  environments:
+    - name: example-prod
+      account_id: "123456789012"
+      profile: example-prod
+      regions: [us-east-1, us-west-2]
+      aliases: [Production, prod]
+      identity: reference
+tools:
+  timezone: Europe/Lisbon
+  redact:
+    account_ids: false
+    ips: false
+    emails: true
+  caps:
+    result_chars: 30000
+    metric_window_hours: 24
+    log_window_hours: 6
+    change_window_hours: 48
+    log_rows: 200
+    log_wait_seconds: 20
+    change_items: 100
+    stacks: 5
+    resources: 50
+    datapoints: 720

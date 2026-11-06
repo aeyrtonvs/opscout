@@ -1,0 +1,3 @@
+CRITICAL: example-billing CPU above 90%
+Environment: example-qa
+Account: 000000000000

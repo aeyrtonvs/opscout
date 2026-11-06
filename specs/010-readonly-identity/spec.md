@@ -468,6 +468,11 @@ or role to choose, the ones never to choose, and how to confirm the result.
   - **The cap as a second layer**: with `DenySecretValues` removed, the cap still denies
     `secretsmanager:GetSecretValue` and `kms:Decrypt`. US1 scenario 2 was corrected to say
     so.
+- **Amended 2026-11-06 by spec 011** (research R4 there): the tool server needs three
+  reads that `ViewOnlyAccess` does not grant. `changes` gained
+  `cloudformation:DescribeStackEvents`, and a new `inventory` capability holds
+  `tag:GetResources` and `cloudformation:DescribeStackResources`. The check still passes:
+  reads are now 45/45 allowed, and the read-only identity has 9 policies.
 - **The independent review** found three faults that passed the check (H1–H3) and five
   medium ones. Each was reproduced as a test and fixed (tasks.md, T037).
 - **The live check (FR-021), 2026-11-06**, in a development account, with nothing left

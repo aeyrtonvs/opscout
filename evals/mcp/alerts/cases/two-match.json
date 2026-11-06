@@ -1,0 +1,4 @@
+{"format": "example-notifier",
+ "fields": {"severity": "CRITICAL", "title": "example-api health check failing"},
+ "also_matched": ["example-monitor"],
+ "environment": "example-prod"}

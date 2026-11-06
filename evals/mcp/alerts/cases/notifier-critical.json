@@ -1,0 +1,6 @@
+{"format": "example-notifier",
+ "fields": {"severity": "CRITICAL", "title": "example-api 5XX errors above threshold",
+            "project": "example-api", "environment": "Production", "resource": "example-api-alb",
+            "account": "123456789012", "region": "us-east-1",
+            "metric": "HTTPCode_Target_5XX_Count", "threshold": "50"},
+ "environment": "example-prod"}
