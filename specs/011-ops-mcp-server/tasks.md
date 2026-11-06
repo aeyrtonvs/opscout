@@ -407,10 +407,10 @@ caps, redaction, timezone and identity.
     found.
   - **L1**: a change with no time crashed the sort.
   - **L2**: sliced matches were not recorded, and only one page of ECS clusters was read.
-- [ ] T046 Check the staged diff for real data (rule 2). Only reserved values and the
+- [X] T046 Check the staged diff for real data (rule 2). Only reserved values and the
   allow-listed fake account ID may appear. No real alert text, profile, region choice or
   timezone from the private configuration.
-- [ ] T047 Remove the traceability `xfail`. Set the spec's status to Implemented, and record
+- [X] T047 Remove the traceability `xfail`. Set the spec's status to Implemented, and record
   the effort and the measured counts in its Actuals. SC-006, the live run, is recorded when
   the maintainer runs quickstart step 6.
 

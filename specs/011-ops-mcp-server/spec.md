@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-06
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "ops-mcp-server (Phase 2, PLAN.md §7, needs 1–3; ADR-0010 layer 2,
 ADR-0011, ADR-0023). The harness's own local, read-only MCP server, `opscout mcp` over stdio,
@@ -407,3 +407,31 @@ unreachable region, and call every tool.
 - **Spec 009's redaction** is reused and extended, not replaced.
 - **The default timezone** for results is the one the private configuration declares;
   without it, UTC.
+
+## Actuals
+
+- **Effort**: one session on 2026-11-06, from specify to the pull request.
+- **Surface**: 9 tools declare 27 AWS actions across 10 services. The surface check proves
+  each one is a read the reference identity allows. Three of them made spec 010's
+  capabilities grow: `cloudformation:DescribeStackEvents`,
+  `cloudformation:DescribeStackResources` and `tag:GetResources`. Spec 010's check passes
+  with 45/45 reads. Two ECS actions planned in research R4 were dropped, because no tool
+  calls them.
+- **Measured**: through the plugin's launcher, the server lists its tools 0.48–0.54 s after
+  launch (5 runs, SC-002). Every tool, against a gateway that takes 10 s per call, returns
+  within 60 s (SC-003).
+- **Tests**: 250 for this spec, 1,648 in all; 100 % coverage on core and services; all 30
+  requirements traced.
+- **Found in implementation**:
+  - botocore reads `max_attempts` as retries, so `total_max_attempts=2` gives the one
+    retry;
+  - configuration error messages never repeat the refused value (spec 002), so the new
+    sections' messages name no environment, alias or account;
+  - a stubbed response skips botocore's retry loop, so the retry is tested through the
+    client's configuration.
+- **The independent review** found the read-only guard sound and no real data. It found
+  one HIGH issue, redaction gaps on common secret shapes in log rows; four MEDIUM issues:
+  secret-named tags, unredacted error messages, a data-points cap that could not fire,
+  and two deadline gaps; and two LOW ones. Each was reproduced as a test and fixed
+  (tasks.md, T045).
+- **The live run** (SC-006, quickstart step 6) is not done yet. PLAN.md §9 holds it.
