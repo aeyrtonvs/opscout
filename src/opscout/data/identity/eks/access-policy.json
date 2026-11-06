@@ -1,0 +1,8 @@
+{
+  "clusterName": "example-prod",
+  "principalArn": "arn:aws:iam::123456789012:role/opscout-readonly",
+  "policyArn": "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy",
+  "accessScope": {
+    "type": "cluster"
+  }
+}

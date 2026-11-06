@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Changes",
+      "Effect": "Allow",
+      "Action": [
+        "cloudtrail:LookupEvents",
+        "ecs:ListServiceDeployments",
+        "ecs:DescribeServiceDeployments",
+        "codedeploy:ListDeployments",
+        "codedeploy:GetDeployment",
+        "codedeploy:BatchGetDeployments",
+        "autoscaling:DescribeScalingActivities",
+        "rds:DescribeEvents",
+        "health:DescribeEvents"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

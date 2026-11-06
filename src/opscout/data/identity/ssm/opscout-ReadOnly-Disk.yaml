@@ -1,0 +1,11 @@
+schemaVersion: "2.2"
+description: "opscout: disk and inode use of real file systems (read-only)."
+mainSteps:
+  - action: aws:runShellScript
+    name: disk
+    precondition:
+      StringEquals: [platformType, Linux]
+    inputs:
+      runCommand:
+        - "df -hP -x tmpfs -x devtmpfs"
+        - "df -iP -x tmpfs -x devtmpfs"

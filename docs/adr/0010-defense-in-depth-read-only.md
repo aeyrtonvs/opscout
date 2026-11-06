@@ -60,3 +60,22 @@ Facts that constrain the design (official docs, 2026-11-03):
 - Runner tests assert that the `system/init` event of a headless run lists only the allowed
   tools.
 - Eval cases with instructions injected into alert text and chat threads.
+
+## More Information
+
+**Amended 2026-11-05 (spec 010).** Decision 1 now has these parts:
+
+- **The read-only identity's boundary.** Its permissions boundary is AWS's `ReadOnlyAccess`.
+  The policy grammar documents no wildcard in the service prefix (such as `*:Get*`), and a
+  customer-managed policy is limited to 6,144 characters. So no hand-written boundary can
+  cap every write, while `ReadOnlyAccess` allows no write except a few that the guardrail
+  denies.
+- **The guardrail.** It is a customer-managed policy of explicit denies attached to the
+  identity. It denies secret values, credential issuance, reads that return plaintext
+  secrets, application data, and sessions and shells.
+- **The host identity.** `ssm:SendCommand` is a write, so host commands use a second,
+  optional identity per environment. It may only send the catalog's fixed command
+  documents, under its own boundary.
+- **The check.** `opscout identity check` proves all of this offline, against a recorded
+  copy of AWS's action catalog. It is the static half of this ADR's confirmation. The live
+  half, a sandbox account, stays an open item in PLAN.md §9.

@@ -1,0 +1,156 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenySecretValues",
+      "Effect": "Deny",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:BatchGetSecretValue",
+        "ssm:GetParameter",
+        "ssm:GetParameters",
+        "ssm:GetParametersByPath",
+        "ssm:GetParameterHistory",
+        "kms:Decrypt",
+        "kms:GenerateDataKey*",
+        "kms:ReEncrypt*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyCredentials",
+      "Effect": "Deny",
+      "Action": [
+        "sts:AssumeRole*",
+        "sts:GetFederationToken",
+        "ecr:GetAuthorizationToken",
+        "ecr-public:GetAuthorizationToken",
+        "codeartifact:GetAuthorizationToken",
+        "rds-db:connect",
+        "redshift:GetClusterCredentials*",
+        "redshift-serverless:GetCredentials",
+        "ec2:GetPasswordData",
+        "cognito-idp:GetClientToken",
+        "cognito-idp:GetTokensFromRefreshToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyPlaintextSecrets",
+      "Effect": "Deny",
+      "Action": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "ecs:DescribeTaskDefinition",
+        "codebuild:BatchGetProjects",
+        "ec2:DescribeInstanceAttribute",
+        "ec2:DescribeLaunchTemplateVersions",
+        "ec2:GetConsoleOutput",
+        "glue:GetConnection",
+        "glue:GetConnections",
+        "cognito-idp:DescribeUserPoolClient",
+        "appsync:ListApiKeys",
+        "elasticbeanstalk:DescribeConfigurationSettings",
+        "lambda:ListFunctions",
+        "autoscaling:DescribeLaunchConfigurations",
+        "sagemaker:DescribeModel",
+        "sagemaker:DescribeTrainingJob",
+        "sagemaker:DescribeProcessingJob",
+        "sagemaker:DescribeTransformJob",
+        "codebuild:BatchGetBuilds",
+        "batch:DescribeJobDefinitions",
+        "batch:DescribeJobs",
+        "lightsail:GetContainerServices",
+        "lightsail:GetContainerServiceDeployments",
+        "apprunner:DescribeService",
+        "amplify:GetApp",
+        "amplify:ListApps",
+        "amplify:GetBranch",
+        "amplify:ListBranches"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyDataPlane",
+      "Effect": "Deny",
+      "Action": [
+        "s3:GetObject*",
+        "s3:ListBucket",
+        "dynamodb:GetItem",
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:PartiQLSelect",
+        "sqs:ReceiveMessage",
+        "kinesis:GetRecords",
+        "rds-data:*",
+        "athena:GetQueryResults",
+        "bedrock:GetAsyncInvoke",
+        "bedrock:GetDataAutomationStatus",
+        "bedrock:GetIngestedDocumentAcl",
+        "bedrock:ListInvocations",
+        "bedrock:ListInvocationSteps",
+        "bedrock:ListSessions",
+        "bedrock-agentcore:GetAgentCard",
+        "bedrock-agentcore:GetCodeInterpreterSession",
+        "bedrock-agentcore:GetPaymentSession",
+        "qapps:GetQApp",
+        "qapps:ListQApps",
+        "sagemaker:ListRecords",
+        "swf:ListClosedWorkflowExecutions",
+        "swf:ListOpenWorkflowExecutions",
+        "uxc:GetAccountCustomizations",
+        "xray:GetSamplingTargets"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenySessions",
+      "Effect": "Deny",
+      "Action": [
+        "ssm:StartSession",
+        "ssm:ResumeSession",
+        "ssmmessages:*",
+        "ssm-guiconnect:*",
+        "ec2-instance-connect:*",
+        "ssm:StartAutomationExecution"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyCappedWrites",
+      "Effect": "Deny",
+      "Action": [
+        "athena:GetSessionEndpoint",
+        "backup:ListIndexedRecoveryPointsForSearch",
+        "billing:GetResourcePolicy",
+        "iot:GetConnection",
+        "iot:ListSubscriptions",
+        "s3express:CreateSession",
+        "ssm-sap:GetResourcePermission"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyApiKeyValues",
+      "Effect": "Deny",
+      "Action": "apigateway:GET",
+      "Resource": [
+        "arn:aws:apigateway:*::/apikeys",
+        "arn:aws:apigateway:*::/apikeys/*",
+        "arn:aws:apigateway:*::/usageplans/*/keys",
+        "arn:aws:apigateway:*::/usageplans/*/keys/*"
+      ]
+    },
+    {
+      "Sid": "DenyOtherCommandDocuments",
+      "Effect": "Deny",
+      "Action": "ssm:SendCommand",
+      "NotResource": [
+        "arn:aws:ssm:*:123456789012:document/opscout-ReadOnly-*",
+        "arn:aws:ec2:*:123456789012:instance/*",
+        "arn:aws:ssm:*:123456789012:managed-instance/*"
+      ]
+    }
+  ]
+}

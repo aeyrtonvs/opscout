@@ -1,0 +1,11 @@
+schemaVersion: "2.2"
+description: "opscout: uptime and load average (read-only)."
+mainSteps:
+  - action: aws:runShellScript
+    name: uptime
+    precondition:
+      StringEquals: [platformType, Linux]
+    inputs:
+      runCommand:
+        - "uptime"
+        - "cat /proc/loadavg"

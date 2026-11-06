@@ -1,0 +1,386 @@
+{
+ "secret-values": [
+  {
+   "action": "secretsmanager:GetSecretValue",
+   "why": "a secret's value"
+  },
+  {
+   "action": "secretsmanager:BatchGetSecretValue",
+   "why": "secrets' values"
+  },
+  {
+   "action": "ssm:GetParameter",
+   "why": "a parameter's value, plain or decrypted"
+  },
+  {
+   "action": "ssm:GetParameters",
+   "why": "parameters' values"
+  },
+  {
+   "action": "ssm:GetParametersByPath",
+   "why": "parameters' values"
+  },
+  {
+   "action": "ssm:GetParameterHistory",
+   "why": "parameters' past values"
+  },
+  {
+   "action": "kms:Decrypt",
+   "why": "decrypts any ciphertext, such as SecureString parameters"
+  },
+  {
+   "action": "kms:GenerateDataKey*",
+   "why": "returns plaintext key material"
+  },
+  {
+   "action": "kms:ReEncrypt*",
+   "why": "moves ciphertext between keys"
+  }
+ ],
+ "credentials": [
+  {
+   "action": "sts:AssumeRole*",
+   "why": "would escape this identity into another role"
+  },
+  {
+   "action": "sts:GetFederationToken",
+   "why": "issues credentials"
+  },
+  {
+   "action": "ecr:GetAuthorizationToken",
+   "why": "a registry login token"
+  },
+  {
+   "action": "ecr-public:GetAuthorizationToken",
+   "why": "a registry login token"
+  },
+  {
+   "action": "codeartifact:GetAuthorizationToken",
+   "why": "a package registry token"
+  },
+  {
+   "action": "rds-db:connect",
+   "why": "a database login"
+  },
+  {
+   "action": "redshift:GetClusterCredentials*",
+   "why": "database credentials"
+  },
+  {
+   "action": "redshift-serverless:GetCredentials",
+   "why": "database credentials"
+  },
+  {
+   "action": "ec2:GetPasswordData",
+   "why": "a Windows instance's administrator password"
+  },
+  {
+   "action": "cognito-idp:GetClientToken",
+   "why": "issues tokens"
+  },
+  {
+   "action": "cognito-idp:GetTokensFromRefreshToken",
+   "why": "issues tokens"
+  }
+ ],
+ "plaintext-secrets": [
+  {
+   "action": "lambda:GetFunction",
+   "why": "the code location and environment variables"
+  },
+  {
+   "action": "lambda:GetFunctionConfiguration",
+   "why": "environment variables in plaintext"
+  },
+  {
+   "action": "ecs:DescribeTaskDefinition",
+   "why": "container environment in plaintext"
+  },
+  {
+   "action": "codebuild:BatchGetProjects",
+   "why": "build environment variables in plaintext"
+  },
+  {
+   "action": "ec2:DescribeInstanceAttribute",
+   "why": "user data, which often holds secrets"
+  },
+  {
+   "action": "ec2:DescribeLaunchTemplateVersions",
+   "why": "user data, which often holds secrets"
+  },
+  {
+   "action": "ec2:GetConsoleOutput",
+   "why": "boot output that can print user data"
+  },
+  {
+   "action": "glue:GetConnection",
+   "why": "connection passwords"
+  },
+  {
+   "action": "glue:GetConnections",
+   "why": "connection passwords"
+  },
+  {
+   "action": "cognito-idp:DescribeUserPoolClient",
+   "why": "the client secret"
+  },
+  {
+   "action": "appsync:ListApiKeys",
+   "why": "API keys"
+  },
+  {
+   "action": "elasticbeanstalk:DescribeConfigurationSettings",
+   "why": "environment properties in plaintext"
+  },
+  {
+   "action": "lambda:ListFunctions",
+   "why": "each function's environment variables"
+  },
+  {
+   "action": "autoscaling:DescribeLaunchConfigurations",
+   "why": "user data, which often holds secrets"
+  },
+  {
+   "action": "sagemaker:DescribeModel",
+   "why": "container environment"
+  },
+  {
+   "action": "sagemaker:DescribeTrainingJob",
+   "why": "job environment"
+  },
+  {
+   "action": "sagemaker:DescribeProcessingJob",
+   "why": "job environment"
+  },
+  {
+   "action": "sagemaker:DescribeTransformJob",
+   "why": "job environment"
+  },
+  {
+   "action": "codebuild:BatchGetBuilds",
+   "why": "build environment variables"
+  },
+  {
+   "action": "batch:DescribeJobDefinitions",
+   "why": "container environment"
+  },
+  {
+   "action": "batch:DescribeJobs",
+   "why": "container environment"
+  },
+  {
+   "action": "lightsail:GetContainerServices",
+   "why": "container environment"
+  },
+  {
+   "action": "lightsail:GetContainerServiceDeployments",
+   "why": "container environment"
+  },
+  {
+   "action": "apprunner:DescribeService",
+   "why": "runtime environment variables"
+  },
+  {
+   "action": "amplify:GetApp",
+   "why": "environment variables and basic-auth credentials"
+  },
+  {
+   "action": "amplify:ListApps",
+   "why": "environment variables and basic-auth credentials"
+  },
+  {
+   "action": "amplify:GetBranch",
+   "why": "environment variables and basic-auth credentials"
+  },
+  {
+   "action": "amplify:ListBranches",
+   "why": "environment variables and basic-auth credentials"
+  },
+  {
+   "action": "apigateway:GET",
+   "resource": "arn:aws:apigateway:*::/apikeys",
+   "why": "API keys with their values"
+  },
+  {
+   "action": "apigateway:GET",
+   "resource": "arn:aws:apigateway:*::/apikeys/*",
+   "why": "an API key's value"
+  },
+  {
+   "action": "apigateway:GET",
+   "resource": "arn:aws:apigateway:*::/usageplans/*/keys",
+   "why": "usage plan keys with their values"
+  },
+  {
+   "action": "apigateway:GET",
+   "resource": "arn:aws:apigateway:*::/usageplans/*/keys/*",
+   "why": "a usage plan key's value"
+  }
+ ],
+ "data-plane": [
+  {
+   "action": "s3:GetObject*",
+   "why": "object contents"
+  },
+  {
+   "action": "s3:ListBucket",
+   "why": "object names, which are application data"
+  },
+  {
+   "action": "dynamodb:GetItem",
+   "why": "table items"
+  },
+  {
+   "action": "dynamodb:BatchGetItem",
+   "why": "table items"
+  },
+  {
+   "action": "dynamodb:Query",
+   "why": "table items"
+  },
+  {
+   "action": "dynamodb:Scan",
+   "why": "table items"
+  },
+  {
+   "action": "dynamodb:PartiQLSelect",
+   "why": "table items"
+  },
+  {
+   "action": "sqs:ReceiveMessage",
+   "why": "queue messages, and receiving hides them from their consumer"
+  },
+  {
+   "action": "kinesis:GetRecords",
+   "why": "stream records"
+  },
+  {
+   "action": "rds-data:*",
+   "why": "SQL against databases"
+  },
+  {
+   "action": "athena:GetQueryResults",
+   "why": "query results over application data"
+  },
+  {
+   "action": "bedrock:GetAsyncInvoke",
+   "why": "model invocation data"
+  },
+  {
+   "action": "bedrock:GetDataAutomationStatus",
+   "why": "data automation output"
+  },
+  {
+   "action": "bedrock:GetIngestedDocumentAcl",
+   "why": "document access data"
+  },
+  {
+   "action": "bedrock:ListInvocations",
+   "why": "agent session data"
+  },
+  {
+   "action": "bedrock:ListInvocationSteps",
+   "why": "agent session data"
+  },
+  {
+   "action": "bedrock:ListSessions",
+   "why": "agent session data"
+  },
+  {
+   "action": "bedrock-agentcore:GetAgentCard",
+   "why": "agent runtime data"
+  },
+  {
+   "action": "bedrock-agentcore:GetCodeInterpreterSession",
+   "why": "agent session data"
+  },
+  {
+   "action": "bedrock-agentcore:GetPaymentSession",
+   "why": "payment session data"
+  },
+  {
+   "action": "qapps:GetQApp",
+   "why": "application content"
+  },
+  {
+   "action": "qapps:ListQApps",
+   "why": "application content"
+  },
+  {
+   "action": "sagemaker:ListRecords",
+   "why": "feature store records"
+  },
+  {
+   "action": "swf:ListClosedWorkflowExecutions",
+   "why": "workflow data"
+  },
+  {
+   "action": "swf:ListOpenWorkflowExecutions",
+   "why": "workflow data"
+  },
+  {
+   "action": "uxc:GetAccountCustomizations",
+   "why": "not needed, and AWS classifies it as data plane"
+  },
+  {
+   "action": "xray:GetSamplingTargets",
+   "why": "not needed, and AWS classifies it as data plane"
+  }
+ ],
+ "sessions": [
+  {
+   "action": "ssm:StartSession",
+   "why": "an interactive shell"
+  },
+  {
+   "action": "ssm:ResumeSession",
+   "why": "an interactive shell"
+  },
+  {
+   "action": "ssmmessages:*",
+   "why": "the session channel"
+  },
+  {
+   "action": "ssm-guiconnect:*",
+   "why": "a remote desktop"
+  },
+  {
+   "action": "ec2-instance-connect:*",
+   "why": "temporary SSH keys and tunnels"
+  },
+  {
+   "action": "ssm:StartAutomationExecution",
+   "why": "runs automation documents"
+  }
+ ],
+ "capped-writes": [
+  {
+   "action": "athena:GetSessionEndpoint",
+   "why": "a write that ReadOnlyAccess allows"
+  },
+  {
+   "action": "backup:ListIndexedRecoveryPointsForSearch",
+   "why": "a write that ReadOnlyAccess allows"
+  },
+  {
+   "action": "billing:GetResourcePolicy",
+   "why": "a permissions action that ReadOnlyAccess allows"
+  },
+  {
+   "action": "iot:GetConnection",
+   "why": "a write that ReadOnlyAccess allows"
+  },
+  {
+   "action": "iot:ListSubscriptions",
+   "why": "a write that ReadOnlyAccess and ViewOnlyAccess allow"
+  },
+  {
+   "action": "s3express:CreateSession",
+   "why": "a write that ReadOnlyAccess allows under a condition"
+  },
+  {
+   "action": "ssm-sap:GetResourcePermission",
+   "why": "a permissions action that ReadOnlyAccess allows"
+  }
+ ]
+}

@@ -1,0 +1,206 @@
+[
+ {
+  "name": "configuration",
+  "purpose": "View the configuration metadata of every service: what exists and how it is set, never secret values.",
+  "agents": [
+   "alert-triage",
+   "cost-triage",
+   "ask"
+  ],
+  "identity": "readonly",
+  "optional": false,
+  "grant": "managed",
+  "actions": [],
+  "reads": [
+   "ec2:DescribeInstances",
+   "ecs:DescribeServices",
+   "rds:DescribeDBInstances",
+   "lambda:ListEventSourceMappings",
+   "eks:DescribeCluster"
+  ]
+ },
+ {
+  "name": "secret-metadata",
+  "purpose": "Say whether a secret or parameter exists and where, never its value.",
+  "agents": [
+   "alert-triage",
+   "ask"
+  ],
+  "identity": "readonly",
+  "optional": false,
+  "grant": "actions",
+  "actions": [
+   "secretsmanager:ListSecrets",
+   "secretsmanager:DescribeSecret",
+   "ssm:DescribeParameters"
+  ],
+  "reads": [
+   "secretsmanager:ListSecrets",
+   "secretsmanager:DescribeSecret",
+   "ssm:DescribeParameters"
+  ]
+ },
+ {
+  "name": "metrics",
+  "purpose": "Read metrics and alarms around an alert.",
+  "agents": [
+   "alert-triage"
+  ],
+  "identity": "readonly",
+  "optional": false,
+  "grant": "actions",
+  "actions": [
+   "cloudwatch:GetMetricData",
+   "cloudwatch:GetMetricStatistics",
+   "cloudwatch:GetMetricWidgetImage",
+   "cloudwatch:ListMetrics",
+   "cloudwatch:DescribeAlarms",
+   "cloudwatch:DescribeAlarmHistory",
+   "cloudwatch:DescribeAlarmsForMetric"
+  ],
+  "reads": [
+   "cloudwatch:GetMetricData",
+   "cloudwatch:GetMetricStatistics",
+   "cloudwatch:GetMetricWidgetImage",
+   "cloudwatch:ListMetrics",
+   "cloudwatch:DescribeAlarms",
+   "cloudwatch:DescribeAlarmHistory",
+   "cloudwatch:DescribeAlarmsForMetric"
+  ]
+ },
+ {
+  "name": "logs",
+  "purpose": "Query and read log events around an alert.",
+  "agents": [
+   "alert-triage"
+  ],
+  "identity": "readonly",
+  "optional": false,
+  "grant": "actions",
+  "actions": [
+   "logs:DescribeLogGroups",
+   "logs:DescribeLogStreams",
+   "logs:FilterLogEvents",
+   "logs:GetLogEvents",
+   "logs:StartQuery",
+   "logs:StopQuery",
+   "logs:GetQueryResults",
+   "logs:DescribeQueries"
+  ],
+  "reads": [
+   "logs:DescribeLogGroups",
+   "logs:DescribeLogStreams",
+   "logs:FilterLogEvents",
+   "logs:GetLogEvents",
+   "logs:StartQuery",
+   "logs:StopQuery",
+   "logs:GetQueryResults",
+   "logs:DescribeQueries"
+  ]
+ },
+ {
+  "name": "changes",
+  "purpose": "Find recent changes: the audit trail, deployments and scaling events.",
+  "agents": [
+   "alert-triage",
+   "ask"
+  ],
+  "identity": "readonly",
+  "optional": false,
+  "grant": "actions",
+  "actions": [
+   "cloudtrail:LookupEvents",
+   "ecs:ListServiceDeployments",
+   "ecs:DescribeServiceDeployments",
+   "codedeploy:ListDeployments",
+   "codedeploy:GetDeployment",
+   "codedeploy:BatchGetDeployments",
+   "autoscaling:DescribeScalingActivities",
+   "rds:DescribeEvents",
+   "health:DescribeEvents"
+  ],
+  "reads": [
+   "cloudtrail:LookupEvents",
+   "ecs:ListServiceDeployments",
+   "ecs:DescribeServiceDeployments",
+   "codedeploy:ListDeployments",
+   "codedeploy:GetDeployment",
+   "codedeploy:BatchGetDeployments",
+   "autoscaling:DescribeScalingActivities",
+   "rds:DescribeEvents",
+   "health:DescribeEvents"
+  ]
+ },
+ {
+  "name": "cost",
+  "purpose": "Break down cost and usage, forecasts and anomalies.",
+  "agents": [
+   "cost-triage"
+  ],
+  "identity": "readonly",
+  "optional": false,
+  "grant": "actions",
+  "actions": [
+   "ce:GetCostAndUsage",
+   "ce:GetCostAndUsageWithResources",
+   "ce:GetCostForecast",
+   "ce:GetDimensionValues",
+   "ce:GetAnomalies",
+   "ce:GetAnomalyMonitors",
+   "ce:GetTags",
+   "budgets:ViewBudget"
+  ],
+  "reads": [
+   "ce:GetCostAndUsage",
+   "ce:GetCostAndUsageWithResources",
+   "ce:GetCostForecast",
+   "ce:GetDimensionValues",
+   "ce:GetAnomalies",
+   "ce:GetAnomalyMonitors",
+   "ce:GetTags",
+   "budgets:ViewBudget"
+  ]
+ },
+ {
+  "name": "cluster",
+  "purpose": "Find EKS clusters and reach them with the view access policy.",
+  "agents": [
+   "alert-triage",
+   "ask"
+  ],
+  "identity": "readonly",
+  "optional": true,
+  "grant": "actions",
+  "actions": [
+   "eks:DescribeCluster",
+   "eks:ListClusters"
+  ],
+  "reads": [
+   "eks:DescribeCluster",
+   "eks:ListClusters"
+  ]
+ },
+ {
+  "name": "hosts",
+  "purpose": "Run the catalog's fixed read-only commands on managed Linux hosts, and read their output.",
+  "agents": [
+   "alert-triage"
+  ],
+  "identity": "hosts",
+  "optional": true,
+  "grant": "actions",
+  "actions": [
+   "ssm:SendCommand",
+   "ssm:GetCommandInvocation",
+   "ssm:ListCommandInvocations",
+   "ssm:ListCommands",
+   "ssm:DescribeInstanceInformation"
+  ],
+  "reads": [
+   "ssm:GetCommandInvocation",
+   "ssm:ListCommandInvocations",
+   "ssm:ListCommands",
+   "ssm:DescribeInstanceInformation"
+  ]
+ }
+]

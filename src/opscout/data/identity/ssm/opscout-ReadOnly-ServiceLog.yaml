@@ -1,0 +1,22 @@
+schemaVersion: "2.2"
+description: "opscout: the last lines of one systemd unit's journal (read-only)."
+parameters:
+  ServiceName:
+    type: String
+    description: "A systemd unit name."
+    allowedPattern: "^[A-Za-z0-9@_][A-Za-z0-9@._-]{0,63}$"
+    interpolationType: ENV_VAR
+  Lines:
+    type: String
+    description: "How many lines."
+    allowedValues: ["50", "100", "200"]
+    default: "50"
+    interpolationType: ENV_VAR
+mainSteps:
+  - action: aws:runShellScript
+    name: serviceLog
+    precondition:
+      StringEquals: [platformType, Linux]
+    inputs:
+      runCommand:
+        - "journalctl --unit=\"$SSM_ServiceName\" --lines=\"$SSM_Lines\" --no-pager --output=short-iso"
