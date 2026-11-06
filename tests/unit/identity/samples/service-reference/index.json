@@ -1,0 +1,4 @@
+[
+  {"service": "ssm", "serviceName": "AWS Systems Manager", "url": "https://servicereference.us-east-1.amazonaws.com/v1/ssm/ssm.json", "modified": 1793836800},
+  {"service": "ce", "serviceName": "Cost Explorer Service", "url": "https://servicereference.us-east-1.amazonaws.com/v1/ce/ce.json", "modified": 1793836800}
+]

@@ -123,7 +123,7 @@ parameters:
   ServiceName:
     type: String
     description: A systemd unit name.
-    allowedPattern: "^[A-Za-z0-9@._-]{1,64}$"
+    allowedPattern: "^[A-Za-z0-9@_][A-Za-z0-9@._-]{0,63}$"
     interpolationType: ENV_VAR
   Lines:
     type: String

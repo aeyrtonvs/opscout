@@ -165,7 +165,7 @@ named after its file, with the `opscout-ReadOnly-` prefix:
 | `Memory` | `free -m` | none |
 | `Disk` | `df -hP -x tmpfs -x devtmpfs; df -iP -x tmpfs -x devtmpfs` | none |
 | `TopProcesses` | `ps -eo pid,comm,%cpu,%mem --sort=-%cpu \| head -n 16; ps -eo pid,comm,%cpu,%mem --sort=-%mem \| head -n 16` | none |
-| `ServiceState` | `systemctl show --property=ActiveState,SubState,MainPID,NRestarts,Result,ExecMainStartTimestamp -- "$SSM_ServiceName"` | `ServiceName`: `^[A-Za-z0-9@._-]{1,64}$`, `ENV_VAR` |
+| `ServiceState` | `systemctl show --property=ActiveState,SubState,MainPID,NRestarts,Result,ExecMainStartTimestamp -- "$SSM_ServiceName"` | `ServiceName`: `^[A-Za-z0-9@_][A-Za-z0-9@._-]{0,63}$`, `ENV_VAR` |
 | `ServiceLog` | `journalctl --unit="$SSM_ServiceName" --lines="$SSM_Lines" --no-pager --output=short-iso` | `ServiceName` as above; `Lines`: `allowedValues` `50`, `100`, `200` |
 | `ListeningPorts` | `ss -Hltn; ss -Hlun` | none |
 

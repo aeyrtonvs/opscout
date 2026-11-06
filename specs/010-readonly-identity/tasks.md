@@ -15,8 +15,8 @@ proofs. No test uses the network or an AWS account.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the baseline on `feat/010-readonly-identity`: `uv run just fast` passes
-- [ ] T002 Write failing tests in `tests/unit/identity/test_refresh.py` (FR-011, FR-015),
+- [X] T001 Confirm the baseline on `feat/010-readonly-identity`: `uv run just fast` passes
+- [X] T002 Write failing tests in `tests/unit/identity/test_refresh.py` (FR-011, FR-015),
   using two trimmed service files and an index saved under
   `tests/unit/identity/samples/service-reference/`, in the shapes of research R1. They
   cover:
@@ -28,7 +28,7 @@ proofs. No test uses the network or an AWS account.
   - `source`, `fetched` and each service's `version` are written
   - the diff summary lists actions added, removed or reclassified
   - a managed-policy page's JSON block parses into `{arn, version, fetched, document}`
-- [ ] T003 Implement `tools/identity_refresh.py`: it downloads
+- [X] T003 Implement `tools/identity_refresh.py`: it downloads
   `https://servicereference.us-east-1.amazonaws.com/` and every service file, plus the
   `ViewOnlyAccess` and `ReadOnlyAccess` pages of the AWS Managed Policy Reference, using
   `urllib` with `truststore`. It writes `src/opscout/data/identity/catalog.json` and
@@ -38,10 +38,10 @@ proofs. No test uses the network or an AWS account.
 
 ## Phase 2: Foundational — types, parsing, records
 
-- [ ] T004 Create `tests/unit/identity/test_traceability.py`: every requirement from FR-001
+- [X] T004 Create `tests/unit/identity/test_traceability.py`: every requirement from FR-001
   to FR-021 has a test marked with it. This test is marked FR-020, and is
   `xfail(strict=True)` until T040.
-- [ ] T005 [P] Write failing tests in `tests/unit/identity/test_parse.py` (FR-011). They
+- [X] T005 [P] Write failing tests in `tests/unit/identity/test_parse.py` (FR-011). They
   cover:
   - a policy parses when it has `Version` `2012-10-17` and `Statement` as a list or a single
     statement, each with `Sid` (optional), `Effect` `Allow`|`Deny`, exactly one of
@@ -49,13 +49,13 @@ proofs. No test uses the network or an AWS account.
   - `Principal`, `NotPrincipal`, another `Version`, an unknown key, both `Action` and
     `NotAction`, or neither, each give `cannot-prove` with `<file>#<index or Sid>`
   - YAML and JSON load errors name the file and the line
-- [ ] T006 Write `src/opscout/core/identity.py` with these types: `Statement`, `Policy`,
+- [X] T006 Write `src/opscout/core/identity.py` with these types: `Statement`, `Policy`,
   `Identity` (its policies and boundary), `Capability`, `Catalog` (lookup is
   case-insensitive on prefix and name; `is_write` is any of `w p t`), `Request`, `Decision`,
   `Finding` with the kinds from data-model.md, and `Report`. Add the parsing in
   `src/opscout/adapters/identity_files.py`: it reads a tree and the package data through
   `importlib.resources`. T005 passes.
-- [ ] T007 [P] Write failing tests in `tests/unit/identity/test_catalog.py` (FR-011). The
+- [X] T007 [P] Write failing tests in `tests/unit/identity/test_catalog.py` (FR-011). The
   packaged catalog loads. It has more than 400 services. Its `fetched` date and `source` are
   set. `ssm:SendCommand` and `athena:StartQueryExecution` are writes. `logs:StartQuery`,
   `ce:GetCostAndUsage` and `sqs:ReceiveMessage` are reads (research R1, from the verified
@@ -68,7 +68,7 @@ every planted fault.
 **Independent test**: the reference passes, and each planted copy fails with its fault
 named.
 
-- [ ] T008 [P] [US1] Write failing tests in `tests/unit/identity/test_evaluator.py`
+- [X] T008 [P] [US1] Write failing tests in `tests/unit/identity/test_evaluator.py`
   (FR-011, research R3).
   - **Exact evaluation**: a deny beats an allow. Without an allow, the request is denied
     implicitly. An allow must exist in both the identity policies and the boundary.
@@ -80,14 +80,14 @@ named.
   - **Conditions are conservative**: a `Condition` never counts as a deny and always counts
     as a possible allow.
   - **Decisions carry statement refs.**
-- [ ] T009 [US1] Implement the two evaluations in `src/opscout/core/identity.py`, with
+- [X] T009 [US1] Implement the two evaluations in `src/opscout/core/identity.py`, with
   patterns precompiled. T008 passes.
-- [ ] T010 [P] [US1] Write `src/opscout/data/identity/guardrail-actions.json`: the groups
+- [X] T010 [P] [US1] Write `src/opscout/data/identity/guardrail-actions.json`: the groups
   `secret-values`, `credentials`, `plaintext-secrets`, `data-plane` and `sessions`, each
   entry `{action, resource, why}`, exactly the table in research R4. Write
   `src/opscout/data/identity/aws/guardrail.json` with its deny statements, in the form of
   contracts/documents.md. Keep it at most 6,144 characters without whitespace.
-- [ ] T011 [P] [US1] Write failing tests in `tests/unit/identity/test_reference.py` on the
+- [X] T011 [P] [US1] Write failing tests in `tests/unit/identity/test_reference.py` on the
   packaged tree.
   - FR-002: under the robust evaluation, every guardrail entry is denied for the read-only
     identity and for the host identity. The resource-scoped `apigateway:GET` on `/apikeys`
@@ -98,7 +98,7 @@ named.
   - FR-014: the check needs no network (sockets are blocked in the test), and the whole
     proof runs in under 2 seconds.
   - FR-012: the report counts match the catalog.
-- [ ] T012 [P] [US1] Write failing tests in `tests/unit/identity/test_faults.py` (FR-012,
+- [X] T012 [P] [US1] Write failing tests in `tests/unit/identity/test_faults.py` (FR-012,
   FR-020, US1 scenarios 2 to 6). Build each fault from the packaged tree in a temporary
   directory:
   - delete `DenySecretValues` → `secret-allowed`, naming `secretsmanager:GetSecretValue` and
@@ -112,7 +112,7 @@ named.
   - a catalog with a new write action, given as a fixture → denied with no edit
   - a `Condition` on a guardrail deny → `secret-allowed`, because conditional denies don't
     count
-- [ ] T013 [US1] Implement the proofs in `src/opscout/services/identity.py`:
+- [X] T013 [US1] Implement the proofs in `src/opscout/services/identity.py`:
   `prove(tree, records) -> Report`, covering the guardrail, the writes, the data plane and
   the counts. Then wire the read-only identity: the `ViewOnlyAccess` copy, the capabilities
   and the guardrail, under the `ReadOnlyAccess` boundary (research R7). If the cap's copy
@@ -128,7 +128,7 @@ document fits.
 **Independent test**: the reference passes. An undeclared or unknown action, a missing read,
 or an oversized document each fails.
 
-- [ ] T014 [P] [US2] Write `src/opscout/data/identity/capabilities.json` per data-model.md:
+- [X] T014 [P] [US2] Write `src/opscout/data/identity/capabilities.json` per data-model.md:
   `name` is one of `configuration`, `secret-metadata`, `metrics`, `logs`, `changes`, `cost`,
   `cluster`, `hosts`; plus `purpose`, `agents` (any of `alert-triage`, `cost-triage`, `ask`),
   `identity` `readonly`|`hosts`, `optional` (true for `cluster` and `hosts`), `grant`
@@ -137,7 +137,7 @@ or an oversized document each fails.
   `src/opscout/data/identity/aws/readonly/capabilities/{secret-metadata,metrics,logs,changes,cost,cluster}.json`
   to match. `secret-metadata` is `secretsmanager:ListSecrets`,
   `secretsmanager:DescribeSecret` and `ssm:DescribeParameters` (research R4).
-- [ ] T015 [P] [US2] Write failing tests in `tests/unit/identity/test_capabilities.py`:
+- [X] T015 [P] [US2] Write failing tests in `tests/unit/identity/test_capabilities.py`:
   - FR-004: every declaration has a purpose, its agents and its actions. `configuration` is
     `grant: managed` with the `ViewOnlyAccess` ARN. No value in it is organization-specific.
   - FR-004 and FR-002: `secretsmanager:DescribeSecret` and `ssm:DescribeParameters` are
@@ -153,13 +153,13 @@ or an oversized document each fails.
     fails `layout`.
   - FR-001: the only account is `123456789012`, the only cluster is `example-prod`, and the
     only names are `opscout-*`. A tree that mixes two accounts fails `placeholder`.
-- [ ] T016 [P] [US2] Write failing tests in `tests/unit/identity/test_sizes.py` (FR-005,
+- [X] T016 [P] [US2] Write failing tests in `tests/unit/identity/test_sizes.py` (FR-005,
   research R8):
   - each AWS document has at most 6,144 non-whitespace characters
   - the guardrail plus the capabilities have at most 10,240
   - at most 20 attachments per identity
   - a padded copy fails `too-large`, naming the file and its size
-- [ ] T017 [US2] Implement the declaration, read, undeclared, unknown-action, layout,
+- [X] T017 [US2] Implement the declaration, read, undeclared, unknown-action, layout,
   placeholder and size proofs in `src/opscout/services/identity.py` and the layout rules in
   `src/opscout/adapters/identity_files.py`. T015 and T016 pass.
 
@@ -169,19 +169,19 @@ or an oversized document each fails.
 **Independent test**: the reference documents match. Injection values are refused. Shell
 documents and sessions are denied.
 
-- [ ] T018 [P] [US3] Write the seven documents
+- [X] T018 [P] [US3] Write the seven documents
   `src/opscout/data/identity/ssm/opscout-ReadOnly-{Uptime,Memory,Disk,TopProcesses,ServiceState,ServiceLog,ListeningPorts}.yaml`,
   exactly the commands and parameters of research R5:
   - schema `2.2`, `aws:runShellScript`, and the precondition `platformType` `Linux`
-  - `ServiceName` uses `allowedPattern: "^[A-Za-z0-9@._-]{1,64}$"` and
+  - `ServiceName` uses `allowedPattern: "^[A-Za-z0-9@_][A-Za-z0-9@._-]{0,63}$"` and
     `interpolationType: ENV_VAR`
   - `Lines` uses `allowedValues` `["50", "100", "200"]` and `ENV_VAR`
   - no `{{` appears in any command
-- [ ] T019 [P] [US3] Write `src/opscout/data/identity/aws/hosts/capability.json` and
+- [X] T019 [P] [US3] Write `src/opscout/data/identity/aws/hosts/capability.json` and
   `boundary.json` per contracts/documents.md. `ssm:SendCommand` is allowed only on the seven
   document ARNs and on `instance/*` and `managed-instance/*` in `123456789012`. Command
   results are readable.
-- [ ] T020 [P] [US3] Write failing tests in `tests/unit/identity/test_hosts.py`:
+- [X] T020 [P] [US3] Write failing tests in `tests/unit/identity/test_hosts.py`:
   - FR-007: there are seven documents, one per command group of research R5, all Linux.
   - FR-008: each parameter's pattern or value list rejects every value in the injection
     corpus (`;`, `$(id)`, a backtick, `|`, `&`, `>`, a newline, `..`, `/`, a space, a quote,
@@ -197,7 +197,7 @@ documents and sessions are denied.
   - FR-013: a copy whose `Disk` document adds `env`, or reads a file given as a parameter,
     or whose pattern is loosened, fails `host-document` or `host-pattern`, naming the
     document and the path within it.
-- [ ] T021 [US3] Implement the host identity's wiring, the exception probes and the
+- [X] T021 [US3] Implement the host identity's wiring, the exception probes and the
   comparison of documents with the reference (parsed equality, with a path to the first
   difference) in `src/opscout/services/identity.py`. T020 passes.
 
@@ -207,9 +207,9 @@ documents and sessions are denied.
 **Independent test**: the reference passes. The administrator-view policy, an extra role or a
 second object fails.
 
-- [ ] T022 [P] [US4] Write `src/opscout/data/identity/eks/access-policy.json` and
+- [X] T022 [P] [US4] Write `src/opscout/data/identity/eks/access-policy.json` and
   `src/opscout/data/identity/kubernetes/view-binding.yaml` per contracts/documents.md.
-- [ ] T023 [P] [US4] Write failing tests in `tests/unit/identity/test_cluster.py`:
+- [X] T023 [P] [US4] Write failing tests in `tests/unit/identity/test_cluster.py`:
   - FR-010: the reference passes. The access scope is `cluster` or `namespace`. The cluster
     capability allows `eks:DescribeCluster` and `eks:ListClusters`.
   - FR-013: each of these fails `cluster`, naming the file:
@@ -219,7 +219,7 @@ second object fails.
       `pods/exec`, `pods/attach`, `pods/portforward`, `nodes/proxy` or
       `serviceaccounts/token`
     - a `RoleBinding` to `edit`
-- [ ] T024 [US4] Implement the cluster proofs in `src/opscout/services/identity.py`. T023
+- [X] T024 [US4] Implement the cluster proofs in `src/opscout/services/identity.py`. T023
   passes.
 
 ## Phase 7: User Story 5 — the person who applies it can confirm it worked (P3)

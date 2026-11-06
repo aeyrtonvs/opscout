@@ -1,0 +1,11 @@
+schemaVersion: "2.2"
+description: "opscout: listening TCP and UDP ports, without processes (read-only)."
+mainSteps:
+  - action: aws:runShellScript
+    name: listeningPorts
+    precondition:
+      StringEquals: [platformType, Linux]
+    inputs:
+      runCommand:
+        - "ss -Hltn"
+        - "ss -Hlun"

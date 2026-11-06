@@ -1,0 +1,17 @@
+<html><body><div id="main-content">
+<h1>ViewOnlyAccess</h1>
+<p><b>Policy version:</b> v48 (default)</p>
+<p><b>Edited time:</b>  October 30, 2026, 14:07 UTC</p>
+<h2 id="ViewOnlyAccess-json">Policy document</h2>
+<pre class="programlisting"><code class="json">{
+  &quot;Version&quot; : &quot;2012-10-17&quot;,
+  &quot;Statement&quot; : [
+    {
+      &quot;Sid&quot; : &quot;GeneralViewOnlyAccessStatement&quot;,
+      &quot;Effect&quot; : &quot;Allow&quot;,
+      &quot;Action&quot; : [&quot;ce:GetCostAndUsage&quot;, &quot;ssm:Describe*&quot;],
+      &quot;Resource&quot; : &quot;*&quot;
+    }
+  ]
+}</code></pre>
+</div></body></html>

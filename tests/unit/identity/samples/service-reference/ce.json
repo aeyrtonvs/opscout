@@ -1,0 +1,7 @@
+{"Name": "ce", "ServiceName": "Cost Explorer Service", "Version": "v1.5",
+ "Actions": [
+  {"Name": "GetCostAndUsage", "Annotations": {"Properties": {"IsDataPlane": false, "IsList": false, "IsPermissionManagement": false, "IsTaggingOnly": false, "IsWrite": false}}, "Resources": [{"Name": "billingview"}]},
+  {"Name": "CreateAnomalyMonitor", "Annotations": {"Properties": {"IsList": false, "IsPermissionManagement": false, "IsTaggingOnly": false, "IsWrite": true}}},
+  {"Name": "TagResource", "Annotations": {"Properties": {"IsList": false, "IsPermissionManagement": false, "IsTaggingOnly": true, "IsWrite": true}}}
+ ],
+ "Resources": [], "ConditionKeys": [], "Operations": []}

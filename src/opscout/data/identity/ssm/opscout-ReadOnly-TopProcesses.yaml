@@ -1,0 +1,11 @@
+schemaVersion: "2.2"
+description: "opscout: the processes using the most CPU and memory, by name only (read-only)."
+mainSteps:
+  - action: aws:runShellScript
+    name: topProcesses
+    precondition:
+      StringEquals: [platformType, Linux]
+    inputs:
+      runCommand:
+        - "ps -eo pid,comm,%cpu,%mem --sort=-%cpu | head -n 16"
+        - "ps -eo pid,comm,%cpu,%mem --sort=-%mem | head -n 16"

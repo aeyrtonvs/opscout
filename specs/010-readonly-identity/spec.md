@@ -90,8 +90,9 @@ copy fails with its fault named.
    permissions-management and tagging action is denied or is a named exception, and that every
    declared read is allowed.
 2. **Given** a copy whose deny statement for secret values is removed, **When** the check
-   runs, **Then** it fails and names `secretsmanager:GetSecretValue` and the other actions
-   that are now allowed.
+   runs, **Then** it fails and names the actions that are now allowed, such as
+   `ssm:GetParameter`; those the cap never allows, such as `secretsmanager:GetSecretValue`,
+   stay denied.
 3. **Given** a copy that adds `"Action": "*"` with `"Effect": "Allow"`, **When** the check
    runs, **Then** it still passes the deny properties, because the guardrail holds, and
    reports the grant as undeclared, which is a failure.

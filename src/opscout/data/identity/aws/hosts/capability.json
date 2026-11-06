@@ -1,0 +1,32 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SendCatalogDocuments",
+      "Effect": "Allow",
+      "Action": "ssm:SendCommand",
+      "Resource": [
+        "arn:aws:ssm:*:123456789012:document/opscout-ReadOnly-Uptime",
+        "arn:aws:ssm:*:123456789012:document/opscout-ReadOnly-Memory",
+        "arn:aws:ssm:*:123456789012:document/opscout-ReadOnly-Disk",
+        "arn:aws:ssm:*:123456789012:document/opscout-ReadOnly-TopProcesses",
+        "arn:aws:ssm:*:123456789012:document/opscout-ReadOnly-ServiceState",
+        "arn:aws:ssm:*:123456789012:document/opscout-ReadOnly-ServiceLog",
+        "arn:aws:ssm:*:123456789012:document/opscout-ReadOnly-ListeningPorts",
+        "arn:aws:ec2:*:123456789012:instance/*",
+        "arn:aws:ssm:*:123456789012:managed-instance/*"
+      ]
+    },
+    {
+      "Sid": "ReadCommandResults",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetCommandInvocation",
+        "ssm:ListCommandInvocations",
+        "ssm:ListCommands",
+        "ssm:DescribeInstanceInformation"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{"Name": "ssm", "ServiceName": "AWS Systems Manager", "Version": "v1.5",
+ "Actions": [
+  {"Name": "SendCommand", "Annotations": {"Properties": {"IsDataPlane": false, "IsList": false, "IsPermissionManagement": false, "IsTaggingOnly": false, "IsWrite": true}}},
+  {"Name": "DescribeParameters", "Annotations": {"Properties": {"IsDataPlane": false, "IsList": true, "IsPermissionManagement": false, "IsTaggingOnly": false, "IsWrite": false}}},
+  {"Name": "GetParameter", "Annotations": {"Properties": {"IsDataPlane": true, "IsList": false, "IsPermissionManagement": false, "IsTaggingOnly": false, "IsWrite": false}}},
+  {"Name": "AddTagsToResource", "Annotations": {"Properties": {"IsList": false, "IsPermissionManagement": false, "IsTaggingOnly": true, "IsWrite": false}}},
+  {"Name": "PutResourcePolicy", "Annotations": {"Properties": {"IsList": false, "IsPermissionManagement": true, "IsTaggingOnly": false, "IsWrite": true}}}
+ ],
+ "Resources": [], "ConditionKeys": [], "Operations": []}

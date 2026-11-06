@@ -1,0 +1,10 @@
+schemaVersion: "2.2"
+description: "opscout: memory use (read-only)."
+mainSteps:
+  - action: aws:runShellScript
+    name: memory
+    precondition:
+      StringEquals: [platformType, Linux]
+    inputs:
+      runCommand:
+        - "free -m"
