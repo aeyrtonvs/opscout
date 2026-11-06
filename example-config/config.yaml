@@ -99,3 +99,20 @@ daemon:
   #     service: opscout-slack-bot
   #   slack_app_token:
   #     service: opscout-slack-app
+
+# The daily standup (spec 009). Optional. `opscout standup preview` shows what it would
+# send, and docs/reference/standup.md what is read and what never leaves.
+standup:
+  # Your commit author e-mails or names.
+  identities: [dev@example.com]
+  # Your projects: local clones and Bitbucket repositories.
+  projects:
+    # A project, by name.
+    example-api:
+      # Absolute paths of the local clones.
+      paths: [/Users/example/src/example-api]
+      # Bitbucket repositories, as workspace/slug.
+      repositories: [example-workspace/example-api]
+  # Terms never sent to the model.
+  redact: [Example Corp]
+

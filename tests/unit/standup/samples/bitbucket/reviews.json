@@ -1,0 +1,69 @@
+{
+  "pagelen": 50,
+  "values": [
+    {
+      "id": 55,
+      "title": "Teammate change",
+      "state": "OPEN",
+      "created_on": "2026-11-04T09:00:00+00:00",
+      "updated_on": "2026-11-04T09:00:00+00:00",
+      "author": {
+        "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee002}",
+        "display_name": "Example Reviewer"
+      },
+      "source": {
+        "branch": {
+          "name": "feature/teammate"
+        }
+      },
+      "destination": {
+        "branch": {
+          "name": "main"
+        }
+      },
+      "participants": [],
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/example-workspace/example-api/pull-requests/55"
+        }
+      }
+    },
+    {
+      "id": 56,
+      "title": "Already approved",
+      "state": "OPEN",
+      "created_on": "2026-11-04T09:00:00+00:00",
+      "updated_on": "2026-11-04T09:00:00+00:00",
+      "author": {
+        "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee002}",
+        "display_name": "Example Reviewer"
+      },
+      "source": {
+        "branch": {
+          "name": "feature/teammate"
+        }
+      },
+      "destination": {
+        "branch": {
+          "name": "main"
+        }
+      },
+      "participants": [
+        {
+          "user": {
+            "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee001}"
+          },
+          "role": "REVIEWER",
+          "approved": true,
+          "state": "approved",
+          "participated_on": "2026-11-04T10:00:00+00:00"
+        }
+      ],
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/example-workspace/example-api/pull-requests/56"
+        }
+      }
+    }
+  ]
+}

@@ -145,14 +145,13 @@ def test_run_cannot_start_on_an_invalid_configuration(
 
 @spec("FR-006")
 def test_run_refuses_an_unknown_job(fakes: Fakes, capsys: pytest.CaptureFixture[str]) -> None:
-    assert run(fakes, "run", "standup") == 2
-    assert capsys.readouterr().err == (
-        'opscout run: unknown job "standup"; configured jobs: check\n'
-    )
+    assert run(fakes, "run", "daily") == 2
+    assert capsys.readouterr().err == ('opscout run: unknown job "daily"; configured jobs: check\n')
     fakes.write("schema_version: 1\n")
-    assert run(fakes, "run", "standup") == 2
+    assert run(fakes, "run", "daily") == 2
     assert capsys.readouterr().err == (
-        'opscout run: unknown job "standup"; configured jobs: none (the engine\'s jobs: check)\n'
+        'opscout run: unknown job "daily"; configured jobs: none '
+        "(the engine's jobs: check, standup)\n"
     )
 
 

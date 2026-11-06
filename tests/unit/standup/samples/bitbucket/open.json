@@ -1,0 +1,120 @@
+{
+  "pagelen": 50,
+  "values": [
+    {
+      "id": 42,
+      "title": "Retry export job",
+      "state": "OPEN",
+      "created_on": "2026-11-04T15:30:00+00:00",
+      "updated_on": "2026-11-04T15:30:00+00:00",
+      "author": {
+        "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee001}",
+        "display_name": "Example Developer"
+      },
+      "source": {
+        "branch": {
+          "name": "feature/retry-export"
+        }
+      },
+      "destination": {
+        "branch": {
+          "name": "main"
+        }
+      },
+      "participants": [
+        {
+          "user": {
+            "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee002}",
+            "display_name": "Example Reviewer"
+          },
+          "role": "REVIEWER",
+          "approved": false,
+          "state": null,
+          "participated_on": null
+        }
+      ],
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/example-workspace/example-api/pull-requests/42"
+        }
+      }
+    },
+    {
+      "id": 37,
+      "title": "Old cleanup",
+      "state": "OPEN",
+      "created_on": "2026-10-29T10:00:00+00:00",
+      "updated_on": "2026-10-29T10:00:00+00:00",
+      "author": {
+        "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee001}",
+        "display_name": "Example Developer"
+      },
+      "source": {
+        "branch": {
+          "name": "chore/cleanup"
+        }
+      },
+      "destination": {
+        "branch": {
+          "name": "main"
+        }
+      },
+      "participants": [
+        {
+          "user": {
+            "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee002}",
+            "display_name": "Example Reviewer"
+          },
+          "role": "REVIEWER",
+          "approved": false,
+          "state": null,
+          "participated_on": null
+        }
+      ],
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/example-workspace/example-api/pull-requests/37"
+        }
+      }
+    },
+    {
+      "id": 39,
+      "title": "Rename settings",
+      "state": "OPEN",
+      "created_on": "2026-11-03T10:00:00+00:00",
+      "updated_on": "2026-11-04T09:00:00+00:00",
+      "author": {
+        "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee001}",
+        "display_name": "Example Developer"
+      },
+      "source": {
+        "branch": {
+          "name": "chore/rename"
+        }
+      },
+      "destination": {
+        "branch": {
+          "name": "main"
+        }
+      },
+      "participants": [
+        {
+          "user": {
+            "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee002}",
+            "display_name": "Example Reviewer"
+          },
+          "role": "REVIEWER",
+          "approved": false,
+          "state": "changes_requested",
+          "participated_on": "2026-11-03T18:00:00+00:00"
+        }
+      ],
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/example-workspace/example-api/pull-requests/39"
+        }
+      }
+    }
+  ],
+  "next": "https://api.bitbucket.org/2.0/repositories/example-workspace/example-api/pullrequests?page=2"
+}

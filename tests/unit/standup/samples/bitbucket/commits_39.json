@@ -1,0 +1,14 @@
+{
+  "pagelen": 50,
+  "values": [
+    {
+      "hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "date": "2026-11-04T08:30:00+00:00",
+      "author": {
+        "user": {
+          "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee001}"
+        }
+      }
+    }
+  ]
+}

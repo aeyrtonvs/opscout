@@ -2,8 +2,8 @@
 
 > Status (2026-11-05): **Phase 0a done**: the repository is public at
 > `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b done** (§7): specs 001 to 006
-> are merged. **Phase 1 in progress**: spec 007, daemon-core, is merged; spec 008,
-> chat-output, is implemented on `feat/008-chat-output`. The
+> are merged. **Phase 1 in progress**: specs 007, daemon-core, and 008, chat-output, are
+> merged; spec 009, daily-standup, is implemented on `feat/009-daily-standup`. The
 > constitution is ratified (1.0.2), ADRs 0001–0022 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -435,6 +435,20 @@ else. Status and the session start report the gateway. Two runtime dependencies:
 `slack-sdk` and `truststore`. Checked live on the maintainer's workspace: a scheduled DM,
 agreement clicks stored, reconnection after a network loss.
 
+**daily-standup** (spec 009, implemented 2026-11-05): an optional `standup` section
+(identities, folders whose git clones become projects, or listed projects; Bitbucket Cloud
+login; a deny-list; caps) and a `standup` job. In code, it gathers the user's own typed
+prompts from Claude Code transcripts (no replies, tool output or pasted text), their commits
+in the clones, and their Bitbucket pull requests and reviews waiting (an API token with three
+read scopes, in the keychain); redacts secrets and personal data; marks blockers by a fixed
+rule (no approval after a full working day, or changes requested and answered); then a
+tool-less `haiku` run writes three sections whose every line cites fact ids, checked by the
+engine, which renders the message with Slack markup made inert. Monday covers Friday to
+Sunday; a quiet day is said without the model; a source that fails is named. `opscout
+standup preview` shows what the model would get. Evaluations on eight synthetic histories,
+graded in code. Checked live: one daily by DM, agreed with, 81 s and 0.025 USD; the week of
+dailies and the agreement rate are measured after merge (§9).
+
 ### Phase 2 — investigation agents the user invokes
 
 Hard dependency: runs against real systems need the read-only identity (open items). Until it
@@ -629,6 +643,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [ ] Ship skill, draft pull request (spec 004, US2 scenarios 4 and 5): they follow a
       confirmed push, which no headless eval can give; check them on the first real use and
       record the outcome in the spec.
+- [ ] Daily standup (spec 009): the plan's remaining exit criteria are measured after merge.
+      Schedule the `standup` job before the standup for one working week; record in §7 the
+      days it was delivered on time and the agreement rate from the run records (target
+      ≥ 80 %), and whether the default model stays or changes.
 - [ ] Push-guard timing test (spec 004, `test_the_guard_decides_in_under_a_second`): it
       measured 1.09 s against its 1 s limit once, on a hosted macOS runner, in the coverage
       step (run 42123108217, pull request #10), and passes elsewhere. Decide whether the

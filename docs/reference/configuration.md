@@ -196,7 +196,7 @@ daemon:
 | `jobs.<name>.enabled` | `true` | whether `opscout daemon install` schedules the job |
 | `jobs.<name>.at` | required | the time of day, `HH:MM` from `00:00` to `23:59`, in the machine's local time; quote it |
 | `jobs.<name>.weekdays` | every day | the days it runs: 1–7 unique values from `mon` to `sun` |
-| `jobs.<name>.model` | the job's own (`haiku` for `check`) | an alias (`haiku`, `sonnet`, `opus`, `fable`) or a full `claude-…` id |
+| `jobs.<name>.model` | the job's own (`haiku` for `check` and `standup`) | an alias (`haiku`, `sonnet`, `opus`, `fable`) or a full `claude-…` id |
 | `jobs.<name>.budget_usd` | the job's own (0.05 for `check`) | the most one run may cost, above 0 and at most 5 |
 | `jobs.<name>.max_turns` | the job's own (3 for `check`) | the most turns one run may take, 1–50 |
 | `claude_path` | `claude` on `PATH` | the Claude Code executable, as an absolute path |
@@ -210,6 +210,26 @@ the gateway that receives your answers.
 
 `opscout daemon install` schedules the enabled jobs, and `opscout secret set claude_token`
 stores the token; [daemon.md](daemon.md) covers the commands, the files and the outcomes.
+
+### `standup` (optional; spec 009)
+
+The daily standup's sources. See [standup.md](standup.md) for what is read and what is never
+sent.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `identities` | required | your commit author e-mails or names, 1–10 |
+| `code_host.service` | none | `bitbucket` |
+| `code_host.login` | none | your Atlassian account e-mail or username; the token is `daemon.secrets.bitbucket_token` |
+| `folders` | none | absolute folders; every git repository inside (three levels down) is a project named after its directory, with its Bitbucket repository from its `origin` remote |
+| `projects.<name>.paths` | none | absolute paths of your local clones; sessions in them belong to the project |
+| `projects.<name>.repositories` | none | Bitbucket repositories as `workspace/slug`; a project needs paths, repositories or both |
+| `redact` | none | terms never sent to the model, matched in any case, even inside a longer word or a project name |
+| `limits` | 300, 20, 60, 40, 30 | `prompt_length`, `prompts_per_session`, `prompts`, `commits`, `pull_requests` |
+
+The section needs at least one folder or project. The job `standup` in `daemon.jobs` needs
+this section; a `code_host` needs
+`daemon.secrets.bitbucket_token`.
 
 ## Rules for every section
 

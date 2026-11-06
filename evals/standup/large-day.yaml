@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: Apache-2.0
+# A synthetic history for the standup's evaluations (spec 009, research R9). Fake values only.
+weekdays:
+- mon
+- tue
+- wed
+- thu
+- fri
+projects:
+  example-api:
+    paths:
+    - /opt/example/src/example-api
+    repositories:
+    - example-workspace/example-api
+  example-web:
+    paths:
+    - /opt/example/src/example-web
+redact:
+- Example Corp
+description: 'A long day: caps apply, and what was cut is counted.'
+now: '2026-11-10T09:45:00-06:00'
+sessions:
+- cwd: /opt/example/src/example-api
+  prompts:
+  - - '2026-11-09T08:00:00-06:00'
+    - 'Step 0: adjust the export mapping for field 0'
+  - - '2026-11-09T08:10:00-06:00'
+    - 'Step 1: adjust the export mapping for field 1'
+  - - '2026-11-09T08:20:00-06:00'
+    - 'Step 2: adjust the export mapping for field 2'
+  - - '2026-11-09T08:30:00-06:00'
+    - 'Step 3: adjust the export mapping for field 3'
+  - - '2026-11-09T08:40:00-06:00'
+    - 'Step 4: adjust the export mapping for field 4'
+  - - '2026-11-09T08:50:00-06:00'
+    - 'Step 5: adjust the export mapping for field 5'
+  - - '2026-11-09T09:00:00-06:00'
+    - 'Step 6: adjust the export mapping for field 6'
+  - - '2026-11-09T09:10:00-06:00'
+    - 'Step 7: adjust the export mapping for field 7'
+  - - '2026-11-09T09:20:00-06:00'
+    - 'Step 8: adjust the export mapping for field 8'
+  - - '2026-11-09T09:30:00-06:00'
+    - 'Step 9: adjust the export mapping for field 9'
+  - - '2026-11-09T09:40:00-06:00'
+    - 'Step 10: adjust the export mapping for field 10'
+  - - '2026-11-09T09:50:00-06:00'
+    - 'Step 11: adjust the export mapping for field 11'
+  - - '2026-11-09T10:00:00-06:00'
+    - 'Step 12: adjust the export mapping for field 12'
+  - - '2026-11-09T10:10:00-06:00'
+    - 'Step 13: adjust the export mapping for field 13'
+  - - '2026-11-09T10:20:00-06:00'
+    - 'Step 14: adjust the export mapping for field 14'
+  - - '2026-11-09T10:30:00-06:00'
+    - 'Step 15: adjust the export mapping for field 15'
+  - - '2026-11-09T10:40:00-06:00'
+    - 'Step 16: adjust the export mapping for field 16'
+  - - '2026-11-09T10:50:00-06:00'
+    - 'Step 17: adjust the export mapping for field 17'
+  - - '2026-11-09T11:00:00-06:00'
+    - 'Step 18: adjust the export mapping for field 18'
+  - - '2026-11-09T11:10:00-06:00'
+    - 'Step 19: adjust the export mapping for field 19'
+  - - '2026-11-09T11:20:00-06:00'
+    - 'Step 20: adjust the export mapping for field 20'
+  - - '2026-11-09T11:30:00-06:00'
+    - 'Step 21: adjust the export mapping for field 21'
+  - - '2026-11-09T11:40:00-06:00'
+    - 'Step 22: adjust the export mapping for field 22'
+  - - '2026-11-09T11:50:00-06:00'
+    - 'Step 23: adjust the export mapping for field 23'
+  - - '2026-11-09T12:00:00-06:00'
+    - 'Step 24: adjust the export mapping for field 24'
+  - - '2026-11-09T12:10:00-06:00'
+    - 'Step 25: adjust the export mapping for field 25'
+  - - '2026-11-09T12:20:00-06:00'
+    - 'Step 26: adjust the export mapping for field 26'
+  - - '2026-11-09T12:30:00-06:00'
+    - 'Step 27: adjust the export mapping for field 27'
+  - - '2026-11-09T12:40:00-06:00'
+    - 'Step 28: adjust the export mapping for field 28'
+  - - '2026-11-09T12:50:00-06:00'
+    - 'Step 29: adjust the export mapping for field 29'
+  - - '2026-11-09T13:00:00-06:00'
+    - 'Step 30: adjust the export mapping for field 30'
+  - - '2026-11-09T13:10:00-06:00'
+    - 'Step 31: adjust the export mapping for field 31'
+  - - '2026-11-09T13:20:00-06:00'
+    - 'Step 32: adjust the export mapping for field 32'
+  - - '2026-11-09T13:30:00-06:00'
+    - 'Step 33: adjust the export mapping for field 33'
+  - - '2026-11-09T13:40:00-06:00'
+    - 'Step 34: adjust the export mapping for field 34'
+  - - '2026-11-09T13:50:00-06:00'
+    - 'Step 35: adjust the export mapping for field 35'
+  - - '2026-11-09T14:00:00-06:00'
+    - 'Step 36: adjust the export mapping for field 36'
+  - - '2026-11-09T14:10:00-06:00'
+    - 'Step 37: adjust the export mapping for field 37'
+  - - '2026-11-09T14:20:00-06:00'
+    - 'Step 38: adjust the export mapping for field 38'
+  - - '2026-11-09T14:30:00-06:00'
+    - 'Step 39: adjust the export mapping for field 39'
+commits:
+  /opt/example/src/example-api:
+  - at: '2026-11-09T09:00:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 0
+  - at: '2026-11-09T09:15:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 1
+  - at: '2026-11-09T09:30:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 2
+  - at: '2026-11-09T09:45:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 3
+  - at: '2026-11-09T10:00:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 4
+  - at: '2026-11-09T10:15:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 5
+  - at: '2026-11-09T10:30:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 6
+  - at: '2026-11-09T10:45:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 7
+  - at: '2026-11-09T11:00:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 8
+  - at: '2026-11-09T11:15:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 9
+  - at: '2026-11-09T11:30:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 10
+  - at: '2026-11-09T11:45:00-06:00'
+    ref: refs/heads/main
+    subject: Export mapping step 11
+pull_requests:
+  closed:
+    example-workspace/example-api: []
+  open:
+    example-workspace/example-api: []
+  reviews:
+    example-workspace/example-api: []
+expect:
+  quiet: false
+good:
+  yesterday:
+  - project: example-api
+    text: Reworked the export field mapping
+    facts:
+    - s1
+  - project: example-api
+    text: Committed the mapping in twelve steps
+    facts:
+    - c1
+    - c12
+  - project: example-api
+    text: Mapping work continues
+    facts:
+    - c6
+  today: []
+  blockers: []

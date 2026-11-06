@@ -8,7 +8,7 @@ by ``opscout.entrypoints.daemon``.
 import hashlib
 import secrets
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from types import MappingProxyType
@@ -26,8 +26,11 @@ from opscout.core.daemon import (
     Job,
     Outcome,
     PendingSchedule,
+    Preparation,
+    Ready,
     Receipt,
     RecordError,
+    Run,
     Runner,
     RunnerFacts,
     RunProfile,
@@ -78,6 +81,8 @@ class Start:
     trigger: Trigger
     force: bool
     engine_version: str
+    prepare: Callable[[datetime], Preparation] | None = None
+    """Gathers the run's inputs, after the idempotency check (spec 009); None: the job's own."""
 
 
 @dataclass(frozen=True)
@@ -110,7 +115,9 @@ def run_job(start: Start, ports: Ports) -> RunRecord:
     key = run_key(start.job.name, period)
     run_id = ports.new_id(started)
     with ports.store.hold(start.job.name, period) as held:
-        outcome, reason, receipt, facts = _decide(start, ports, held, key, period, run_id)
+        outcome, reason, receipt, facts, inputs = _decide(
+            start, ports, held, key, period, run_id, started
+        )
         chat = receipt.chat if receipt else None
         if outcome == "failed" and ports.alert is not None and not _own_delivery(reason):
             chat = _alert(ports.alert, start.job.name, run_id, period, reason)
@@ -126,6 +133,7 @@ def run_job(start: Start, ports: Ports) -> RunRecord:
             reason=reason,
             started_at=started,
             ended_at=ports.clock(),
+            inputs=inputs,
             delivery=receipt.location if receipt else None,
             chat=chat,
             runner=facts,
@@ -140,22 +148,57 @@ def run_job(start: Start, ports: Ports) -> RunRecord:
     return record
 
 
-_Decision = tuple[Outcome, str | None, Receipt | None, RunnerFacts | None]
+_Decision = tuple[Outcome, str | None, Receipt | None, RunnerFacts | None, tuple[str, ...]]
 
 
 def _decide(
-    start: Start, ports: Ports, held: bool, key: str, period: str, run_id: str
+    start: Start,
+    ports: Ports,
+    held: bool,
+    key: str,
+    period: str,
+    run_id: str,
+    started: datetime,
 ) -> _Decision:
-    """Return the outcome, its reason, the delivery and the runner's facts."""
+    """Return the outcome, its reason, the delivery, the runner's facts and the inputs."""
     if not held:
-        return "skipped", "another start holds this period", None, None
+        return "skipped", "another start holds this period", None, None, ()
     previous = ports.store.delivered(key)
     if previous is not None and not start.force:
-        return "skipped", f"already delivered by run {previous.run_id}", None, None
+        return "skipped", f"already delivered by run {previous.run_id}", None, None, ()
     try:
         ports.delivery.preflight()
     except DeliveryError as error:
-        return "failed", f"{DELIVERY_FAILED}{error}", None, None
+        return "failed", f"{DELIVERY_FAILED}{error}", None, None, ()
+    if start.prepare is None:
+        prepared: Preparation = Run(start.job.prompt, None, start.job.render)
+    else:
+        try:
+            prepared = start.prepare(started)
+        except Exception as error:  # a start that begins ends with a record (FR-006)
+            return (
+                "failed",
+                f"the job could not gather its inputs ({type(error).__name__})",
+                None,
+                None,
+                (),
+            )
+    if isinstance(prepared, Ready):
+        try:
+            delivery = ports.delivery.deliver(start.job.name, run_id, "result", prepared.text)
+        except DeliveryError as error:
+            kept = Receipt(error.location) if error.location else None
+            return "failed", f"{DELIVERY_FAILED}{error}", kept, None, prepared.inputs
+        return "delivered", None, delivery, None, prepared.inputs
+    outcome, reason, receipt, facts = _run_model(start, ports, period, run_id, prepared)
+    return outcome, reason, receipt, facts, prepared.inputs
+
+
+def _run_model(
+    start: Start, ports: Ports, period: str, run_id: str, prepared: Run
+) -> tuple[Outcome, str | None, Receipt | None, RunnerFacts | None]:
+    """Run the model on the prepared prompt, then deliver its result or notice."""
+    profile = replace(start.profile, validation_context=prepared.validation_context)
     try:
         env = {
             variable: ports.secrets.resolve(name, start.secrets[name])
@@ -164,14 +207,14 @@ def _decide(
     except SecretError as error:
         return "failed", str(error), None, None
     try:
-        result = ports.runner.run(start.profile, start.job.prompt, env)
+        result = ports.runner.run(profile, prepared.prompt, env)
     except Exception as error:  # every start that begins ends with a record (FR-006)
         return "failed", f"the runner failed ({type(error).__name__})", None, None
     finally:
         del env
     name = start.job.name
     if result.status == "ok" and result.facts is not None:
-        text = start.job.render(result.output, result.facts, period)
+        text = prepared.render(result.output, result.facts, period)
         try:
             delivery = ports.delivery.deliver(name, run_id, "result", text)
         except DeliveryError as error:

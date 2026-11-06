@@ -1,0 +1,81 @@
+{
+  "pagelen": 50,
+  "values": [
+    {
+      "id": 41,
+      "title": "Add export endpoint",
+      "state": "MERGED",
+      "created_on": "2026-11-02T10:00:00+00:00",
+      "updated_on": "2026-11-04T12:00:00+00:00",
+      "author": {
+        "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee001}",
+        "display_name": "Example Developer"
+      },
+      "source": {
+        "branch": {
+          "name": "feature/export"
+        }
+      },
+      "destination": {
+        "branch": {
+          "name": "main"
+        }
+      },
+      "participants": [
+        {
+          "user": {
+            "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee002}",
+            "display_name": "Example Reviewer"
+          },
+          "role": "REVIEWER",
+          "approved": true,
+          "state": "approved",
+          "participated_on": "2026-11-04T11:00:00+00:00"
+        }
+      ],
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/example-workspace/example-api/pull-requests/41"
+        }
+      }
+    },
+    {
+      "id": 46,
+      "title": "Merged this morning",
+      "state": "MERGED",
+      "created_on": "2026-11-02T10:00:00+00:00",
+      "updated_on": "2026-11-05T15:00:00+00:00",
+      "author": {
+        "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee001}",
+        "display_name": "Example Developer"
+      },
+      "source": {
+        "branch": {
+          "name": "feature/export"
+        }
+      },
+      "destination": {
+        "branch": {
+          "name": "main"
+        }
+      },
+      "participants": [
+        {
+          "user": {
+            "uuid": "{eeeeeeee-0000-4000-8000-eeeeeeeee002}",
+            "display_name": "Example Reviewer"
+          },
+          "role": "REVIEWER",
+          "approved": true,
+          "state": "approved",
+          "participated_on": "2026-11-04T11:00:00+00:00"
+        }
+      ],
+      "links": {
+        "html": {
+          "href": "https://bitbucket.org/example-workspace/example-api/pull-requests/46"
+        }
+      }
+    }
+  ]
+}

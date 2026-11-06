@@ -1,0 +1,1 @@
+{"type": "user", "cwd": "/opt/example/src/example-api/web", "sessionId": "00000000-0000-4000-8000-eeeeeeeee003", "timestamp": "2026-11-04T17:00:00.000Z", "gitBranch": "main", "userType": "external", "uuid": "00000000-0000-4000-8000-eeeeeeeee168", "message": {"role": "user", "content": "Review the login form in the web app"}, "promptSource": "typed"}

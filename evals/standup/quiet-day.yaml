@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: Apache-2.0
+# A synthetic history for the standup's evaluations (spec 009, research R9). Fake values only.
+weekdays:
+- mon
+- tue
+- wed
+- thu
+- fri
+projects:
+  example-api:
+    paths:
+    - /opt/example/src/example-api
+    repositories:
+    - example-workspace/example-api
+  example-web:
+    paths:
+    - /opt/example/src/example-web
+redact:
+- Example Corp
+description: Nothing done yesterday; one pull request still open.
+now: '2026-11-10T09:45:00-06:00'
+sessions: []
+commits: {}
+pull_requests:
+  closed:
+    example-workspace/example-api: []
+  open:
+    example-workspace/example-api:
+    - number: 42
+      title: Retry export job
+      state: OPEN
+      created: '2026-11-09T11:05:00-06:00'
+      updated: '2026-11-09T11:05:00-06:00'
+      branch: feature/42
+      participants:
+      - approved: false
+  reviews:
+    example-workspace/example-api: []
+expect:
+  quiet: true

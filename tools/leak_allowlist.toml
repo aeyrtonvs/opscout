@@ -16,3 +16,11 @@ reason = "An awk expression in a Spec Kit script, not a ticket key."
 [[allow]]
 value = "Z0-9"
 reason = "Part of the regular-expression class [A-Z0-9] in the leak check itself, not a ticket key."
+
+[[allow]]
+value = "git@bitbucket.org"
+reason = "The SSH user every Bitbucket Cloud remote uses (git@bitbucket.org:workspace/repo.git), not a person's e-mail; spec 009's folder tests."
+
+[[allow]]
+value = "dev@bitbucket.org"
+reason = "The user part of a fake HTTPS Bitbucket remote (https://dev@bitbucket.org/...) in spec 009's folder tests, not an e-mail."

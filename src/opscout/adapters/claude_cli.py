@@ -184,7 +184,7 @@ class ClaudeCliRunner:
             if attempt.error is not None or attempt.result is None:
                 return RunResult("error", reason=attempt.error, facts=facts)
             try:
-                output = _validate(profile.output, attempt.result)
+                output = _validate(profile.output, attempt.result, profile.validation_context)
             except ValidationError as error:
                 message = _validation_message(error)
             except ValueError as error:
@@ -352,10 +352,14 @@ def _no_result(status: int | None, report: StartupReport | None, errors: IO[byte
     return f"Claude Code exited with status {status} before its start-up report{detail}"
 
 
-def _validate(model: type[BaseModel], result: Mapping[str, Any]) -> BaseModel:
+def _validate(
+    model: type[BaseModel], result: Mapping[str, Any], context: Mapping[str, Any] | None
+) -> BaseModel:
     if "structured_output" not in result:
         raise ValueError("no structured output was returned")
-    return model.model_validate(result["structured_output"])
+    return model.model_validate(
+        result["structured_output"], context=dict(context) if context is not None else None
+    )
 
 
 def _facts(attempts: list[_Attempt]) -> RunnerFacts:

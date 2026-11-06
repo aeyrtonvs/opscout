@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: Apache-2.0
+# A synthetic history for the standup's evaluations (spec 009, research R9). Fake values only.
+weekdays:
+- mon
+- tue
+- wed
+- thu
+- fri
+projects:
+  example-api:
+    paths:
+    - /opt/example/src/example-api
+    repositories:
+    - example-workspace/example-api
+  example-web:
+    paths:
+    - /opt/example/src/example-web
+redact:
+- Example Corp
+description: Monday covers Friday to Sunday, with weekend work.
+now: '2026-11-09T09:45:00-06:00'
+sessions:
+- cwd: /opt/example/src/example-api
+  prompts:
+  - - '2026-11-06T10:00:00-06:00'
+    - Write the migration for the new export table
+- cwd: /opt/example/src/example-api
+  prompts:
+  - - '2026-11-08T12:00:00-06:00'
+    - Check why the nightly export failed on Sunday
+commits:
+  /opt/example/src/example-api:
+  - at: '2026-11-06T17:00:00-06:00'
+    ref: refs/heads/main
+    subject: Add export table migration
+pull_requests:
+  closed:
+    example-workspace/example-api:
+    - number: 40
+      title: Export table migration
+      state: MERGED
+      created: '2026-11-06T17:10:00-06:00'
+      updated: '2026-11-07T09:00:00-06:00'
+      branch: feature/40
+  open:
+    example-workspace/example-api: []
+  reviews:
+    example-workspace/example-api: []
+expect:
+  quiet: false
+  days: Friday 6 to Sunday 8
+good:
+  yesterday:
+  - project: example-api
+    text: Wrote and merged the export table migration
+    facts:
+    - s1
+    - c1
+    - p1
+  - project: example-api
+    text: Looked into Sunday's failed nightly export
+    facts:
+    - s2
+  - project: example-api
+    text: Migration merged on Saturday
+    facts:
+    - p1
+  today: []
+  blockers: []

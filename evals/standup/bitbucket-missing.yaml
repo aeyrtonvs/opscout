@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: Apache-2.0
+# A synthetic history for the standup's evaluations (spec 009, research R9). Fake values only.
+weekdays:
+- mon
+- tue
+- wed
+- thu
+- fri
+projects:
+  example-api:
+    paths:
+    - /opt/example/src/example-api
+    repositories:
+    - example-workspace/example-api
+  example-web:
+    paths:
+    - /opt/example/src/example-web
+redact:
+- Example Corp
+description: Bitbucket cannot be read; the summary comes from sessions and git, and says so.
+now: '2026-11-10T09:45:00-06:00'
+sessions:
+- cwd: /opt/example/src/example-api
+  prompts:
+  - - '2026-11-09T09:10:00-06:00'
+    - Refactor the export client into its own module
+commits:
+  /opt/example/src/example-api:
+  - at: '2026-11-09T12:00:00-06:00'
+    ref: refs/heads/main
+    subject: Move the export client to its own module
+missing:
+  bitbucket: Bitbucket rejected the token (401); store a new one with opscout secret set bitbucket_token
+expect:
+  quiet: false
+  mentions:
+  - 'Bitbucket: missing'
+good:
+  yesterday:
+  - project: example-api
+    text: Moved the export client into its own module
+    facts:
+    - s1
+    - c1
+  today: []
+  blockers: []

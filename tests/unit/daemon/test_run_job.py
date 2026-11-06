@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """``run_job``: once per period, one record per start (spec 007, US1, US3, US5)."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 
 import pytest
@@ -67,7 +67,12 @@ class World:
         return MessageRef("DEXAMPLE01", "1762336800.000900")
 
     def start(
-        self, *, at: datetime = START, force: bool = False, clock: Clock | None = None
+        self,
+        *,
+        at: datetime = START,
+        force: bool = False,
+        clock: Clock | None = None,
+        prepare: Callable[[datetime], object] | None = None,
     ) -> RunRecord:
         ports = Ports(
             runner=self.runner,
@@ -84,6 +89,7 @@ class World:
             trigger="scheduler",
             force=force,
             engine_version="0.0.0",
+            prepare=prepare,  # type: ignore[arg-type]
         )
         return run_job(start, ports)
 
@@ -413,3 +419,63 @@ def test_a_failed_direct_message_keeps_the_outbox_file_in_the_record() -> None:
     record = world.start()
     assert record.outcome == "failed"
     assert record.delivery == "/example/x.md"
+
+
+@spec_008("FR-006")
+def test_prepare_runs_after_the_idempotency_check_and_shapes_the_run() -> None:
+    from opscout.core.daemon import Ready, Run
+
+    calls: list[datetime] = []
+
+    def prepare(now: datetime) -> Run:
+        calls.append(now)
+        return Run(
+            prompt="the prepared prompt",
+            validation_context={"facts": ("s1",)},
+            render=lambda output, facts, period: f"prepared text for {period}",
+            inputs=("sessions:1",),
+        )
+
+    world = World()
+    record = world.start(prepare=prepare)
+    assert calls == [START]
+    profile, prompt, _ = world.runner.calls[0]
+    assert prompt == "the prepared prompt"
+    assert profile.validation_context == {"facts": ("s1",)}
+    assert world.delivery.sent[0][3] == "prepared text for 2026-11-05"
+    assert record.inputs == ("sessions:1",)
+    assert world.start(prepare=prepare).outcome == "skipped"
+    assert len(calls) == 1  # a skipped start gathers nothing
+
+    quiet = World()
+    record = quiet.start(
+        prepare=lambda now: Ready(text="No recorded activity.", inputs=("facts:0",))
+    )
+    assert record.outcome == "delivered"
+    assert record.runner is None
+    assert quiet.runner.calls == []
+    assert quiet.delivery.sent[0][3] == "No recorded activity."
+
+    def broken(now: datetime) -> Run:
+        raise OSError("disk")
+
+    failed = World()
+    record = failed.start(prepare=broken)
+    assert (record.outcome, record.reason) == (
+        "failed",
+        "the job could not gather its inputs (OSError)",
+    )
+    assert failed.runner.calls == []
+
+
+@spec_008("FR-006")
+def test_a_ready_text_whose_delivery_fails_is_failed_and_keeps_its_inputs() -> None:
+    from opscout.core.daemon import STANDUP, Ready
+
+    world = World()
+    world.delivery.broken = True
+    record = world.start(prepare=lambda now: Ready(text="Quiet.", inputs=("facts:0",)))
+    assert record.outcome == "failed"
+    assert record.inputs == ("facts:0",)
+    with pytest.raises(RuntimeError, match="renders through its preparation"):
+        STANDUP.render(None, FACTS, "2026-11-05")
