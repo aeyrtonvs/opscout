@@ -495,3 +495,28 @@ or role to choose, the ones never to choose, and how to confirm the result.
     A test keeps resource IDs out of the dry-run probes.
   - **Not covered**: the host identity and the clusters. The role and its policies were
     deleted after the probes.
+- **The host and cluster live check (FR-021), 2026-11-06**, in a sandbox account with five
+  managed Linux instances and one EKS cluster, with nothing left behind:
+  - **AWS's evaluator first**: `simulate-custom-policy` on the host documents, with and
+    without `Allow *`. `AWS-RunShellScript`, `AWS-RunPowerShellScript`, an `opscout-` name
+    outside the catalog, `StartSession`, secret reads and writes were denied; the catalog
+    documents and the reads of command results were allowed.
+  - **The host identity, instantiated**: as the role, `send-command AWS-RunShellScript`
+    returned `AccessDenied` against a real instance and a fake one, as did `start-session`,
+    secret reads and `create-document`. A catalog document passed the permission check
+    (`InvalidDocument` before it existed). Created for one run, `opscout-ReadOnly-Uptime`
+    ran on one instance and returned its uptime; the same document with injected
+    parameters returned `InvalidParameters`.
+  - **The cluster**: the read-only identity, instantiated again (seven capabilities since
+    spec 011 added `inventory`), with an access entry and `AmazonEKSViewPolicy` at cluster
+    scope. Every `can-i` probe in the guide said no; pods, workloads, events, configmaps
+    and pod logs said yes; listing secrets returned `Forbidden`.
+  - **Two findings, in the guide**:
+    - with access policies, `kubectl auth can-i --list` is incomplete, because a webhook
+      authorizer decides;
+    - External Secrets Operator and Argo Rollouts had aggregated their kinds into `view`.
+      `AmazonEKSViewPolicy` read none of the cluster's 43 custom resource kinds, so it does
+      not inherit them; the view binding would.
+    The guide now lists aggregated roles as a probe and states the difference.
+  - **Removed after the probes**: both roles, the ten policies, the access entry and the
+    document.

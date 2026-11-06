@@ -212,7 +212,14 @@ kubectl auth can-i create pods/exec --all-namespaces  # expect: no
 kubectl auth can-i create pods/portforward --all-namespaces  # expect: no
 kubectl auth can-i get nodes/proxy  # expect: no
 kubectl auth can-i create serviceaccounts/token --all-namespaces  # expect: no
-kubectl auth can-i --list  # expect: no secrets; review what installed operators aggregated into view
+kubectl auth can-i --list  # expect: no secrets; with EKS access policies the list is incomplete (a webhook authorizer decides), so rely on the probes above
+```
+
+As an administrator, list what installed operators added to `view`. It matters only with the
+view binding; `AmazonEKSViewPolicy` does not take these additions:
+
+```sh
+kubectl get clusterroles -l rbac.authorization.k8s.io/aggregate-to-view=true  # expect: each role listed, reviewed for kinds that hold secret values
 ```
 
 ## Known limits
@@ -233,8 +240,12 @@ kubectl auth can-i --list  # expect: no secrets; review what installed operators
   needs it, so it stays allowed. Redaction, which comes with the MCP server, is the control.
 - **Host log lines** (`opscout-ReadOnly-ServiceLog`) can contain secrets that an
   application logged. No identity can prevent that, and redaction is the control there too.
-- **Aggregation**: an operator can add resources to Kubernetes' `view` role. Only the live
-  check shows it.
+- **Aggregation**: an operator can add resources to Kubernetes' `view` role, and only the
+  live check shows it. In the live check, External Secrets Operator had added its stores and
+  generators (a `Fake` generator holds literal values) and Argo Rollouts its kinds. The view
+  binding inherits them. `AmazonEKSViewPolicy` does not: it reads built-in workloads only,
+  no custom resource at all, so on EKS it is the narrower choice. The cost is that it cannot
+  read an `ExternalSecret`, which says where a secret lives.
 
 ## Credentials for other systems
 
