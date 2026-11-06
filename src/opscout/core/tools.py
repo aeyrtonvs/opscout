@@ -149,10 +149,6 @@ class Registry:
     def __iter__(self) -> Any:
         return iter(self.tools)
 
-    def get(self, name: str) -> ToolSpec:
-        """The tool with this name."""
-        return next(tool for tool in self.tools if tool.name == name)
-
 
 @dataclass(frozen=True, order=True)
 class Window:

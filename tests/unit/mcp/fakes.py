@@ -52,3 +52,55 @@ class FakeCallLog:
 
     def append(self, entry: CallEntry) -> None:
         self.entries.append(entry)
+
+
+@dataclass
+class FakeTime:
+    """A clock that only moves when something sleeps or a call takes time."""
+
+    now: float = 1000.0
+
+    def clock(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += seconds
+
+
+ENVIRONMENTS = """\
+schema_version: 1
+aws:
+  environments:
+    - name: example-prod
+      account_id: "123456789012"
+      profile: example-prod
+      regions: [us-east-1, us-west-2]
+      identity: reference
+    - name: example-dev
+      account_id: "000000000000"
+      profile: example-dev
+      regions: [us-east-1]
+tools:
+  timezone: Europe/Lisbon
+"""
+
+
+def tool_context(
+    gateway: FakeGateway, config: str = ENVIRONMENTS, time: FakeTime | None = None
+) -> Any:
+    """A ToolContext over the fake gateway, a fixed now and, if given, a fake clock."""
+    from datetime import UTC, datetime
+
+    from opscout.services.config import parse_config
+    from opscout.services.tools.runtime import ToolContext
+
+    loaded = parse_config(config.encode(), "config.yaml")
+    clock = time or FakeTime()
+    return ToolContext(
+        config_loader=lambda: loaded,
+        gateway_factory=lambda: gateway,
+        call_log=FakeCallLog(),
+        now=lambda: datetime(2026, 11, 6, 12, 0, tzinfo=UTC),
+        clock=clock.clock,
+        sleep=clock.sleep,
+    )

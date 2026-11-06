@@ -68,6 +68,7 @@ class Call:
     gateway: Callable[[], AwsGateway]
     deadline: float
     clock: Callable[[], float] = time.monotonic
+    sleep: Callable[[float], None] = time.sleep
 
     def argument(self, name: str) -> Any:
         """The argument, or None when it was not given."""
@@ -126,6 +127,7 @@ class ToolContext:
     call_log: CallLog
     now: Callable[[], datetime] = lambda: datetime.now(UTC)
     clock: Callable[[], float] = time.monotonic
+    sleep: Callable[[float], None] = time.sleep
     deadline_seconds: float = DEADLINE_SECONDS
     _gateway: AwsGateway | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
@@ -203,6 +205,7 @@ def run_tool(
             gateway=context.gateway,
             deadline=started + context.deadline_seconds,
             clock=context.clock,
+            sleep=context.sleep,
         )
         try:
             outcome = handler(call)

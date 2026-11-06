@@ -9,9 +9,9 @@ other before it is sent (FR-007).
 from collections.abc import Mapping
 from typing import Final
 
-from opscout.core.tools import ErrorReason, Registry, ToolError, ToolSpec
-from opscout.services.tools import alerts
-from opscout.services.tools.runtime import Call, Handler, Outcome
+from opscout.core.tools import Registry, ToolSpec
+from opscout.services.tools import alarms, alerts, changes, logs, resources
+from opscout.services.tools.runtime import Handler
 
 REGISTRY: Final = Registry(
     (
@@ -117,22 +117,16 @@ REGISTRY: Final = Registry(
 )
 
 
-def _not_built(call: Call) -> Outcome:
-    """A placeholder until the tool is built (T034)."""
-    call.environment()
-    raise ToolError(ErrorReason.NOT_SUPPORTED, f"{call.spec.name} is not built yet")
-
-
 HANDLERS: dict[str, Handler] = {
     "list_environments": alerts.list_environments,
     "parse_alert": alerts.parse_alert,
     "resolve_environment": alerts.resolve_environment,
-    "read_alarm": _not_built,
-    "read_metric": _not_built,
-    "query_logs": _not_built,
-    "recent_changes": _not_built,
-    "find_resources": _not_built,
-    "describe_resource": _not_built,
+    "read_alarm": alarms.read_alarm,
+    "read_metric": alarms.read_metric,
+    "query_logs": logs.query_logs,
+    "recent_changes": changes.recent_changes,
+    "find_resources": resources.find_resources,
+    "describe_resource": resources.describe_resource,
 }
 
 SPECS: Final[Mapping[str, ToolSpec]] = {tool.name: tool for tool in REGISTRY}

@@ -192,6 +192,11 @@ ENVIRONMENT = (
             "",
         ),
         (
+            "aws:\n  environments:\n    - {name: e, account_id: '123456789012', profile: p, "
+            "regions: [us-east-1, us-east-1]}\n",
+            "each region may be listed only once",
+        ),
+        (
             f"aws:\n  environments:\n{ENVIRONMENT}}}\n"
             f"    - {{name: example-prod, account_id: '{SECOND_ACCOUNT}', profile: q, "
             "regions: [us-east-1]}\n",

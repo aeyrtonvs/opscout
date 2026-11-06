@@ -255,21 +255,21 @@ before it is sent.
 **Independent test**: each tool, against a fake gateway, returns its contract's data, with
 caps, redaction, timezone and identity.
 
-- [ ] T029 [P] [US3] Write failing tests in `tests/unit/mcp/test_alarms.py`:
+- [X] T029 [P] [US3] Write failing tests in `tests/unit/mcp/test_alarms.py`:
   - **`read_alarm`** (FR-019): the state, reason, threshold, comparison, metric and
     dimensions; the state history in the window; the data points.
   - **`read_metric`** (FR-020): data points by statistic and period, with the unit, within
     the data-point cap.
   - **Every result** (FR-012, FR-013): times in the configured timezone, and the
     environment and identity kind (`reference identity` or `own identity, not verified`).
-- [ ] T030 [P] [US3] Write failing tests in `tests/unit/mcp/test_logs.py` (FR-021,
+- [X] T030 [P] [US3] Write failing tests in `tests/unit/mcp/test_logs.py` (FR-021,
   FR-011):
   - a query over named groups starts, is polled, and returns its rows and statistics;
   - a window or a row count over its cap is capped and recorded;
   - a query still running at the wait limit is stopped (`StopQuery`), and the result is
     `partial`;
   - a query over 10,000 characters or 11 groups returns `invalid-input`.
-- [ ] T031 [P] [US3] Write failing tests in `tests/unit/mcp/test_changes.py` (FR-022,
+- [X] T031 [P] [US3] Write failing tests in `tests/unit/mcp/test_changes.py` (FR-022,
   research R12):
   - **The sources**: CloudTrail write events (`ReadOnly=false`), the events of stacks
     updated in the window, and, for a resource of a matching type, ECS deployments,
@@ -282,7 +282,7 @@ caps, redaction, timezone and identity.
     the output, under any key.
   - **Deadline** (FR-011, SC-003): with a gateway that takes 10 s per call, the tool stops
     calling at the deadline and returns `partial` within 60 s.
-- [ ] T032 [P] [US3] Write failing tests in `tests/unit/mcp/test_resources.py`:
+- [X] T032 [P] [US3] Write failing tests in `tests/unit/mcp/test_resources.py`:
   - **`find_resources`** (FR-024): by tag (`key`, optional `value`), by name (the `Name`
     tag or the ARN's last part), by type; capped, with `more`.
   - **`describe_resource`** (FR-023), for each type in contracts/tools.md: only the
@@ -295,7 +295,7 @@ caps, redaction, timezone and identity.
     - Any other type returns `not-supported` with the list.
   - **Ambiguity** (edge case): several matches are listed up to the cap, and none returns
     `not-found`.
-- [ ] T033 [P] [US3] Write failing tests in `tests/unit/mcp/test_envelope.py`:
+- [X] T033 [P] [US3] Write failing tests in `tests/unit/mcp/test_envelope.py`:
   - **Redaction** (FR-009, SC-004): planted secret-shaped values in every tool's gateway
     responses never reach an output, and their counts appear.
   - **Size cap** (FR-011): every output stays within 40,000 characters, including a
@@ -306,7 +306,7 @@ caps, redaction, timezone and identity.
     succeed.
   - **Deadline** (FR-011, SC-003): every tool, against a slow gateway, returns within
     60 s.
-- [ ] T034 [US3] Write the handlers in `src/opscout/services/tools/alarms.py`, `logs.py`,
+- [X] T034 [US3] Write the handlers in `src/opscout/services/tools/alarms.py`, `logs.py`,
   `changes.py` and `resources.py`. Each calls the gateway with only its declared actions.
   T029 to T033 pass.
 
