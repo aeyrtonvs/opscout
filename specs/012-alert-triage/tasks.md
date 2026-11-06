@@ -202,6 +202,11 @@ the check, with no question about account, profile, region or timezone.
   - **Isolation**: every run gets a fresh `OPSCOUT_DATA_DIR`.
   - **The `record` grader** reads the run's only triage record and checks a field's value
     (for example `outcome: checked` or `verdict.classification: real`).
+  - **Case trees**: a case's `config` and `mock` directories are copied to a fresh
+    temporary directory per run, and `@CASE_ROOT@` in the copied `config.yaml` becomes that
+    directory, so a clone path can point at an `infra/` tree inside it (T038).
+  - **Private cases** (FR-028): `--evals <dir>` outside the plugin resolves each case's
+    `config` and `mock` relative to that directory.
   - **Existing cases** run unchanged.
 - [ ] T025 [US1] Extend `tools/skill_evals.py`. T024 and the existing eval-runner tests pass.
 - [ ] T026 [US1] Build the fixtures for US1 under `evals/triage/`, each scenario with its
@@ -220,11 +225,11 @@ the check, with no question about account, profile, region or timezone.
   deterministic graders:
   - `record` on the outcome and the classification;
   - `tool_used` on the four gatherers started in one turn;
-  - regex on absolute times with an offset;
+  - regex on absolute times with an offset, in the verdict and in the draft (FR-020);
   - no `AskUserQuestion` before the verdict except for the agreement.
 - [ ] T028 [US1] Run `uv run python -m tools.skill_evals --plugin plugins/opscout --case
   '012-us1-*' --max-cost-usd 5`. Fix the skill or the agents, not the graders, until the
-  cases pass. Record the scores in this file.
+  cases pass. Record the scores and each case's duration in this file (SC-005).
 
 ## Phase 4: User Story 2: triage stays inside its boundaries (P1)
 
@@ -392,7 +397,7 @@ subagents may read it, and every claim citing it is marked not checked.
   - the skill and its procedure;
   - setup (the `triage` section, clones, the `observability` server name);
   - records and the CLI;
-  - mock mode for evals;
+  - mock mode for evals, and running private cases with `--evals` (FR-028);
   - the residual risk of research R4.
 
   Update `docs/reference/tools.md` (the six tools, `evidence`, `include_background`) and
