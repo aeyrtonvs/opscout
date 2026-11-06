@@ -3,7 +3,10 @@
 - **Server**: `opscout`, started as `opscout mcp [--mock DIR]` over stdio. No other
   transport.
 - **Results**: every tool returns structured content, which is the Envelope
-  (data-model.md), or a tool error whose structured content is a ToolError.
+  (data-model.md), or a tool error whose structured content is a ToolError. Since spec 012,
+  every result also carries `evidence`, its identifier in the evidence store, and the
+  server offers six triage tools that declare no AWS action
+  ([spec 012's contract](../../012-alert-triage/contracts/tools.md)).
 - **Windows**: they take `since` and `until`, ISO 8601 timestamps with an offset, or
   `last` (`15m`, `3h`, `2d`); `until` defaults to now.
 - **Environments**: tools that read AWS take `environment` (a configured name or alias)
@@ -18,7 +21,7 @@
 | `read_alarm` | `environment`, `name`, window, `region?` | the alarm (`state`, `reason`, `threshold`, `comparison`, `metric`, `dimensions`, `period`, `statistic`), `history` (state changes in the window), `datapoints` | `cloudwatch:DescribeAlarms`, `cloudwatch:DescribeAlarmHistory`, `cloudwatch:GetMetricData` |
 | `read_metric` | `environment`, `namespace`, `metric`, `dimensions`, `statistic`, `period` (s), window, `region?` | `namespace`, `metric`, `dimensions`, `statistic`, `period`, `datapoints` `[{time, value}]` (GetMetricData returns no unit) | `cloudwatch:GetMetricData`, `cloudwatch:ListMetrics` |
 | `query_logs` | `environment`, `log_groups` (1–10), `query` (Logs Insights, ≤ 10,000 chars), window, `limit?`, `region?` | `rows`, `status` (`complete` \| `partial`), `statistics` | `logs:StartQuery`, `logs:GetQueryResults`, `logs:StopQuery`, `logs:DescribeLogGroups` |
-| `recent_changes` | `environment`, window, `resource_type?` and `resource?` (a name or ARN), `region?` | `changes` `[{time, source, actor, action, target, status, error}]`, newest first, and `more` per source; never an event's request or response contents nor a stack event's resource properties (research R12) | `cloudtrail:LookupEvents`, `cloudformation:DescribeStacks`, `cloudformation:DescribeStackEvents`, `ecs:ListServiceDeployments`, `autoscaling:DescribeScalingActivities`, `rds:DescribeEvents` |
+| `recent_changes` | `environment`, window, `resource_type?` and `resource?` (a name or ARN), `region?`, `include_background?` (spec 012) | `changes` `[{time, source, actor, action, target, status, error}]`, newest first, `more` per source, and `background_dropped` (spec 012: agent heartbeats are dropped unless `include_background`); never an event's request or response contents nor a stack event's resource properties (research R12) | `cloudtrail:LookupEvents`, `cloudformation:DescribeStacks`, `cloudformation:DescribeStackEvents`, `ecs:ListServiceDeployments`, `autoscaling:DescribeScalingActivities`, `rds:DescribeEvents` |
 | `find_resources` | `environment`, `name?`, `tag?` (`key`, `value?`), `type?`, `region?` (at least one of `name` or `tag`) | `resources` `[{type, name, arn, tags}]` | `tag:GetResources` |
 | `describe_resource` | `environment`, ResourceRef, `region?` | `type`, `configuration` (the type's reviewed fields), and `stack` for Lambda | `ecs:DescribeServices`, `ecs:ListClusters`, `rds:DescribeDBInstances`, `rds:DescribeDBClusters`, `ec2:DescribeInstances`, `elasticloadbalancing:DescribeLoadBalancers`, `elasticloadbalancing:DescribeTargetGroups`, `elasticloadbalancing:DescribeTargetHealth`, `elasticloadbalancing:DescribeListeners`, `autoscaling:DescribeAutoScalingGroups`, `cloudwatch:DescribeAlarms`, `cloudformation:DescribeStackResources`, `cloudformation:ListStackResources`, `cloudformation:DescribeStacks` |
 

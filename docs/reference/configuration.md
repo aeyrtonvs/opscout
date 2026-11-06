@@ -268,6 +268,22 @@ How tool results are shaped.
 | `redact.account_ids`, `redact.ips`, `redact.emails` | false | redact these values too; secrets are always redacted |
 | `caps.<name>` | each cap's ceiling | lower a cap; the caps and their ceilings are in [tools.md](tools.md) |
 
+### `triage` (optional; spec 012)
+
+Alert triage. Without it, triage reads no infrastructure code and no observability platform,
+runs no skeptic pass, and reads 7 days of metric history. See [triage.md](triage.md).
+
+| Key | Default | Meaning |
+|---|---|---|
+| `infrastructure` | none | 0–20 local clones of infrastructure code, read only by `search_iac` and `read_iac` |
+| `infrastructure[].name` | required | lowercase letters, digits and hyphens, up to 40; unique; how citations name the clone |
+| `infrastructure[].path` | required | the clone's absolute path |
+| `infrastructure[].environments` | every environment | the configured environments this clone declares |
+| `observability` | false | true when a read-only observability server is registered in Claude Code under the name `observability` |
+| `skeptic` | false | run the skeptic pass after a verdict passes its check |
+| `metric_history_days` | 7 | 1–14 days of metric history for the threshold assessment |
+| `background_actions` | none | up to 50 more CloudTrail actions that `recent_changes` drops as background |
+
 ## Rules for every section
 
 These hold for each section a later spec adds. Review checks them; tests enforce the

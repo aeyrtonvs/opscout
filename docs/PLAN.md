@@ -1,12 +1,13 @@
 # opscout — plan
 
-> Status (2026-11-05): **Phase 0a done**: the repository is public at
+> Status (2026-11-06): **Phase 0a done**: the repository is public at
 > `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b done** (§7): specs 001 to 006
 > are merged. **Phase 1 in progress**: specs 007, daemon-core, 008, chat-output, and 009,
 > daily-standup, are merged; its last exit criterion, a week of dailies and their agreement
 > rate, is being measured (§9). **Phase 2 in progress**: spec 010, readonly-identity, is
 > merged; ADR-0023 makes its identity recommended rather than required. Spec 011,
-> ops-mcp-server, is implemented on `feat/011-ops-mcp-server`. The
+> ops-mcp-server, is merged. Spec 012, alert-triage, is implemented on
+> `feat/012-alert-triage`. The
 > constitution is at 2.0.0, ADRs 0001–0023 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -738,6 +739,21 @@ genai.owasp.org (Top 10 for Agentic Applications).
       observed. If a scheduled run fails then, store the `claude_token` fallback
       (`docs/reference/daemon.md`).
 - [ ] The run records and the outbox have no retention yet (spec 007): they grow by a few
-      small files a day. Decide a retention with chat-output or run-insights.
+      small files a day. Spec 012's triage records join them; its evidence store expires
+      after 24 hours. Decide a retention with chat-output or run-insights.
 - [ ] Leak check, annotated tags: their messages and taggers are not checked (a non-goal of
       spec 001, decided 2026-11-04). Decide before the first release tag.
+- [ ] Alert triage (spec 012, SC-006): after merge, triage the first 10 real alerts and
+      record the agreement rate from `opscout triage runs` (target ≥ 80 %). Real samples
+      become private eval cases (FR-028).
+- [ ] Alert triage, observability allow-list (spec 012, research R3): a plugin's subagent
+      cannot list the tools of a server named at install time, so the platform's server is
+      reached under the fixed name `observability` and all its tools are allowed. Revisit if
+      Claude Code adds a way to name a user's server, or to deny its write tools.
+- [ ] Alert triage, cost (spec 012, Principle IX): an interactive session does not expose
+      its cost to the skill, so triage records hold `cost_usd: null`. Headless runs
+      (Phase 3) report it.
+- [ ] Alert triage, alarm discovery (spec 012): the metrics subagent finds the alarm by the
+      alert's title or resource name. Notifier texts that name neither need a lookup by
+      metric (`cloudwatch:DescribeAlarmsForMetric`), which spec 010's capabilities and spec
+      011's surface would gain first.

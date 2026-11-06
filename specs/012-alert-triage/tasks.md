@@ -394,7 +394,7 @@ subagents may read it, and every claim citing it is marked not checked.
 
 ## Phase 9: Polish and cross-cutting
 
-- [ ] T045 [P] Write `docs/reference/triage.md`:
+- [X] T045 [P] Write `docs/reference/triage.md`:
   - the skill and its procedure;
   - setup (the `triage` section, clones, the `observability` server name);
   - records and the CLI;
@@ -405,7 +405,7 @@ subagents may read it, and every claim citing it is marked not checked.
   `docs/reference/configuration.md` (the `triage` section). Then update spec 011's
   contract, `specs/011-ops-mcp-server/contracts/tools.md`: `evidence`,
   `include_background`, and a pointer to spec 012.
-- [ ] T046 [P] Write `tests/unit/triage/test_docs.py`: the reference names every new tool,
+- [X] T046 [P] Write `tests/unit/triage/test_docs.py`: the reference names every new tool,
   every `triage` key, both CLI commands and the `observability` server name. It passes.
 - [ ] T047 Update `docs/PLAN.md`:
   - **The status line**: spec 011 merged; spec 012 implemented.
@@ -415,7 +415,7 @@ subagents may read it, and every claim citing it is marked not checked.
     - observability per-tool allow-lists, which plugin agents cannot express (research R3);
     - an interactive run's cost, which the record cannot see (Principle IX);
     - evidence and triage-record retention, joining spec 007's item.
-- [ ] T048 Update `README.md`'s skill list and `plugins/opscout/README.md`, if they list
+- [X] T048 Update `README.md`'s skill list and `plugins/opscout/README.md`, if they list
   skills.
 - [ ] T049 Run `uv run just check`, `uv run just plugin` and the leak check on the whole
   diff. Fix what fails, without loosening a gate.
