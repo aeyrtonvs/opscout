@@ -10,4 +10,6 @@ tags:
 - FR-004
 ---
 
+Triage this alert:
+
 The checkout page has been slow since this morning, is something wrong?

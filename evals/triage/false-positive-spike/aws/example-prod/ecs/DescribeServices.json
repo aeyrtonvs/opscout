@@ -1,0 +1,37 @@
+[
+ {
+  "match": {},
+  "response": {
+   "services": [
+    {
+     "serviceName": "example-api",
+     "serviceArn": "arn:aws:ecs:us-east-1:123456789012:service/example/example-api",
+     "clusterArn": "arn:aws:ecs:us-east-1:123456789012:cluster/example",
+     "status": "ACTIVE",
+     "desiredCount": 2,
+     "runningCount": 2,
+     "pendingCount": 0,
+     "launchType": "FARGATE",
+     "taskDefinition": "arn:aws:ecs:us-east-1:123456789012:task-definition/example-api:40",
+     "deployments": [
+      {
+       "status": "PRIMARY",
+       "rolloutState": "COMPLETED",
+       "desiredCount": 2,
+       "runningCount": 2,
+       "createdAt": "2026-10-20T10:00:00Z",
+       "updatedAt": "2026-10-20T10:12:00Z",
+       "taskDefinition": "arn:aws:ecs:us-east-1:123456789012:task-definition/example-api:40"
+      }
+     ],
+     "events": [
+      {
+       "createdAt": "2026-11-06T11:00:00Z",
+       "message": "(service example-api) has reached a steady state."
+      }
+     ]
+    }
+   ]
+  }
+ }
+]

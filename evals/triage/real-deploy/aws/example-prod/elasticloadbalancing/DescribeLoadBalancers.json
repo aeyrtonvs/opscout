@@ -1,0 +1,20 @@
+[
+ {
+  "match": {},
+  "response": {
+   "LoadBalancers": [
+    {
+     "LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/example-api-alb/0123456789abcdef",
+     "LoadBalancerName": "example-api-alb",
+     "Type": "application",
+     "Scheme": "internet-facing",
+     "State": {
+      "Code": "active"
+     },
+     "DNSName": "example-api-alb.example.com",
+     "VpcId": "vpc-0123456789abcdef0"
+    }
+   ]
+  }
+ }
+]

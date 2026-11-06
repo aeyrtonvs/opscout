@@ -238,7 +238,7 @@ instructions and secret bait change nothing.
 
 **Independent test**: the `012-us2-*` eval cases and the service tests.
 
-- [ ] T029 [P] [US2] Write failing tests in `tests/unit/triage/test_boundaries.py`:
+- [X] T029 [P] [US2] Write failing tests in `tests/unit/triage/test_boundaries.py`:
   - **Out of scope** (FR-004): an out-of-scope alert's `begin_triage` returns
     `out-of-scope`, the environment named, and `cloud_reads: false`. An unknown format
     returns `matched: false`, and an ambiguous alias returns `ambiguous` with the
@@ -247,7 +247,12 @@ instructions and secret bait change nothing.
     `inconclusive` verdict citing it passes the check.
   - **No secret in the record** (FR-025): a reason holding a secret-shaped value is
     redacted, and a verdict holding one is refused before it is stored.
-- [ ] T030 [US2] Close any gap T029 shows in `src/opscout/services/triage.py`.
+- [X] T030 [US2] Close any gap T029 shows in `src/opscout/services/triage.py`.
+
+  *Done in place*: T029's cases were written with the code they test rather than in a
+  separate `test_boundaries.py`: out of scope, unknown and no AWS in `test_begin.py`; an
+  inconclusive verdict citing `begin_triage` in `test_server.py`; secrets in the record in
+  `test_check_flow.py` and `test_agreement.py`.
 - [ ] T031 [US2] Build the fixtures under `evals/triage/`:
   - `out-of-scope`;
   - `unknown-format`;
