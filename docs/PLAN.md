@@ -2,8 +2,9 @@
 
 > Status (2026-11-05): **Phase 0a done**: the repository is public at
 > `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b done** (§7): specs 001 to 006
-> are merged. **Phase 1 in progress**: specs 007, daemon-core, and 008, chat-output, are
-> merged; spec 009, daily-standup, is implemented on `feat/009-daily-standup`. The
+> are merged. **Phase 1 in progress**: specs 007, daemon-core, 008, chat-output, and 009,
+> daily-standup, are merged; its last exit criterion, a week of dailies and their agreement
+> rate, is being measured (§9). The
 > constitution is ratified (1.0.2), ADRs 0001–0022 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -644,7 +645,8 @@ genai.owasp.org (Top 10 for Agentic Applications).
       confirmed push, which no headless eval can give; check them on the first real use and
       record the outcome in the spec.
 - [ ] Daily standup (spec 009): the plan's remaining exit criteria are measured after merge.
-      Schedule the `standup` job before the standup for one working week; record in §7 the
+      The `standup` job is scheduled since 2026-11-05, so the week runs from 2026-11-06 to
+      2026-11-12. Record in §7 the
       days it was delivered on time and the agreement rate from the run records (target
       ≥ 80 %), and whether the default model stays or changes.
 - [ ] Push-guard timing test (spec 004, `test_the_guard_decides_in_under_a_second`): it
