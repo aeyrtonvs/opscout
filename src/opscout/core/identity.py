@@ -155,6 +155,9 @@ class Catalog:
     _flags: Mapping[str, str] = field(repr=False)
     _names: Mapping[str, str] = field(repr=False)
     _by_service: Mapping[str, tuple[str, ...]] = field(repr=False)
+    _covered: dict[Statement, frozenset[str]] = field(
+        default_factory=dict, repr=False, compare=False
+    )
 
     @classmethod
     def from_data(cls, data: Mapping[str, Any]) -> "Catalog":
@@ -211,12 +214,16 @@ class Catalog:
         matcher = wildcard(f"*:{action}", case_sensitive=False)
         return {key for s in services for key in self._by_service[s] if matcher.match(key)}
 
-    def covered(self, statement: Statement) -> set[str]:
-        """Every catalog key the statement's action element covers."""
-        keys: set[str] = set()
-        for pattern in statement.actions:
-            keys |= self.expand(pattern)
-        return set(self._flags) - keys if statement.not_action else keys
+    def covered(self, statement: Statement) -> frozenset[str]:
+        """Every catalog key the statement's action element covers (cached per statement)."""
+        cached = self._covered.get(statement)
+        if cached is None:
+            keys: set[str] = set()
+            for pattern in statement.actions:
+                keys |= self.expand(pattern)
+            cached = frozenset(set(self._flags) - keys if statement.not_action else keys)
+            self._covered[statement] = cached
+        return cached
 
 
 @dataclass(frozen=True)

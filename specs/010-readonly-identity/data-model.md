@@ -51,7 +51,8 @@ proved with an exact probe on that resource.
 | `eks/access-policy.json` | `associate-access-policy` input | optional, with `kubernetes/` or alone |
 | `kubernetes/view-binding.yaml` | one `ClusterRoleBinding` | optional |
 
-Any other file is an error. Attachments follow from the layout (R7):
+Any other file is an error, except dotfiles and a `README.md`, which are skipped, so that the
+directory can sit in an infrastructure repository. Attachments follow from the layout (R7):
 
 - **The read-only identity** = the `ViewOnlyAccess` copy, plus `capabilities/*`, plus the
   guardrail; its boundary is the `ReadOnlyAccess` copy.
@@ -84,7 +85,8 @@ Any other file is an error. Attachments follow from the layout (R7):
   one for the instance, and both must be allowed.
 - **Decision**: `allow`, `implicit-deny`, `explicit-deny (statement ref)`.
 - **Statement ref**: `<file>#<index or Sid>`.
-- **Finding**: `{ kind, subject, ref, message }`. The kinds are:
+- **Finding**: `{ kind, message }`. The message names the subject (an action, file or
+  document) and, when one applies, the statement ref. The kinds are:
   - `secret-allowed`
   - `write-allowed`
   - `data-allowed`

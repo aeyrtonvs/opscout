@@ -351,3 +351,9 @@ come the declared capabilities and sizes (US2), the hosts (US3) and the clusters
 After that, the command, the hook and the documentation for the person who applies it
 (US5, US6). The live check needs an instantiated identity, so it stays an open item
 (FR-021).
+
+## Phase 10: Convergence
+
+- [X] T041 Cache each statement's catalog expansion in `src/opscout/core/identity.py` so the identity suite runs well under SC-004's 10 seconds (9.8 s measured) per SC-004 (partial)
+- [X] T042 Record in `specs/010-readonly-identity/data-model.md` and `contracts/commands.md` that a checked tree's dotfiles and `README.md` are skipped per data-model "Editable tree" (unrequested)
+- [X] T043 Align the Finding entity in `specs/010-readonly-identity/data-model.md` with the implementation (`kind` and `message`, which names the subject and statement) per data-model "Evaluation types" (partial)

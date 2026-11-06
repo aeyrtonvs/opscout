@@ -43,6 +43,9 @@ The numbers above illustrate the format and are not measured.
 | 1 | one or more findings |
 | 2 | a usage error, or a directory that does not exist or cannot be parsed (the message names the file and the line) |
 
+Dotfiles and a `README.md` in `DIR` are skipped. Any other file that is not part of the
+identity is a `layout` finding.
+
 ## `opscout identity export DIR`
 
 Writes the editable tree (data-model.md) into `DIR`, then prints the files written and the
