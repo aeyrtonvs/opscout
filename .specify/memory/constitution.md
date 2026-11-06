@@ -1,6 +1,13 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.1 → 1.0.2 (PATCH): "OS-specific code lives behind the scheduler port"
+- Version change: 1.0.2 → 2.0.0 (MAJOR, ADR-0023): Principle II is redefined. The
+  harness's own mechanisms (the allow-listed tool surface, which exposes no write and no
+  secret-value operation, and the allow-listed host documents) stay mandatory; the
+  read-only identity becomes the recommended outer layer, and a user may run with another
+  identity at their own risk. Principle III's secret-value rule moves to the tool surface,
+  and the reference identity keeps its denies. Principle V gains "every integration is
+  optional". Approved by the maintainer on 2026-11-06
+- 1.0.2 (PATCH): "OS-specific code lives behind the scheduler port"
   becomes "behind ports, such as the scheduler and the secret store", matching ADR-0011 and
   ADR-0021; a clarification, no principle changes. Approved by the maintainer on 2026-11-03
 - 1.0.1: the project is renamed opscout (ADR-0019); the title is the only change
@@ -42,9 +49,13 @@ Sync Impact Report
 
 - Agents MUST NOT change the systems they investigate: cloud accounts, clusters, hosts,
   IaC, observability, tickets or code hosts.
-- Read-only MUST be enforced by mechanisms the model cannot override: a read-only identity,
-  an allow-listed tool surface, and allow-listed host command documents. Instructions in
-  prompts are a last layer, never the control.
+- Read-only MUST be enforced by mechanisms the model cannot override. The harness's own are
+  mandatory: an allow-listed tool surface that exposes no write and no secret-value
+  operation, and allow-listed host command documents. Instructions in prompts are a last
+  layer, never the control.
+- The read-only identity is the recommended outer layer. opscout ships it as a reference and
+  recommends it, but never requires it: a user who runs with another identity accepts that
+  risk, and opscout states which identity a run used (ADR-0023).
 - Unattended (headless) runs MUST NOT have a general-purpose shell. They get only
   allow-listed, read-only tools.
 - The only writes allowed are messages to explicitly configured output channels (the
@@ -60,9 +71,9 @@ into acting must be unable to act.*
 
 - Agents MAY report whether a secret exists, where it lives and its metadata. They MUST NOT
   read, print, log or store its value.
-- The read-only identity MUST deny secret-value APIs (for example
-  `secretsmanager:GetSecretValue` and SecureString decryption), and cluster access MUST
-  exclude `secrets`.
+- The tool surface MUST NOT expose secret-value APIs (for example
+  `secretsmanager:GetSecretValue` and SecureString decryption). The reference identity MUST
+  deny them too, and the reference cluster access MUST exclude `secrets`.
 - Tool outputs SHOULD be redacted before they reach the model. Run records MUST NOT contain
   secret values.
 - The harness's own credentials live in the OS keychain. The configuration names keychain
@@ -84,6 +95,9 @@ into acting must be unable to act.*
 - `example-config/` MUST validate against the current schema in CI.
 - Breaking schema changes require a major schema version and a migration note.
 - Code MUST NOT contain organization-specific branches.
+- Every integration is optional. It is enabled only when configured, and a missing,
+  unconfigured or failing integration MUST NOT block a feature that does not use it
+  (ADR-0023).
 
 ### VI. Deterministic gathering, model judgment
 
@@ -186,4 +200,4 @@ into acting must be unable to act.*
 - Compliance is checked in every pull request (template checklist) and before every
   release.
 
-**Version**: 1.0.2 | **Ratified**: 2026-11-03 | **Last Amended**: 2026-11-03
+**Version**: 2.0.0 | **Ratified**: 2026-11-03 | **Last Amended**: 2026-11-06

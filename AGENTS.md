@@ -30,11 +30,13 @@ missing is an open item in `docs/PLAN.md` §9.
    included. A leak in a public repo cannot be undone by deleting the commit.
    *Gate:* the same checks on every commit and on every commit you push, plus the commit
    e-mail check.
-3. **Agents built here are read-only by design, enforced by permissions, not by
-   instructions.** They use a read-only identity; they report whether a secret exists and
-   where, never its value; on hosts they run an allow-listed command document, not an open
-   shell.
-   *Gate:* the read-only identity and allow-listed host documents, proved by
+3. **Agents built here are read-only by design, enforced by mechanisms, not by
+   instructions.** Their tool surface exposes only reads and never a secret's value; they
+   report whether a secret exists and where; on hosts they run an allow-listed command
+   document, not an open shell. The reference read-only identity is the recommended outer
+   layer, never a requirement: a user may run with their own identity at their own risk
+   (ADR-0023).
+   *Gate:* the reference identity and allow-listed host documents, proved by
    `opscout identity check` (spec 010); tool allow-lists still to come (ADR-0010).
 4. **English** for code, comments, docs and commit messages. *Gate:* review only.
 5. **Nothing leaves the machine without asking each time:** creating the GitHub remote,
@@ -49,6 +51,8 @@ missing is an open item in `docs/PLAN.md` §9.
   states deliverable, constraints, non-goals and acceptance in the pull request.
 - **Stay in scope.** Change only the files the current task names; anything else becomes a
   new task.
+- **Integrations are optional.** A feature works without the integrations it does not use;
+  a missing or failing one never blocks it (ADR-0023).
 - **Never weaken a sensor.** Do not delete, skip or loosen a test or check to make it pass.
   Do not add a dependency without a reason in the plan.
 - **Done means checked.** Run the checks before marking a task done. If the same check fails

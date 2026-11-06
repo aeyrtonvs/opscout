@@ -23,7 +23,7 @@ Decisions local to one feature stay in that feature's `specs/NNN-slug/research.m
 | [0007](0007-english-apache-2.md) | English for the repository; Apache-2.0 license | accepted |
 | [0008](0008-spec-driven-development-spec-kit.md) | Spec-Driven Development with GitHub Spec Kit | accepted |
 | [0009](0009-open-standards-agent-artifacts.md) | AGENTS.md, Agent Skills and MCP as the formats for agent-facing artifacts | accepted |
-| [0010](0010-defense-in-depth-read-only.md) | Read-only is enforced in five layers, strongest first | accepted |
+| [0010](0010-defense-in-depth-read-only.md) | Read-only is enforced in five layers, strongest first | accepted; decision 1 amended by 0023 |
 | [0011](0011-code-led-tools-mcp-server.md) | Deterministic adapters exposed as a local read-only MCP server and a CLI | accepted |
 | [0012](0012-runner-port-claude-cli.md) | Runner port; the user's own `claude -p` is the default runner | accepted |
 | [0013](0013-evals-as-acceptance-tests.md) | Evals are the acceptance tests of agent behavior | accepted |
@@ -36,3 +36,4 @@ Decisions local to one feature stay in that feature's `specs/NNN-slug/research.m
 | [0020](0020-toolchain-pinned-through-uv.md) | The development toolchain is pinned through uv; neither local use nor development needs containers | accepted |
 | [0021](0021-local-first-portable-by-construction.md) | Local-first and portable by construction; the foreseen hosted shape is a personal VM | accepted |
 | [0022](0022-plugin-runs-the-engine-through-uv.md) | The plugin runs the engine through a uv launcher in its `bin/` | accepted |
+| [0023](0023-read-only-identity-recommended.md) | The read-only identity is recommended, not required; every integration is optional | accepted |

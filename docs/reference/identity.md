@@ -1,11 +1,19 @@
 # Read-only identity reference
 
 Phase 2's agents read untrusted text, such as alert bodies, log lines and chat threads,
-while they reach real systems. The identity they use is the guarantee: even if an injected
-instruction takes over the model, the identity can neither change anything nor read a
-secret's value (spec 010, ADR-0010). opscout ships the reference identity as documents,
-proves their properties offline with `opscout identity check`, and **never applies
-anything**. Your infrastructure repository instantiates the documents.
+while they reach real systems. Their tool surface exposes only reads, whatever identity
+they run under. The reference identity is the recommended outer layer on top of it: even if
+an injected instruction takes over the model, or a tool has a defect, the identity can
+neither change anything nor read a secret's value (spec 010, ADR-0010). opscout ships the
+reference identity as documents, proves their properties offline with
+`opscout identity check`, and **never applies anything**. Your infrastructure repository
+instantiates the documents.
+
+**It is recommended, not required** (ADR-0023). You may run opscout with an identity you
+already have, such as a narrowed role that is not strictly read-only. That risk is yours:
+whatever that identity allows is reachable if a tool has a defect, or from a shell in an
+interactive session. The agents will state which identity a run used, and never block on it.
+Nothing here is needed for features that do not reach AWS or a cluster.
 
 ## The two identities
 
