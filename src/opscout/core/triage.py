@@ -40,9 +40,7 @@ TOKEN_QUOTE = 8
 """A quote shorter than this must sit on token boundaries, or "202" would match any year."""
 
 
-def _zone(name: str | None) -> str | None:
-    if name is None:
-        return None
+def _zone(name: str) -> str:
     try:
         ZoneInfo(name)
     except (ZoneInfoNotFoundError, ValueError):
@@ -414,6 +412,9 @@ class TriageRecord(BaseModel):
 
     run_id: Annotated[str, StringConstraints(pattern=RUN_ID_PATTERN)]
     record_version: Literal[1] = 1
+    skill: Literal["alert-triage"] = "alert-triage"
+    skill_version: str
+    """The plugin's version, which moves in lockstep with the engine's (ADR-0016)."""
     engine_version: str
     started_at: AwareDatetime
     ended_at: AwareDatetime | None = None

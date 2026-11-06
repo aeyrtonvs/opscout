@@ -24,6 +24,7 @@ def record(hours_ago: float, suffix: str, **changes: object) -> TriageRecord:
     started = NOW - timedelta(hours=hours_ago)
     base = TriageRecord(
         run_id=f"{started:%Y%m%dT%H%M%SZ}-{suffix}",
+        skill_version="0.0.0",
         engine_version="0.0.0",
         started_at=started,
         alert=AlertRef(

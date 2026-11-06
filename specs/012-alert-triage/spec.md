@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-06
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "alert-triage (spec 012, PLAN.md §7 Phase 2, need 1). A Claude
 Code skill the user invokes by pasting an ops alert (CloudWatch-style or Datadog-style text,
@@ -487,3 +487,65 @@ What this feature does not include:
 - **Run records** follow spec 007's conventions: local files, no retention yet (PLAN.md §9).
 - **Mock mode and the corpus** of spec 011 are extended with the cases this suite needs,
   with fake values only.
+
+## Actuals
+
+- **Effort**: one session on 2026-11-06, from specify to the review's fixes.
+- **Surface**: six new tools on the opscout server, none declaring an AWS action; the
+  surface check passes on all 15. `recent_changes` drops agent heartbeats by default and
+  pages past them (at most 4 pages).
+- **Tests**: 1,925 in all, with every requirement traced to a test or an eval tag and every
+  scenario to an eval case or a named test. Core and services stay at 100 % coverage for
+  this spec's modules.
+- **Evals** (mock mode, synthetic fixtures, one arm, headless `claude -p`):
+  - The baseline is 20 cases at 1.00, recorded after the fixes below.
+  - The first full run had 19 at 1.00. The one below, `012-us5-s1`, paraphrased "(not
+    checked)"; the skill now asks for the literal words, and the case passes.
+  - Every expected classification matched: real, false positive and inconclusive (SC-001,
+    100 %).
+  - No secret value reached a reply, and no shell, write or out-of-list tool was called
+    (SC-003). No case asked about account, profile, region or timezone (SC-004).
+  - Every case finished in under 2 minutes, at about 0.5 USD; the longest took 115 s
+    (SC-005).
+  - The whole session's eval runs cost about 31.5 USD.
+- **The ablation** (FR-029, SC-007), on the 18 cases of US1 to US5:
+
+  | | Without the skeptic | With the skeptic |
+  |---|---|---|
+  | Classifications as expected | 18 of 18 | 18 of 18 |
+  | Cases at 1.00 | 17 of 18 | 15 of 18 |
+  | Cost | 8.19 USD | 10.04 USD |
+  | Mean duration per case | 58 s | 79 s |
+
+  It improved no case, lowered two, and in `012-us6-s2` turned a correct false positive
+  into inconclusive. It ships disabled (`triage.skeptic: false`).
+- **Found by the first eval runs**:
+  - `--strict-mcp-config` also drops a plugin's own MCP servers. Fixture cases therefore run
+    without it, with the account's claude.ai connectors off.
+  - The subagents quote `"key": value` fragments of a result, so the check accepts a
+    fragment that holds a key and a scalar value.
+  - The model sometimes cited nothing for the threshold, so every failure now carries a
+    hint for the retry.
+  - The false-positive fixture inherited a deployment from the shared fixtures.
+- **The independent review** found two HIGH issues, four MEDIUM and four LOW, all fixed with
+  tests or stated as accepted:
+  - **HIGH**: a verdict could pass on minted evidence: an echoed alert text, the envelope
+    every result shares, empty fragments, or three-character substrings. Now only cloud and
+    infrastructure-code reads are citable, quotes match the data only, and short quotes
+    must not cut a number or a word.
+  - **HIGH**: case-variant and `.tfvars` files could be read. Matching now ignores case and
+    only infrastructure-code suffixes are read.
+  - **MEDIUM**: evidence is now tied to its run and environment. The skill pre-approves its
+    five subagents by name and removes file reads. The observability wildcard is
+    documented as a residual risk. The eval runner refuses a user's own server that
+    shadows a stand-in.
+  - **LOW**: a revision now needs the skeptic setting; a future alert time is clamped; a
+    number with an underscore no longer matches. Concurrent checks of one run are accepted
+    unserialized.
+- **Convergence** found four gaps, all closed (T054–T057): the record names its skill and
+  version, and the skill states capped or partial results, cluster and host alerts, and
+  several pasted alerts.
+- **Not done**: the live check (T053), because the sandbox environment's SSO session had
+  expired (PLAN.md §9). SC-006, agreement on the first 10 real triages, is measured after
+  merge.
+

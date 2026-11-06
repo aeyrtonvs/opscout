@@ -50,8 +50,8 @@ def _trail(
     window: Window,
     items: int,
     *,
-    background: frozenset[str] = frozenset(),
-    dropped: list[int] | None = None,
+    background: frozenset[str],
+    dropped: list[int],
 ) -> tuple[list[dict[str, Any]], bool]:
     """CloudTrail writes; background actions are dropped and counted (spec 012, R7).
 
@@ -79,8 +79,7 @@ def _trail(
         )
         page = response.get("Events", [])
         kept = [event for event in page if event.get("EventName") not in background]
-        if dropped is not None:
-            dropped.append(len(page) - len(kept))
+        dropped.append(len(page) - len(kept))
         events += kept
         token = response.get("NextToken")
         if not token or len(kept) == len(page) or len(events) >= items:

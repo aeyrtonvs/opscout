@@ -25,6 +25,7 @@ def record(minutes: int, suffix: str = "a1b2c3") -> TriageRecord:
     started = NOW + timedelta(minutes=minutes)
     return TriageRecord(
         run_id=f"{started:%Y%m%dT%H%M%SZ}-{suffix}",
+        skill_version="0.0.0",
         engine_version="0.0.0",
         started_at=started,
         alert=AlertRef(
@@ -91,3 +92,19 @@ def test_an_unreadable_record_is_listed_by_name(tmp_path: Path) -> None:
 @spec("FR-025")
 def test_a_malformed_run_id_reads_nothing(tmp_path: Path) -> None:
     assert FileRecords(tmp_path).get("../../etc/passwd") is None
+
+
+@spec("FR-025")
+def test_a_record_names_its_skill_and_version() -> None:
+    from opscout.services.triage import Stores, begin
+    from tests.unit.triage.fakes import MemoryEvidence
+
+    stores = Stores(MemoryEvidence(), MemoryRecords(), "1.2.3")
+    run_id = begin(ALERT_TEXT, None, None, NOW, stores)["run_id"]
+    found = stores.records.get(run_id)
+    assert found is not None
+    assert (found.skill, found.skill_version, found.engine_version) == (
+        "alert-triage",
+        "1.2.3",
+        "1.2.3",
+    )

@@ -194,3 +194,17 @@ def test_no_agent_or_skill_names_a_tool_the_server_does_not_have() -> None:
     for text in texts:
         for tool in re.findall(rf"{PREFIX}(\w+)", text):
             assert tool in SPECS, tool
+
+
+@spec("FR-016")
+def test_the_skill_marks_unchecked_claims_literally() -> None:
+    _, body = parts(SKILL)
+    assert 'the literal words "(not checked)"' in body
+
+
+@spec("FR-002")
+def test_the_skill_handles_the_spec_edge_cases() -> None:
+    _, body = parts(SKILL)
+    assert "take the first and say that you triaged only that one" in body  # several alerts
+    assert "`capped` or `partial`" in body  # a capped or partial result
+    assert "cluster and host evidence is not read" in body  # a cluster or host alert

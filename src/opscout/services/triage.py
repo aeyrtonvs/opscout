@@ -162,6 +162,7 @@ def begin(
     run_id = _run_id(now)
     record = TriageRecord(
         run_id=run_id,
+        skill_version=stores.engine_version,
         engine_version=stores.engine_version,
         started_at=now,
         alert=AlertRef(
