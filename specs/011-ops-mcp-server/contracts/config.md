@@ -44,8 +44,9 @@ tools:
     log_rows: 200
 ```
 
-Validation errors use spec 002's form: `file:line:column: path: message`. Examples:
+Validation errors use spec 002's form, `file:line:column: path: message`. As in every
+section, a message never repeats the value it refuses. Examples:
 
 - `alerts.formats[0].fields.account: needs exactly one capture group`
-- `aws.environments[1].aliases[0]: "prod" is already used by example-prod`
-- `tools.caps.log_rows: at most 1000`
+- `aws: an alias is already the name or an alias of another environment`
+- `tools.caps: expected at least 1 and at most 1000`

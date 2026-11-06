@@ -2,6 +2,171 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/aeyrtonvs/opscout/main/schemas/config.schema.json",
   "$defs": {
+    "AlertFormat": {
+      "additionalProperties": false,
+      "description": "How to recognize one kind of alert text and extract its fields (spec 011).",
+      "properties": {
+        "name": {
+          "description": "The format's name, as the tools report it.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "recognize": {
+          "description": "A regular expression that matches alerts in this format (multi-line).",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Recognize",
+          "type": "string"
+        },
+        "fields": {
+          "additionalProperties": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": "Each field to extract, with a regular expression that has exactly one capture group (multi-line).",
+          "minProperties": 1,
+          "propertyNames": {
+            "enum": [
+              "severity",
+              "title",
+              "project",
+              "environment",
+              "resource",
+              "account",
+              "region",
+              "metric",
+              "threshold",
+              "value",
+              "time"
+            ]
+          },
+          "title": "Fields",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "recognize",
+        "fields"
+      ],
+      "title": "AlertFormat",
+      "type": "object"
+    },
+    "Alerts": {
+      "additionalProperties": false,
+      "description": "The alert formats the alert tools recognize, in order of precedence (spec 011).",
+      "properties": {
+        "formats": {
+          "description": "The formats, tried in this order; the first that matches wins.",
+          "items": {
+            "$ref": "#/$defs/AlertFormat"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Formats",
+          "type": "array"
+        }
+      },
+      "required": [
+        "formats"
+      ],
+      "title": "Alerts",
+      "type": "object"
+    },
+    "Aws": {
+      "additionalProperties": false,
+      "description": "The AWS environments the tools may read (spec 011, FR-015).",
+      "properties": {
+        "environments": {
+          "description": "The environments in scope, one AWS account each.",
+          "items": {
+            "$ref": "#/$defs/AwsEnvironment"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Environments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "environments"
+      ],
+      "title": "Aws",
+      "type": "object"
+    },
+    "AwsEnvironment": {
+      "additionalProperties": false,
+      "description": "One AWS account in scope, and how the tools reach it (spec 011, FR-015).",
+      "properties": {
+        "name": {
+          "description": "The environment's name, as tools and alerts refer to it.",
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9._-]+$",
+          "title": "Name",
+          "type": "string"
+        },
+        "account_id": {
+          "description": "The AWS account ID, as a quoted 12-digit string.",
+          "pattern": "^[0-9]{12}$",
+          "title": "Account Id",
+          "type": "string"
+        },
+        "profile": {
+          "description": "The AWS profile, from your AWS config, that reaches this account.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "title": "Profile",
+          "type": "string"
+        },
+        "regions": {
+          "description": "The regions in scope; the first is the default.",
+          "items": {
+            "pattern": "^[a-z]{2}(-[a-z]+)+-[0-9]$",
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Regions",
+          "type": "array"
+        },
+        "aliases": {
+          "description": "Other names alerts use for this environment, such as a project name.",
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*\\S[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*$",
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Aliases",
+          "type": "array"
+        },
+        "identity": {
+          "default": "own",
+          "description": "reference when the profile uses opscout's reference read-only identity (spec 010); own otherwise. Results state it; nothing checks or requires it (ADR-0023).",
+          "enum": [
+            "reference",
+            "own"
+          ],
+          "title": "Identity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "account_id",
+        "profile",
+        "regions"
+      ],
+      "title": "AwsEnvironment",
+      "type": "object"
+    },
     "ChatSetting": {
       "additionalProperties": false,
       "description": "Where deliveries go by direct message (spec 008).",
@@ -665,6 +830,127 @@
       "title": "StandupProject",
       "type": "object"
     },
+    "ToolRedaction": {
+      "additionalProperties": false,
+      "description": "Which operational values the tools redact; secrets are always redacted (FR-010).",
+      "properties": {
+        "account_ids": {
+          "default": false,
+          "description": "Redact AWS account IDs.",
+          "title": "Account Ids",
+          "type": "boolean"
+        },
+        "ips": {
+          "default": false,
+          "description": "Redact IP addresses.",
+          "title": "Ips",
+          "type": "boolean"
+        },
+        "emails": {
+          "default": false,
+          "description": "Redact e-mail addresses.",
+          "title": "Emails",
+          "type": "boolean"
+        }
+      },
+      "title": "ToolRedaction",
+      "type": "object"
+    },
+    "Tools": {
+      "additionalProperties": false,
+      "description": "How the tool server shapes its results (spec 011).",
+      "properties": {
+        "timezone": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The IANA time zone results are written in; without it, personal_context's, then UTC.",
+          "title": "Timezone"
+        },
+        "redact": {
+          "$ref": "#/$defs/ToolRedaction",
+          "description": "Which operational values to redact; secrets are always redacted."
+        },
+        "caps": {
+          "additionalProperties": false,
+          "description": "Lower limits for the tools' caps; none may exceed its ceiling.",
+          "properties": {
+            "result_chars": {
+              "description": "The most characters in one tool result. At most 40000.",
+              "maximum": 40000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "metric_window_hours": {
+              "description": "The longest window, in hours, for alarms and metrics. At most 336.",
+              "maximum": 336,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "log_window_hours": {
+              "description": "The longest window, in hours, for a log query. At most 24.",
+              "maximum": 24,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "change_window_hours": {
+              "description": "The longest window, in hours, for recent changes. At most 168.",
+              "maximum": 168,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "log_rows": {
+              "description": "The most rows a log query returns. At most 1000.",
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "log_wait_seconds": {
+              "description": "The longest a log query is waited for, in seconds. At most 50.",
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "change_items": {
+              "description": "The most changes returned per source. At most 200.",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "stacks": {
+              "description": "The most CloudFormation stacks examined for events. At most 25.",
+              "maximum": 25,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "resources": {
+              "description": "The most resources a search returns. At most 100.",
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "datapoints": {
+              "description": "The most metric data points returned. At most 1440.",
+              "maximum": 1440,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "title": "Caps",
+          "type": "object"
+        }
+      },
+      "title": "Tools",
+      "type": "object"
+    },
     "WriteupFormat": {
       "additionalProperties": false,
       "description": "A shape for a write-up: its sections in order, its rules and its length (spec 003).",
@@ -822,6 +1108,34 @@
       ],
       "default": null,
       "description": "The daily standup's sources and projects (spec 009)."
+    },
+    "alerts": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Alerts"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The alert formats the alert tools recognize (spec 011)."
+    },
+    "aws": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Aws"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The AWS environments the tools may read (spec 011)."
+    },
+    "tools": {
+      "$ref": "#/$defs/Tools",
+      "description": "Timezone, redaction and caps for the tool server's results (spec 011)."
     }
   },
   "required": [

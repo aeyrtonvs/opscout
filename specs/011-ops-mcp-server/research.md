@@ -9,6 +9,7 @@ Facts checked on 2026-11-06 unless a date says otherwise.
   `run("stdio")`. Contract tests use its `mcp.Client`, which connects to an `MCPServer`
   instance in-process; one end-to-end test launches `opscout mcp` as a subprocess with
   `StdioServerParameters`.
+- **Locked**: `mcp` 2.3.0 (T002, 2026-11-06).
 - **Rationale**: the protocol now has two eras. Revisions 2024-11-05 to 2025-11-25 use the
   `initialize` handshake; 2026-07-28 uses a stateless per-request envelope with
   `server/discover` (`mcp_types.version`). Negotiating both, and following the next
@@ -29,6 +30,8 @@ Facts checked on 2026-11-06 unless a date says otherwise.
   (`opscout[aws]`). The plugin's launcher always asks for the extra: `uv run --extra aws`
   in a clone, `uvx --from "opscout[aws]==<version>"` for a release. boto3 is imported only
   when a cloud tool runs, so the server lists its tools without loading it (SC-002).
+- **Locked**: `boto3` and `botocore` 1.43.125 (T002, 2026-11-06). The `dev` group holds
+  `opscout[aws]`, so tests and types always have them.
 - **Rationale**: botocore reads the AWS CLI's profiles and its single sign-on token cache,
   including `sso-session` sections, so opscout stores no credential (Assumptions).
   Threads: a boto3 `Session` is not thread-safe and the SDK may run tools in parallel, so

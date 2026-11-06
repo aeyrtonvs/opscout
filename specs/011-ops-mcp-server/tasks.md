@@ -20,8 +20,8 @@ description: "Tasks for the read-only tool server (spec 011)"
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the baseline on `feat/011-ops-mcp-server`: `uv run just fast` passes.
-- [ ] T002 Add the dependencies and their gates (research R1, R2):
+- [X] T001 Confirm the baseline on `feat/011-ops-mcp-server`: `uv run just fast` passes.
+- [X] T002 Add the dependencies and their gates (research R1, R2):
   - `uv add "mcp>=2.3,<3"`;
   - `uv add --optional aws "boto3>=1.43,<2"`;
   - a mypy override in `pyproject.toml` that treats `boto3` and `botocore` as untyped;
@@ -31,14 +31,14 @@ description: "Tasks for the read-only tool server (spec 011)"
     boto3 with no change to `justfile`.
 
   Then `uv run just fast` must pass. Record the locked versions in research R1 and R2.
-- [ ] T003 Create `tests/unit/mcp/test_traceability.py`:
+- [X] T003 Create `tests/unit/mcp/test_traceability.py`:
   - every requirement from FR-001 to FR-030 has a test marked with it;
   - the test is marked FR-030;
   - it stays `xfail(strict=True)` until T047.
 
 ## Phase 2: Foundational: types, configuration, redaction, ports
 
-- [ ] T004 [P] Write failing tests in `tests/unit/mcp/test_core_tools.py`:
+- [X] T004 [P] Write failing tests in `tests/unit/mcp/test_core_tools.py`:
   - **Window** (FR-011, FR-013):
     - `since`/`until` in ISO 8601 with an offset, and `last` as `15m`, `3h` or `2d`;
     - `until` defaults to now;
@@ -53,10 +53,10 @@ description: "Tasks for the read-only tool server (spec 011)"
     offset, and the envelope carries `timezone`.
   - **ToolError** (FR-004): every reason in data-model.md has a message, and `fix` only
     where research R8 gives one.
-- [ ] T005 Write `src/opscout/core/tools.py` with `ToolSpec`, `Registry` (unique names),
+- [X] T005 Write `src/opscout/core/tools.py` with `ToolSpec`, `Registry` (unique names),
   `Window`, `Caps`, `CAP_CEILINGS`, `Envelope`, `ToolError`, `ErrorReason` and the size
   trimming. T004 passes.
-- [ ] T006 [P] Write failing tests in `tests/unit/mcp/test_config.py`:
+- [X] T006 [P] Write failing tests in `tests/unit/mcp/test_config.py`:
   - **`alerts.formats`** (FR-014):
     - names are unique and match `[a-z0-9-]`;
     - `recognize` and each field are regular expressions that compile, of at most 500
@@ -74,7 +74,7 @@ description: "Tasks for the read-only tool server (spec 011)"
     - `caps` stay within the ceilings.
   - **Errors** use spec 002's form, with the messages in contracts/config.md.
   - **Compatibility**: a configuration without the three sections still validates.
-- [ ] T007 Add the three sections to `src/opscout/core/config.py` (research R9). T006
+- [X] T007 Add the three sections to `src/opscout/core/config.py` (research R9). T006
   passes. Then:
   - regenerate `schemas/config.schema.json` (`uv run just schema`);
   - add the sections, with fake values, to `example-config/config.yaml`;
@@ -82,7 +82,7 @@ description: "Tasks for the read-only tool server (spec 011)"
     002's contract tests;
   - add one more fake account ID to `tools/leak_allowlist.toml`, with the reason "a second
     fake environment in tests; AWS account IDs must be unique".
-- [ ] T008 [P] Write failing tests in `tests/unit/mcp/test_redaction.py`:
+- [X] T008 [P] Write failing tests in `tests/unit/mcp/test_redaction.py`:
   - **Always redacted** (FR-009): private keys, connection strings, credentials and access
     keys, assignments to secret names, secret-shaped values and phone numbers.
   - **Kept by default** (FR-010): account IDs, IP addresses and e-mail addresses, unless
@@ -97,13 +97,13 @@ description: "Tasks for the read-only tool server (spec 011)"
     - counts are summed by kind;
     - the result is still valid JSON.
   - **Spec 009 is unchanged**: its redaction tests still pass, with no change.
-- [ ] T009 Extend `src/opscout/services/redact.py` with a `keep` set and
+- [X] T009 Extend `src/opscout/services/redact.py` with a `keep` set and
   `redact_structure(value, keep)`. T008 passes.
-- [ ] T010 [P] Write failing tests in `tests/unit/mcp/test_ports.py` (FR-007):
+- [X] T010 [P] Write failing tests in `tests/unit/mcp/test_ports.py` (FR-007):
   - every entry of the service-to-IAM table in `src/opscout/core/aws.py` names a catalog
     action (spec 010's `Catalog`);
   - the table covers every action that a tool in contracts/tools.md declares.
-- [ ] T011 Write `src/opscout/core/aws.py` with:
+- [X] T011 Write `src/opscout/core/aws.py` with:
   - `Environment` resolution helpers and `ResourceRef`;
   - the ports `AwsGateway` and `CallLog`, and `GatewayError`;
   - `SERVICE_PREFIX` (research R3), the map from a botocore service to an IAM prefix.

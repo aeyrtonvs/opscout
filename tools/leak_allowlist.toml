@@ -24,3 +24,7 @@ reason = "The SSH user every Bitbucket Cloud remote uses (git@bitbucket.org:work
 [[allow]]
 value = "dev@bitbucket.org"
 reason = "The user part of a fake HTTPS Bitbucket remote (https://dev@bitbucket.org/...) in spec 009's folder tests, not an e-mail."
+
+[[allow]]
+value = "000000000000"
+reason = "A second fake AWS account ID in spec 011's tests: environments need unique account IDs, and no account can be all zeros."
