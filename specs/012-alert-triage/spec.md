@@ -51,8 +51,8 @@ Code, triage may read it too, and says that what it read there was not checked.
 
 - Q: The observability platform's own evidence (its metrics, logs and traces): how is it
   used, given that every verdict claim must cite evidence checked in code? → A: through the
-  platform's official read-only server, when the user has it configured and names it in the
-  opscout configuration. Its evidence is marked "not checked" and can never be the only
+  platform's official read-only server, when the user has it configured and declares it in
+  the opscout configuration. Its evidence is marked "not checked" and can never be the only
   support for a verdict or a cause; without it, triage uses AWS evidence only (FR-014,
   FR-016, FR-018).
 - Q: How does an interactive triage record whether the user agreed? → A: after the verdict,
@@ -82,7 +82,11 @@ Code, triage may read it too, and says that what it read there was not checked.
   `opscout triage runs` and `opscout triage show <id>` (FR-025, FR-026).
 
 The first three answers are the maintainer's. The maintainer delegated the last five, which
-take the recommended option.
+take the recommended option. During planning, two answers were fitted to what Claude Code
+allows (research R3, R6): the observability server is reached under the fixed name
+`observability`, because a plugin's subagent cannot name a server chosen at install time;
+and the infrastructure code is read through opscout tools confined to the clones, so each
+read gets an evidence identifier like any other tool result.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -207,7 +211,8 @@ cited by file and line.
 
 1. **Given** a configured clone that declares the alarm with a different threshold than the
    deployed one, **When** triage runs, **Then** the verdict cites both values, the declared
-   one by file and line, and the citation check reads that line and passes.
+   one by file and line, and the citation check finds the quoted text at that line and
+   passes.
 2. **Given** no clone configured, **When** triage runs, **Then** the configuration evidence
    holds the deployed configuration alone and the verdict's assumptions say that nothing
    declared was compared.
@@ -218,9 +223,9 @@ cited by file and line.
 
 ### User Story 5 - The observability platform's evidence, marked unchecked (Priority: P3)
 
-When the user has the observability platform's official read-only server configured in
-Claude Code, and names it in the opscout configuration, the metrics and logs subagents may
-also read it. Its results cannot be checked by opscout, so each claim that cites them is
+When the user has the observability platform's official read-only server registered in
+Claude Code under the name `observability`, and declares it in the opscout configuration,
+the metrics and logs subagents may also read it. Its results cannot be checked by opscout, so each claim that cites them is
 marked "not checked".
 
 **Why this priority**: half of the maintainer's alerts come from that platform, and its
@@ -231,9 +236,9 @@ fixtures; check the markings on the verdict.
 
 **Acceptance Scenarios**:
 
-1. **Given** the platform's server is configured and named, **When** triage runs on a
-   monitor alert, **Then** the subagents may call only the server's tools that the
-   configuration lists, and every claim citing them is marked "not checked".
+1. **Given** the platform's server is registered and declared, **When** triage runs on a
+   monitor alert, **Then** only the metrics and logs subagents call that server's tools,
+   and every claim citing them is marked "not checked".
 2. **Given** a verdict whose only support for its classification or its cause is unchecked
    evidence, **When** the harness checks it, **Then** the check fails with that reason, and
    after the one retry the run ends as "inconclusive".
@@ -313,9 +318,10 @@ to assume.
   alarm and the metric), logs, recent changes, and configuration (deployed, and declared when
   configured). Each subagent MUST have a fixed tool list, MUST NOT have a shell, and MUST NOT
   have any tool that writes.
-- **FR-006**: The subagents' tools MUST be spec 011's read-only tools, file reads limited to
-  the configured infrastructure clones (configuration subagent only), and the observability
-  platform's server tools the configuration lists (metrics and logs subagents only, FR-016).
+- **FR-006**: The subagents' tools MUST be spec 011's read-only tools; opscout's
+  infrastructure-code tools, which read nothing outside the configured clones
+  (configuration subagent only); and the tools of the user's server registered as
+  `observability` (metrics and logs subagents only, FR-014).
 - **FR-007**: Every evidence item a subagent returns MUST carry an identifier that the
   harness can trace to one tool result of the same run, and the exact values it relies on,
   quoted from that result.
@@ -344,9 +350,11 @@ to assume.
 
 #### The observability platform
 
-- **FR-014**: The configuration MUST accept an optional observability section naming the
-  platform's read-only server as the user configured it in Claude Code and the tools of that
-  server the subagents may call. It is an additive change to schema version 1.
+- **FR-014**: The configuration MUST accept an optional observability setting declaring that
+  the user has the platform's read-only server registered in Claude Code under the fixed
+  name `observability`. It is an additive change to schema version 1. The name is fixed
+  because a plugin's subagent can only list the tools of a server whose name is known when
+  the plugin is written.
 - **FR-015**: opscout MUST NOT provide observability platform tools of its own, and MUST NOT
   call that server outside the subagents that FR-006 names.
 - **FR-016**: Every claim citing the platform's evidence MUST be marked "not checked". With
@@ -366,7 +374,8 @@ to assume.
   "inconclusive", that the evidence cannot tell them apart or the check failed.
 - **FR-018**: The harness MUST check every citation in code before the verdict is shown: the
   evidence item exists in this run, and each quoted value appears in its result. A file
-  citation is checked by reading the file at the cited line. A verdict MUST fail the check
+  citation is checked against the lines opscout's infrastructure-code tool returned, which
+  carry the file's path and line numbers. A verdict MUST fail the check
   when its classification or its cause rests only on evidence marked "not checked".
 - **FR-019**: A verdict that fails validation or the check MUST get exactly one retry
   carrying the failure message. If the retry fails, the run MUST end as "inconclusive", and
@@ -471,8 +480,8 @@ What this feature does not include:
 - **One alert, one environment**: as in specs 010 and 011, one account per environment, and
   a triage investigates one alert.
 - **The observability server is the user's**: opscout neither installs nor checks it, and the
-  user is responsible for it being read-only; opscout only limits which of its tools the
-  subagents may call.
+  user is responsible for it being read-only. opscout only limits which subagents may call
+  it, and marks what they read there as not checked.
 - **The ticket format** is spec 003's: the configured `ticket` write-up format, or the
   built-in one.
 - **Run records** follow spec 007's conventions: local files, no retention yet (PLAN.md §9).
