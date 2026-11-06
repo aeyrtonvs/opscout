@@ -19,7 +19,8 @@ SAFE_PROBES = re.compile(
     r"|aws ssm start-session --target i-0123456789abcdef0"
     r"|aws ssm send-command --document-name AWS-RunShellScript --instance-ids "
     r"i-0123456789abcdef0 --parameters commands=id"
-    r"|kubectl auth can-i (get|create|--list)[^#]*)  # expect: "
+    r"|kubectl auth can-i (get|create|--list)[^#]*"
+    r"|kubectl get clusterroles -l rbac.authorization.k8s.io/aggregate-to-view=true)  # expect: "
 )
 
 
@@ -81,6 +82,20 @@ def test_every_live_probe_cannot_change_anything_and_states_its_outcome() -> Non
     assert len(probes) >= 12
     for probe in probes:
         assert SAFE_PROBES.match(probe), probe
+
+
+@spec("FR-018")
+def test_the_guide_shows_what_operators_aggregated_into_view() -> None:
+    """Found in the host and cluster live check (2026-11-06): with EKS access policies,
+    ``can-i --list`` is incomplete (a webhook authorizer), and operators had aggregated
+    their kinds into ``view``. The guide lists the aggregated roles and names the
+    difference between the view binding and ``AmazonEKSViewPolicy``."""
+    live = _section("Live check")
+    limits = _section("Known limits")
+
+    assert "kubectl get clusterroles -l rbac.authorization.k8s.io/aggregate-to-view=true" in live
+    assert "webhook" in live
+    assert "AmazonEKSViewPolicy" in limits.split("**Aggregation**", 1)[1].split("\n- ", 1)[0]
 
 
 @spec("FR-018")

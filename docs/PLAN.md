@@ -477,7 +477,7 @@ the package as documents with placeholders, and `opscout identity check` proves 
 against a recorded copy of AWS's action catalog (457 services, 22,444 actions) and of the two
 managed policies it uses. There are two identities per environment:
 
-- **The read-only identity**: `ViewOnlyAccess`, six capabilities and a guardrail of explicit
+- **The read-only identity**: `ViewOnlyAccess`, seven capabilities and a guardrail of explicit
   denies, under `ReadOnlyAccess` as its permissions boundary.
 - **An optional host identity**, which may only send seven fixed Linux SSM documents,
   because `ssm:SendCommand` is a write.
@@ -496,7 +496,11 @@ check proves the following, even with `Allow *` attached:
 pre-commit hook runs the check in the infrastructure repository. The engine applies
 nothing. ADR-0023 (2026-11-06) makes the identity the recommended setup, not a requirement.
 The live check (2026-11-06, a development account) agreed with the offline check on every
-action and found one defect, in the guide's EC2 dry-run probes, now fixed; the spec's
+action and found one defect, in the guide's EC2 dry-run probes, now fixed. The host and
+cluster live check (2026-11-06, a sandbox account) agreed too: the host identity sent only
+catalog documents and the cluster identity read no secret. It found that operators had
+aggregated their kinds into `view`, which `AmazonEKSViewPolicy` does not inherit, and that
+`can-i --list` is incomplete with access policies; the guide now says both. The spec's
 Actuals hold the results.
 
 **ops-mcp-server** (spec 011, implemented 2026-11-06): `opscout mcp`, a local stdio server
@@ -671,10 +675,9 @@ genai.owasp.org (Top 10 for Agentic Applications).
       through which IaC repo, is the user's call and still open here.
 - [x] Read-only identity, live check (spec 010, FR-021), which gates nothing: done
       2026-11-06 in a development account; the results are in spec 010's Actuals.
-- [ ] Live check of the host identity and the clusters (spec 010, FR-021), which gates
-      nothing: in an account with managed instances or a cluster, run the host and cluster
-      probes in `docs/reference/identity.md` ("Live check") and record each outcome in the
-      spec's Actuals and in §7.
+- [x] Live check of the host identity and the clusters (spec 010, FR-021). Done 2026-11-06
+      in a sandbox account with managed instances and an EKS cluster; the results are in
+      spec 010's Actuals and in §7.
 - [x] GitHub account (former item 3): confirmed, the remote goes in `aeyrtonvs`.
 - [x] How the plugin finds the Python package: a uv launcher in the plugin's `bin/` (ADR-0022),
       decided 2026-11-04 in spec 003, the first consumer.
