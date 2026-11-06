@@ -1,0 +1,38 @@
+[
+ {
+  "match": {
+   "AutoScalingGroupNames": [
+    "example-asg"
+   ]
+  },
+  "response": {
+   "AutoScalingGroups": [
+    {
+     "AutoScalingGroupName": "example-asg",
+     "MinSize": 1,
+     "MaxSize": 4,
+     "DesiredCapacity": 2,
+     "HealthCheckType": "ELB",
+     "LaunchTemplate": {
+      "LaunchTemplateId": "lt-0123456789abcdef0",
+      "Version": "7"
+     },
+     "TargetGroupARNs": [],
+     "Instances": [
+      {
+       "InstanceId": "i-0123456789abcdef1",
+       "LifecycleState": "InService",
+       "HealthStatus": "Healthy"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "match": {},
+  "response": {
+   "AutoScalingGroups": []
+  }
+ }
+]

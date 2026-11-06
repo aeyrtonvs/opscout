@@ -1,0 +1,21 @@
+[
+ {
+  "match": {
+   "MetricName": "CPUUtilization"
+  },
+  "response": {
+   "Metrics": [
+    {
+     "Namespace": "AWS/ECS",
+     "MetricName": "CPUUtilization"
+    }
+   ]
+  }
+ },
+ {
+  "match": {},
+  "response": {
+   "Metrics": []
+  }
+ }
+]

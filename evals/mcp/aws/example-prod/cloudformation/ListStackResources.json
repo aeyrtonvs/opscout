@@ -1,0 +1,23 @@
+[
+ {
+  "match": {},
+  "response": {
+   "StackResourceSummaries": [
+    {
+     "LogicalResourceId": "Worker",
+     "PhysicalResourceId": "example-worker",
+     "ResourceType": "AWS::Lambda::Function",
+     "ResourceStatus": "UPDATE_COMPLETE",
+     "LastUpdatedTimestamp": "2026-11-06T10:15:00Z"
+    },
+    {
+     "LogicalResourceId": "Queue",
+     "PhysicalResourceId": "https://sqs.example.com/example-queue",
+     "ResourceType": "AWS::SQS::Queue",
+     "ResourceStatus": "CREATE_COMPLETE",
+     "LastUpdatedTimestamp": "2026-10-01T10:00:00Z"
+    }
+   ]
+  }
+ }
+]

@@ -1,0 +1,12 @@
+[
+ {
+  "match": {},
+  "response": {
+   "logGroups": [
+    {
+     "logGroupName": "/ecs/example-api"
+    }
+   ]
+  }
+ }
+]

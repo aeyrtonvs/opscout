@@ -74,7 +74,6 @@ REGISTRY: Final = Registry(
                     "cloudformation:DescribeStacks",
                     "cloudformation:DescribeStackEvents",
                     "ecs:ListServiceDeployments",
-                    "ecs:DescribeServiceDeployments",
                     "autoscaling:DescribeScalingActivities",
                     "rds:DescribeEvents",
                 }
@@ -95,7 +94,6 @@ REGISTRY: Final = Registry(
             frozenset(
                 {
                     "ecs:DescribeServices",
-                    "ecs:ListServices",
                     "ecs:ListClusters",
                     "rds:DescribeDBInstances",
                     "rds:DescribeDBClusters",

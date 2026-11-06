@@ -327,7 +327,7 @@ caps, redaction, timezone and identity.
 - [X] T036 [US4] Write `src/opscout/adapters/aws_fixtures.py`, and wire `--mock DIR` in
   `src/opscout/entrypoints/mcp.py`. `DIR` is the root that holds `<environment>/`, so the
   shipped fixtures are passed as `--mock evals/mcp/aws`. T035 passes.
-- [ ] T037 [US4] Write the fixtures in `evals/mcp/aws/example-prod/` (FR-027), with fake
+- [X] T037 [US4] Write the fixtures in `evals/mcp/aws/example-prod/` (FR-027), with fake
   values only. They cover:
   - every declared action;
   - each cap: a long window, too many rows and an oversized response;
@@ -344,7 +344,7 @@ caps, redaction, timezone and identity.
 
 **Independent test**: a broken AWS setup leaves the alert tools working.
 
-- [ ] T038 [P] [US5] Write failing tests in `tests/unit/mcp/test_optional.py`:
+- [X] T038 [P] [US5] Write failing tests in `tests/unit/mcp/test_optional.py`:
   - **No AWS section** (FR-016):
     - every AWS tool returns `not-configured`, with the configuration reference;
     - `parse_alert`, `resolve_environment` and `list_environments` still work.
@@ -352,7 +352,7 @@ caps, redaction, timezone and identity.
     expired login, through the stubbed live adapter. Each returns its reason and fix,
     worded as spec 005's login command, and a third, fixture-backed environment still
     answers.
-- [ ] T039 [US5] Fill the gaps that T038 finds in `src/opscout/entrypoints/mcp.py` and
+- [X] T039 [US5] Fill the gaps that T038 finds in `src/opscout/entrypoints/mcp.py` and
   `src/opscout/adapters/aws_live.py`. T038 passes.
 
 ## Phase 8: Polish and gates

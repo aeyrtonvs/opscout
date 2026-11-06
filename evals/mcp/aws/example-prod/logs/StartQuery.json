@@ -1,0 +1,27 @@
+[
+ {
+  "match": {
+   "logGroupNames": [
+    "/ecs/example-missing"
+   ]
+  },
+  "error": {
+   "reason": "not-found",
+   "message": "the log group does not exist"
+  }
+ },
+ {
+  "match": {
+   "queryString": "fields @message | limit 200 # oversized"
+  },
+  "response": {
+   "queryId": "q-big"
+  }
+ },
+ {
+  "match": {},
+  "response": {
+   "queryId": "q-1"
+  }
+ }
+]

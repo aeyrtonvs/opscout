@@ -148,7 +148,7 @@ CORPUS = Path(__file__).resolve().parents[3] / "evals" / "mcp" / "alerts"
 @spec("FR-017")
 def test_the_synthetic_corpus_parses_and_resolves_as_expected() -> None:
     """SC-005: 100 % of the corpus parses to its expected fields or to no format."""
-    config = parse_config((CORPUS / "config.yaml").read_bytes(), "config.yaml")
+    config = parse_config((CORPUS.parent / "config.yaml").read_bytes(), "config.yaml")
     assert config.alerts is not None
     assert config.aws is not None
     cases = sorted((CORPUS / "cases").glob("*.txt"))

@@ -1,0 +1,65 @@
+[
+ {
+  "match": {
+   "AlarmNames": [
+    "example-throttled"
+   ]
+  },
+  "error": {
+   "reason": "throttled",
+   "message": "cloudwatch:DescribeAlarms in example-prod"
+  }
+ },
+ {
+  "match": {
+   "AlarmNames": [
+    "example-expired"
+   ]
+  },
+  "error": {
+   "reason": "login-expired",
+   "message": "profile example-prod",
+   "fix": "aws sso login --profile example-prod"
+  }
+ },
+ {
+  "match": {
+   "AlarmNames": [
+    "example-api-cpu"
+   ]
+  },
+  "response": {
+   "MetricAlarms": [
+    {
+     "AlarmName": "example-api-cpu",
+     "StateValue": "ALARM",
+     "StateReason": "Threshold Crossed: 3 datapoints were greater than the threshold (90.0).",
+     "StateUpdatedTimestamp": "2026-11-06T11:40:00Z",
+     "Threshold": 90.0,
+     "ComparisonOperator": "GreaterThanThreshold",
+     "Namespace": "AWS/ECS",
+     "MetricName": "CPUUtilization",
+     "Dimensions": [
+      {
+       "Name": "ClusterName",
+       "Value": "example"
+      },
+      {
+       "Name": "ServiceName",
+       "Value": "example-api"
+      }
+     ],
+     "Period": 60,
+     "Statistic": "Average",
+     "EvaluationPeriods": 3
+    }
+   ]
+  }
+ },
+ {
+  "match": {},
+  "response": {
+   "MetricAlarms": []
+  }
+ }
+]

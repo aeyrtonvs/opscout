@@ -1,5 +1,5 @@
-# The alert corpus's configuration (spec 011, T028): the two example formats of
-# contracts/config.md and one fake environment.
+# The configuration of the alert corpus and of mock mode (spec 011, T028, T037): the two
+# example formats of contracts/config.md and one fake environment.
 schema_version: 1
 alerts:
   formats:
@@ -28,3 +28,6 @@ aws:
       profile: example-prod
       regions: [us-east-1]
       aliases: [Production, prod]
+      identity: reference
+tools:
+  timezone: Europe/Lisbon

@@ -1,0 +1,50 @@
+[
+ {
+  "match": {
+   "InstanceIds": [
+    "i-0123456789abcdef1"
+   ]
+  },
+  "response": {
+   "Reservations": [
+    {
+     "Instances": [
+      {
+       "InstanceId": "i-0123456789abcdef1",
+       "InstanceType": "t3.small",
+       "State": {
+        "Name": "running"
+       },
+       "ImageId": "ami-0123456789abcdef0",
+       "SubnetId": "subnet-0123456789abcdef0",
+       "VpcId": "vpc-0123456789abcdef0",
+       "SecurityGroups": [
+        {
+         "GroupId": "sg-0123456789abcdef0"
+        }
+       ],
+       "LaunchTime": "2026-11-06T11:35:00Z",
+       "PrivateIpAddress": "192.0.2.15",
+       "Tags": [
+        {
+         "Key": "Name",
+         "Value": "example-asg-node"
+        },
+        {
+         "Key": "DeployToken",
+         "Value": "fixture-pass-6"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "match": {},
+  "response": {
+   "Reservations": []
+  }
+ }
+]

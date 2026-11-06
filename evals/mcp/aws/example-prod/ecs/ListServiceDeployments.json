@@ -1,0 +1,16 @@
+[
+ {
+  "match": {},
+  "response": {
+   "serviceDeployments": [
+    {
+     "serviceDeploymentArn": "arn:aws:ecs:us-east-1:123456789012:service-deployment/example/example-api/1",
+     "createdAt": "2026-11-06T11:30:00Z",
+     "startedAt": "2026-11-06T11:30:00Z",
+     "status": "ROLLBACK_SUCCESSFUL",
+     "statusReason": "deployment circuit breaker"
+    }
+   ]
+  }
+ }
+]

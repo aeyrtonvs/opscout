@@ -1,0 +1,14 @@
+[
+ {
+  "match": {},
+  "response": {
+   "Events": [
+    {
+     "Date": "2026-11-06T11:20:00Z",
+     "Message": "DB instance restarted",
+     "SourceIdentifier": "example-db"
+    }
+   ]
+  }
+ }
+]

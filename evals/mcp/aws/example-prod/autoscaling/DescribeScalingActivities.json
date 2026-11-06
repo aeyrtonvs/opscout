@@ -1,0 +1,15 @@
+[
+ {
+  "match": {},
+  "response": {
+   "Activities": [
+    {
+     "StartTime": "2026-11-06T11:35:00Z",
+     "Description": "Launching a new EC2 instance: i-0123456789abcdef1",
+     "Cause": "an alarm triggered the scaling policy",
+     "StatusCode": "Successful"
+    }
+   ]
+  }
+ }
+]

@@ -1,0 +1,26 @@
+[
+ {
+  "match": {
+   "PhysicalResourceId": "example-worker"
+  },
+  "response": {
+   "StackResources": [
+    {
+     "StackName": "example-worker-stack",
+     "LogicalResourceId": "Worker",
+     "PhysicalResourceId": "example-worker",
+     "ResourceType": "AWS::Lambda::Function",
+     "ResourceStatus": "UPDATE_COMPLETE",
+     "Timestamp": "2026-11-06T10:15:00Z"
+    }
+   ]
+  }
+ },
+ {
+  "match": {},
+  "error": {
+   "reason": "invalid-input",
+   "message": "Stack for the resource does not exist"
+  }
+ }
+]

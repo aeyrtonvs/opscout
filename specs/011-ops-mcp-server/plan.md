@@ -88,7 +88,7 @@ run-time guard, the error mapping and the retries.
 - results of at most 40,000 characters;
 - the configuration may lower caps, never raise them.
 
-**Scale/Scope**: 9 tools, 29 declared AWS actions across 10 services, 9 resource types,
+**Scale/Scope**: 9 tools, 27 declared AWS actions across 10 services, 9 resource types,
 and 3 configuration sections.
 
 ## Constitution Check
