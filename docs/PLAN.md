@@ -493,7 +493,9 @@ check proves the following, even with `Allow *` attached:
 `opscout identity export` writes the editable tree, and the `opscout-identity-check`
 pre-commit hook runs the check in the infrastructure repository. The engine applies
 nothing. ADR-0023 (2026-11-06) makes the identity the recommended setup, not a requirement.
-The live check in a sandbox account validates the reference and is an open item (§9).
+The live check (2026-11-06, a development account) agreed with the offline check on every
+action and found one defect, in the guide's EC2 dry-run probes, now fixed; the spec's
+Actuals hold the results.
 
 Candidate, not committed: let alert triage see earlier verdicts for the same alert, since
 recurrence informs "real or tune the threshold?". Only verdicts the user agreed with, with
@@ -633,9 +635,12 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [ ] Read-only identity (former item 2): the reference policies come from this repo
       (spec 010) and are recommended, not required (ADR-0023); who applies them, and
       through which IaC repo, is the user's call and still open here.
-- [ ] Read-only identity, live check (spec 010, FR-021), which gates nothing: once the
-      identity is instantiated in a sandbox account, run the probes in `docs/reference/identity.md` ("Live check") and
-      record each outcome in the spec's Actuals and in §7.
+- [x] Read-only identity, live check (spec 010, FR-021), which gates nothing: done
+      2026-11-06 in a development account; the results are in spec 010's Actuals.
+- [ ] Live check of the host identity and the clusters (spec 010, FR-021), which gates
+      nothing: in an account with managed instances or a cluster, run the host and cluster
+      probes in `docs/reference/identity.md` ("Live check") and record each outcome in the
+      spec's Actuals and in §7.
 - [x] GitHub account (former item 3): confirmed, the remote goes in `aeyrtonvs`.
 - [x] How the plugin finds the Python package: a uv launcher in the plugin's `bin/` (ADR-0022),
       decided 2026-11-04 in spec 003, the first consumer.

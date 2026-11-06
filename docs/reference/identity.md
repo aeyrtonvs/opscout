@@ -183,13 +183,16 @@ aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::123456789012:
 aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::123456789012:role/opscout-readonly --action-names cloudwatch:GetMetricData logs:StartQuery cloudtrail:LookupEvents ce:GetCostAndUsage secretsmanager:DescribeSecret eks:DescribeCluster  # expect: every EvalDecision is allowed
 ```
 
-Then, as the read-only identity, on resources that do not exist and with dry runs:
+Then, as the read-only identity, on resources that do not exist and with dry runs. A dry
+run names no resource ID: EC2 validates an ID before it checks permissions, so a fake one
+returns `InvalidID` and proves nothing. Run the same dry run as an administrator once to
+see `DryRunOperation`, which shows that the probe reaches the permission check:
 
 ```sh
 aws secretsmanager get-secret-value --secret-id opscout-probe-does-not-exist  # expect: AccessDeniedException, not ResourceNotFoundException
 aws ssm get-parameter --name /opscout/probe-does-not-exist --with-decryption  # expect: AccessDeniedException, not ParameterNotFound
-aws ec2 create-tags --dry-run --resources i-0123456789abcdef0 --tags Key=probe,Value=probe  # expect: UnauthorizedOperation, not DryRunOperation
-aws ec2 run-instances --dry-run --image-id ami-0123456789abcdef0 --instance-type t3.micro  # expect: UnauthorizedOperation, not DryRunOperation
+aws ec2 create-security-group --dry-run --group-name opscout-probe --description probe  # expect: UnauthorizedOperation, not DryRunOperation
+aws ec2 create-key-pair --dry-run --key-name opscout-probe  # expect: UnauthorizedOperation, not DryRunOperation
 aws ssm start-session --target i-0123456789abcdef0  # expect: AccessDeniedException (the instance does not exist either)
 ```
 

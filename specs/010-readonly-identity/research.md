@@ -340,8 +340,10 @@ anything.
   - `secretsmanager get-secret-value` on a secret that does not exist, and `ssm
     get-parameter --with-decryption` on a name that does not exist: both expect
     `AccessDenied`, not `ResourceNotFound`.
-  - `ec2 create-tags --dry-run` and `ec2 run-instances --dry-run`: both expect
-    `UnauthorizedOperation`, not `DryRunOperation`.
+  - `ec2 create-security-group --dry-run` and `ec2 create-key-pair --dry-run`, with no
+    resource ID: both expect `UnauthorizedOperation`, not `DryRunOperation`. (Corrected by
+    the live check on 2026-11-06: the first choice, `create-tags` and `run-instances` with
+    fake instance and image IDs, failed EC2's ID validation before the permission check.)
   - `ssm start-session` on an instance ID that does not exist: expects `AccessDenied`.
   - For the host identity, `ssm send-command` with `AWS-RunShellScript`, aimed at an
     instance ID that does not exist: expects `AccessDenied`.
