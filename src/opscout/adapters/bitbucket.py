@@ -199,6 +199,7 @@ class BitbucketCloud:
                     raise SourceError(UNEXPECTED)
                 return data
             except urllib.error.HTTPError as error:
+                error.close()  # its body is never read; release the connection
                 if error.code == 401:
                     raise SourceError(f"Bitbucket rejected the token (401); {STORE_HINT}") from None
                 if error.code == 403:
