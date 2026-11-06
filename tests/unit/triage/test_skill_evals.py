@@ -245,3 +245,33 @@ def test_a_configuration_override_reaches_every_fixture(
     config = json.loads(result["cases"][0]["with"]["reply"])["config"]
     assert "skeptic: true" in config
     assert "example-infra" in config  # merged, not replaced
+
+
+@spec("FR-027")
+def test_the_runner_refuses_when_a_users_server_shadows_a_stand_in(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fixtures = tmp_path / "fixtures"
+    fixture_tree(tmp_path)
+    evals = tmp_path / "evals"
+    write_case(
+        evals,
+        "012-us5-s1",
+        "fixture: real-deploy\narms: plugin\nmcp_config: observability.mcp.json\n",
+        {},
+    )
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "claude").write_text(
+        f"#!{sys.executable}\nimport sys\n"
+        "print('observability: npx example-observability-mcp - Connected')\n",
+        encoding="utf-8",
+    )
+    (fake / "claude").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake}{os.pathsep}{os.environ['PATH']}")
+    status = main(
+        ["--plugin", str(tmp_path), "--evals", str(evals), "--config-dir", str(tmp_path),
+         "--max-cost-usd", "2", "--fixtures", str(fixtures)]
+    )  # fmt: skip
+    assert status == 2
+    assert "observability" in capsys.readouterr().err

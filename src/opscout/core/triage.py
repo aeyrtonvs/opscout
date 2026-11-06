@@ -34,8 +34,10 @@ RUN_ID_PATTERN = r"^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{6}$"
 SKIPPED_DIRECTORIES = frozenset({".git", ".terraform", ".terragrunt-cache", "node_modules"})
 """Directories the infrastructure-code tools never read (research R6)."""
 EVIDENCE_KINDS = ("metrics", "logs", "changes", "configuration", "observability")
-SHORT_QUOTE = 3
+SHORT_QUOTE = 4
 """A quote shorter than this must equal a whole value, or "5" would match any number."""
+TOKEN_QUOTE = 8
+"""A quote shorter than this must sit on token boundaries, or "202" would match any year."""
 
 
 def _zone(name: str | None) -> str | None:
@@ -158,6 +160,8 @@ class StoredEvidence:
     tool: str
     stored_at: datetime
     result: Mapping[str, Any]
+    citable: bool = True
+    """False for a result that only echoes its input, and for every error (review H1)."""
 
 
 @dataclass(frozen=True)
@@ -200,38 +204,62 @@ def _scalars(value: object) -> Iterator[object]:
         yield value
 
 
+_NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
+
+
 def _number(text: str) -> float | None:
-    try:
-        number = float(text.replace(",", ""))
-    except ValueError:
+    plain = text.replace(",", "")
+    if not _NUMBER.fullmatch(plain):
         return None
+    number = float(plain)
     return number if math.isfinite(number) else None
 
 
-_PAIR = re.compile(r'"[^"]+":(?:"|-?\d|true|false|null|\[|\{)')
-"""A JSON key followed by its value: a fragment must hold one, so a field name alone never
-counts as a quote."""
+_PAIR = re.compile(r'"[^"]+":(?:"[^"]|-?\d|true|false)')
+"""A JSON key followed by a scalar value: a fragment must hold one, so a field name, or a
+key with an empty, null or nested value, never counts as a quote (review H1)."""
 
 
-def _fragment_found(quote: str, result: Mapping[str, Any]) -> bool:
-    """Whether the quote is a ``"key": value`` fragment of the result as the model saw it."""
+def _fragment_found(quote: str, data: object) -> bool:
+    """Whether the quote is a ``"key": value`` fragment of the data as the model saw it."""
     wanted = "".join(quote.split())
     if not _PAIR.search(wanted):
         return False
-    shown = json.dumps(result, ensure_ascii=False, separators=(",", ":"), default=str)
+    shown = json.dumps(data, ensure_ascii=False, separators=(",", ":"), default=str)
     return wanted in "".join(shown.split())
 
 
+def _joins(left: str, right: str) -> bool:
+    return bool(left and right) and (
+        (left.isdigit() and right.isdigit()) or (left.isalpha() and right.isalpha())
+    )
+
+
+def _bounded(wanted: str, text: str) -> bool:
+    """Whether ``wanted`` occurs in ``text`` without cutting a number or a word."""
+    start = text.find(wanted)
+    while start != -1:
+        end = start + len(wanted)
+        before = text[start - 1] if start else ""
+        after = text[end] if end < len(text) else ""
+        if not _joins(before, wanted[0]) and not _joins(wanted[-1], after):
+            return True
+        start = text.find(wanted, start + 1)
+    return False
+
+
 def quote_found(quote: str, result: Mapping[str, Any]) -> bool:
-    """Whether the quote appears in one value of the result, or is a ``"key": value``
-    fragment of it as the model saw it (research R5)."""
+    """Whether the quote appears in one value of the result's data, or is a ``"key": value``
+    fragment of it as the model saw it (research R5). The envelope around the data, which
+    every result shares, never counts (review H1)."""
+    data = result.get("data")
     wanted = _collapse(quote)
-    if not wanted:
+    if not wanted or data is None:
         return False
-    if _fragment_found(quote, result):
+    if _fragment_found(quote, data):
         return True
     as_number = _number(wanted)
-    for value in _scalars(result):
+    for value in _scalars(data):
         if isinstance(value, bool):
             text = "true" if value else "false"
         elif isinstance(value, int | float):
@@ -242,7 +270,11 @@ def quote_found(quote: str, result: Mapping[str, Any]) -> bool:
             text = _collapse(str(value))
             if as_number is not None and _number(text) == as_number:
                 return True
-        if text == wanted or (len(wanted) >= SHORT_QUOTE and wanted in text):
+        if text == wanted:
+            return True
+        if SHORT_QUOTE <= len(wanted) < TOKEN_QUOTE and _bounded(wanted, text):
+            return True
+        if len(wanted) >= TOKEN_QUOTE and wanted in text:
             return True
     return False
 
@@ -278,9 +310,19 @@ def _texts(verdict: Verdict) -> Iterator[tuple[str, str]]:
 
 
 def check(
-    verdict: Verdict, lookup: Lookup, run_started: datetime, find_secrets: SecretFinder
+    verdict: Verdict,
+    lookup: Lookup,
+    run_started: datetime,
+    find_secrets: SecretFinder,
+    *,
+    until: datetime | None = None,
+    run_environment: str | None = None,
 ) -> CheckResult:
-    """Check every citation and rule of contracts/verdict.md (FR-018, FR-021)."""
+    """Check every citation and rule of contracts/verdict.md (FR-018, FR-021).
+
+    Evidence counts only when it is citable and was stored between ``run_started`` and
+    ``until``, the start of the next run; the verdict's environment must be the run's.
+    """
     failures: list[Failure] = []
     supported: set[str] = set()
     cited: list[StoredEvidence] = []
@@ -291,8 +333,11 @@ def check(
         if stored is None:
             failures.append(Failure(path, "unknown evidence"))
             continue
-        if stored.stored_at < run_started:
+        if stored.stored_at < run_started or (until is not None and stored.stored_at >= until):
             failures.append(Failure(path, "evidence from another run"))
+            continue
+        if not stored.citable:
+            failures.append(Failure(path, "evidence that cannot be cited"))
             continue
         cited.append(stored)
         if quote_found(citation.quote, stored.result):
@@ -309,6 +354,8 @@ def check(
         stated = {s.result.get(field) for s in cited if s.result.get(field) is not None}
         if stated and stated != {getattr(verdict, field)}:
             failures.append(Failure(field, f"{field} differs from the evidence"))
+    if run_environment is not None and verdict.environment not in (None, run_environment):
+        failures.append(Failure("environment", "environment differs from the run's"))
     for path, text in _texts(verdict):
         kinds = find_secrets(text)
         if kinds:
@@ -397,7 +444,9 @@ class Unreadable:
 class EvidenceStore(Protocol):
     """Where tool results are kept for the check (research R2)."""
 
-    def put(self, tool: str, result: Mapping[str, Any], at: datetime) -> str:
+    def put(
+        self, tool: str, result: Mapping[str, Any], at: datetime, *, citable: bool = True
+    ) -> str:
         """Store one result; return its new evidence identifier."""
         ...
 

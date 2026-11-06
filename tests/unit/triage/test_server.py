@@ -89,12 +89,7 @@ def test_begin_then_check_round_trips_through_the_server() -> None:
             "classification": "inconclusive",
             "summary": "Nothing was read.",
             "threshold": {"assessment": "not-assessable", "reason": "No metric was read."},
-            "claims": [
-                {
-                    "text": "The alert belongs to example-prod.",
-                    "cites": [{"evidence": begun["evidence"], "quote": "example-prod"}],
-                }
-            ],
+            "claims": [],
             "timezone": "UTC",
             "alert_time_source": "invocation",
             "environment": "example-prod",
@@ -154,3 +149,28 @@ def test_mock_mode_comes_from_the_environment_when_no_flag_is_given(
     assert type(gateway).__name__ == "FixtureGateway"
     assert seen["transport"] == "stdio"
     assert os.environ["OPSCOUT_DATA_DIR"].endswith("data")
+
+
+@spec("FR-018")
+def test_begin_triage_results_cannot_be_cited() -> None:
+    async def steps(client: Any) -> dict[str, Any]:
+        begun = (await client.call_tool("begin_triage", {"text": ALERT})).structured_content
+        verdict = {
+            "classification": "real",
+            "summary": "It echoes.",
+            "threshold": {"assessment": "not-assessable", "reason": "Nothing read."},
+            "claims": [
+                {"text": "x", "cites": [{"evidence": begun["evidence"], "quote": "example-prod"}]}
+            ],
+            "timezone": "UTC",
+            "alert_time_source": "invocation",
+        }
+        checked = await client.call_tool(
+            "check_verdict", {"run_id": begun["data"]["run_id"], "verdict": verdict}
+        )
+        content: dict[str, Any] = checked.structured_content
+        return content
+
+    content = _session(steps)
+    reasons = [failure["reason"] for failure in content["data"]["failures"]]
+    assert "evidence that cannot be cited" in reasons

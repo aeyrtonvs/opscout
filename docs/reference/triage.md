@@ -39,8 +39,11 @@ never applies a threshold it proposes, and never shows a secret's value.
    in the skill's `references/verdict.md`).
 4. **Check.** `check_verdict` verifies, in code:
    - every cited evidence id came from this run;
-   - every quoted value is in that result: a value, or a `"key": value` fragment as the
-     result shows it;
+   - every cited result is a cloud or infrastructure-code read: not an error, and not a
+     result that only echoes its input (`begin_triage`, `parse_alert`,
+     `resolve_environment`, `list_environments`);
+   - every quoted value is in that result's data: part of a value, or a `"key": value`
+     fragment as the result shows it; a short quote must not cut a number or a word;
    - a classification, a cause and a threshold assessment each rest on checked evidence;
    - the environment matches;
    - no text holds a secret-shaped value.
@@ -78,8 +81,12 @@ The keys are in [configuration.md](configuration.md#triage-optional-spec-012).
 `search_iac` and `read_iac` read only inside the clones you list, with these limits:
 
 - a path that leaves its clone once resolved, symbolic links included, is refused;
-- `.git/`, `.terraform/`, `.terragrunt-cache/` and `node_modules/` are never read, nor
-  state files (`*.tfstate*`), `.env*` files, `*.pem` and `*.key` files, or binary files;
+- only infrastructure code and its documentation is read (`.tf`, `.hcl`, `.yaml`, `.yml`,
+  `.json`, `.tpl`, `.tmpl`, `.j2`, `.toml`, `.md`), never `.git/`, `.terraform/`,
+  `.terragrunt-cache/` or `node_modules/`, state files (`*.tfstate*`), variable files
+  (`*.tfvars`, `*.tfvars.json`), `.env*` files, keys and key stores, ignoring case;
+- a value assigned without a secret-sounding name, such as a default in a `variable`
+  block, is not recognized as a secret by redaction: keep secrets out of the code you list;
 - a search returns at most 50 lines, and a read at most 200 numbered lines;
 - every result is redacted like any other.
 
@@ -91,6 +98,10 @@ under the name **`observability`** (for example `claude mcp add observability â€
 
 Why a fixed name: a plugin's subagent can only list the tools of a server whose name is
 known when the plugin is written.
+
+The subagents get every tool of the server named `observability`, and
+`triage.observability: false` only tells them not to call it: no mechanism enforces it.
+Register under that name a server with read-only tools only, or no server at all.
 
 opscout cannot check what that server returns. Every claim that cites it is shown
 "(not checked)", and such a claim can never be the only support for a classification, a
@@ -143,8 +154,8 @@ Useful options:
 
 ## What remains your call
 
-The skill removes the shell and the write tools from its own turn, and its subagents have no
-shell. Other MCP servers you have stay visible to the skill's own turn, under your
+The skill removes the shell, file reads and the write tools from its own turn, pre-approves
+only its five subagents by name, and its subagents have no shell. Other MCP servers you have stay visible to the skill's own turn, under your
 permission prompts, because a skill cannot hide every other server. The skill's turn reads
 the subagents' findings, not raw tool output. A future unattended triage must start Claude
 Code with only opscout's tools (research R4).

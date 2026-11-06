@@ -29,7 +29,9 @@ class LocalFiles:
         base = Path(root)
         count = 0
         for directory, subdirectories, names in os.walk(base, followlinks=False):
-            subdirectories[:] = sorted(d for d in subdirectories if d not in SKIPPED_DIRECTORIES)
+            subdirectories[:] = sorted(
+                d for d in subdirectories if d.casefold() not in SKIPPED_DIRECTORIES
+            )
             for name in sorted(names):
                 count += 1
                 if count > MAX_FILES:

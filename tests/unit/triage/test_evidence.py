@@ -86,3 +86,13 @@ def test_a_malformed_identifier_reads_nothing(tmp_path: Path) -> None:
     store = FileEvidence(tmp_path)
     (tmp_path / "secret.json").write_text("{}", encoding="utf-8")
     assert store.get("../../secret") is None
+
+
+@spec("FR-007")
+def test_whether_evidence_can_be_cited_round_trips(store: EvidenceStore) -> None:
+    echo = store.put("parse_alert", RESULT, NOW, citable=False)
+    read = store.put("read_metric", RESULT, NOW)
+    first, second = store.get(echo), store.get(read)
+    assert first is not None
+    assert second is not None
+    assert (first.citable, second.citable) == (False, True)

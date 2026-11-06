@@ -55,7 +55,11 @@ EVIDENCE = {
         id=OTHER_ENV,
         tool="read_alarm",
         stored_at=STARTED + timedelta(seconds=7),
-        result={"environment": "example-dev", "identity": "own identity, not verified"},
+        result={
+            "environment": "example-dev",
+            "identity": "own identity, not verified",
+            "data": {"alarm": "example-dev-alarm"},
+        },
     ),
 }
 
@@ -188,6 +192,14 @@ def test_unknown_evidence_and_evidence_from_another_run_fail() -> None:
         ('"value": 53.0', False),
         ('"datapoints"', False),  # a key with no value is not a quote
         ('"datapoints":', False),
+        ('"datapoints":[', False),  # a key with a nested value is not a quote (review H1)
+        ('"partial": false', False),  # the envelope never counts (review H1)
+        ('"timezone":"UTC"', False),
+        ("example-prod", False),  # the envelope's environment is not data
+        ("6T09", False),  # cuts a number on both sides
+        ("T09", False),  # under four characters: a whole value only
+        ("rose", True),  # a whole word
+        ("ros", False),
     ],
 )
 def test_a_quote_must_appear_in_one_value_of_its_result(quote: str, found: bool) -> None:
@@ -267,7 +279,7 @@ def test_the_environment_must_match_the_evidence() -> None:
     data = verdict(
         claims=[
             {"text": "t", "cites": [cite(METRIC, "50.5")]},
-            {"text": "u", "cites": [cite(OTHER_ENV, "example-dev")]},
+            {"text": "u", "cites": [cite(OTHER_ENV, "example-dev-alarm")]},
         ]
     )
     failures = run(data)
@@ -284,3 +296,74 @@ def test_a_secret_shaped_value_fails_without_being_repeated() -> None:
     failures = run(data, finder)
     assert failures == [("assumptions[0]", "secret-shaped value (credential)")]
     assert "AKIA" not in repr(failures)
+
+
+@spec("FR-018")
+def test_evidence_that_cannot_be_cited_fails() -> None:
+    echo = "ev-0000000005"
+    evidence = {
+        **EVIDENCE,
+        echo: StoredEvidence(
+            id=echo,
+            tool="resolve_environment",
+            stored_at=STARTED + timedelta(seconds=1),
+            result={"data": {"unmatched": [{"value": "the deploy broke it"}]}},
+            citable=False,
+        ),
+    }
+    data = verdict(
+        cause={"text": "The deploy broke it.", "cites": [cite(echo, "the deploy broke it")]}
+    )
+    result = check(Verdict.model_validate(data), evidence.get, STARTED, no_secrets)
+    assert ("cause.cites[0]", "evidence that cannot be cited") in [
+        (f.where, f.reason) for f in result.failures
+    ]
+
+
+@spec("FR-018")
+def test_evidence_stored_after_the_next_run_began_is_not_this_runs() -> None:
+    later_run = STARTED + timedelta(seconds=5, microseconds=500)
+    result = check(
+        Verdict.model_validate(verdict()), EVIDENCE.get, STARTED, no_secrets, until=later_run
+    )
+    assert ("cause.cites[0]", "evidence from another run") in [
+        (f.where, f.reason) for f in result.failures
+    ]
+
+
+@spec("FR-018")
+def test_the_verdict_environment_must_be_the_runs() -> None:
+    data = verdict(
+        claims=[{"text": "t", "cites": [cite(METRIC, "50.5")]}],
+        cause=None,
+        environment="example-dev",
+        identity=None,
+    )
+    data["threshold"]["cites"] = [cite(METRIC, "52.0")]
+    result = check(
+        Verdict.model_validate(data),
+        EVIDENCE.get,
+        STARTED,
+        no_secrets,
+        run_environment="example-prod",
+    )
+    assert ("environment", "environment differs from the run's") in [
+        (f.where, f.reason) for f in result.failures
+    ]
+
+
+@spec("FR-018")
+def test_a_number_with_an_underscore_is_not_a_number() -> None:
+    evidence = {
+        METRIC: StoredEvidence(
+            id=METRIC, tool="read_metric", stored_at=STARTED, result={"data": {"v": "1_0"}}
+        )
+    }
+    data = verdict(
+        cause=None,
+        threshold={"assessment": "not-assessable", "proposal": None, "reason": "r", "cites": []},
+        claims=[{"text": "t", "cites": [cite(METRIC, "10")]}],
+        environment=None,
+        identity=None,
+    )
+    assert not check(Verdict.model_validate(data), evidence.get, STARTED, no_secrets).passed

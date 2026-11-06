@@ -215,3 +215,12 @@ def test_begin_prunes_old_evidence() -> None:
     old = used.evidence.put("read_metric", {}, NOW - timedelta(hours=25))
     begin(ALERT, None, config(), NOW, used)
     assert used.evidence.get(old) is None
+
+
+@spec("FR-008")
+def test_an_alert_time_in_the_future_is_clamped_to_now_and_said() -> None:
+    future = (NOW + timedelta(hours=3)).isoformat()
+    data = begin(ALERT, future, config(), NOW, stores())
+    window = data["windows"]["alert"]
+    assert window["since"] < window["until"] == NOW
+    assert "after now" in data["alert_time"]["future"]

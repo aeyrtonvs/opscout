@@ -19,7 +19,39 @@ from opscout.core.triage import SKIPPED_DIRECTORIES, FileReader
 MAX_MATCHES: Final = 50
 MAX_LINES: Final = 200
 MAX_LINE_CHARS: Final = 300
-SKIPPED_FILES: Final = ("*.tfstate", "*.tfstate.*", ".env", ".env.*", "*.pem", "*.key")
+SKIPPED_FILES: Final = (
+    "*.tfstate",
+    "*.tfstate.*",
+    "*.tfvars",
+    "*.tfvars.json",
+    ".env*",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "*.pfx",
+    "*.jks",
+    "*.keystore",
+    "*.kdbx",
+    "id_rsa*",
+    "id_dsa*",
+    "id_ecdsa*",
+    "id_ed25519*",
+    "credentials*",
+)
+"""Files never read, matched ignoring case: macOS file systems ignore it too (review H2)."""
+READ_SUFFIXES: Final = (
+    ".tf",
+    ".hcl",
+    ".yaml",
+    ".yml",
+    ".json",
+    ".tpl",
+    ".tmpl",
+    ".j2",
+    ".toml",
+    ".md",
+)
+"""The only files read: infrastructure code and its documentation (review H2)."""
 
 
 def _clones(config: Configuration | None) -> list[InfrastructureClone]:
@@ -30,10 +62,13 @@ def _clones(config: Configuration | None) -> list[InfrastructureClone]:
 
 
 def _skipped(relative: str) -> bool:
-    path = PurePosixPath(relative)
+    """Whether a file is never read: by its directories, its name or its suffix."""
+    path = PurePosixPath(relative.casefold())
     if any(part in SKIPPED_DIRECTORIES for part in path.parts[:-1]):
         return True
-    return any(fnmatch.fnmatch(path.name, pattern) for pattern in SKIPPED_FILES)
+    if any(fnmatch.fnmatchcase(path.name, pattern) for pattern in SKIPPED_FILES):
+        return True
+    return not path.name.endswith(READ_SUFFIXES)
 
 
 def _serves(clone: InfrastructureClone, environment: str | None) -> bool:

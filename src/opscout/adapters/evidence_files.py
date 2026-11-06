@@ -25,11 +25,19 @@ class FileEvidence:
     def __init__(self, data: Path) -> None:
         self._directory = data / "triage" / "evidence"
 
-    def put(self, tool: str, result: Mapping[str, Any], at: datetime) -> str:
+    def put(
+        self, tool: str, result: Mapping[str, Any], at: datetime, *, citable: bool = True
+    ) -> str:
         """Store the result; raises ``OSError`` when it cannot be written."""
         self._directory.mkdir(parents=True, exist_ok=True)
         evidence_id = f"ev-{secrets.token_hex(5)}"
-        document = {"id": evidence_id, "tool": tool, "stored_at": at.isoformat(), "result": result}
+        document = {
+            "id": evidence_id,
+            "tool": tool,
+            "stored_at": at.isoformat(),
+            "citable": citable,
+            "result": result,
+        }
         handle, temporary = tempfile.mkstemp(dir=self._directory, prefix=f".{evidence_id}.")
         try:
             with os.fdopen(handle, "w", encoding="utf-8") as file:
@@ -80,6 +88,7 @@ class FileEvidence:
                 tool=document["tool"],
                 stored_at=datetime.fromisoformat(document["stored_at"]),
                 result=document["result"],
+                citable=document.get("citable", False) is True,
             )
         except (OSError, ValueError, KeyError, TypeError):
             return None

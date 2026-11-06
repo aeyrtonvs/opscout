@@ -93,6 +93,9 @@ def test_the_skill_removes_the_shell_and_the_write_tools_from_its_turn() -> None
         "NotebookEdit",
         "WebFetch",
         "WebSearch",
+        "Read",
+        "Grep",
+        "Glob",
     }
 
 
@@ -105,7 +108,7 @@ def test_the_skill_pre_approves_only_its_own_tools() -> None:
         f"{PREFIX}check_verdict",
         f"{PREFIX}record_agreement",
         f"{PREFIX}show_evidence",
-        "Agent",
+        *(f"Agent(opscout:{agent})" for agent in AGENT_TOOLS),
         "AskUserQuestion",
     }
 
@@ -144,7 +147,8 @@ def test_the_skill_is_under_five_hundred_lines_and_states_its_never_list() -> No
     assert len(text.splitlines()) < 500
     _, body = parts(SKILL)
     assert "## Never" in body
-    assert (SKILL.parent / "references" / "verdict.md").is_file()
+    assert "## The verdict" in body  # inline: the skill cannot read files (review M4)
+    assert not (SKILL.parent / "references").exists()
 
 
 @spec("FR-005")

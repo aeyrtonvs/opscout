@@ -193,12 +193,12 @@ def _render(outcome: Outcome, call: Call) -> dict[str, Any]:
     return rendered
 
 
-def _keep(name: str, result: dict[str, Any], context: ToolContext) -> str | None:
+def _keep(name: str, result: dict[str, Any], context: ToolContext, *, citable: bool) -> str | None:
     """Store the result as evidence; a store that fails never fails the call (spec 012)."""
     if context.evidence is None:
         return None
     try:
-        return context.evidence.put(name, dict(result), context.now())
+        return context.evidence.put(name, dict(result), context.now(), citable=citable)
     except Exception:
         logger.warning("the evidence store could not be written", exc_info=True)
         return None
@@ -265,7 +265,9 @@ def run_tool(
         logger.exception("tool %s failed", name)
         result = _error_result(ToolError(ErrorReason.INTERNAL, type(error).__name__), zone, keep)
         failed, status = True, ErrorReason.INTERNAL.value
-    result["evidence"] = _keep(name, result, context) if spec.evidence else None
+    result["evidence"] = (
+        _keep(name, result, context, citable=spec.citable and not failed) if spec.evidence else None
+    )
     entry = CallEntry(
         time=context.now(),
         tool=name,

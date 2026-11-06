@@ -61,6 +61,14 @@ def files() -> MemoryFiles:
                 "tls.key": "example-api-5xx key\n",
                 "logo.png": b"\x89PNG example-api-5xx",
                 "escape.tf": "example-api-5xx outside\n",
+                ".ENV": "EXAMPLE_API_5XX=1\n",
+                ".envrc": "export EXAMPLE_API_5XX=1\n",
+                ".GIT/config": "example-api-5xx in git config\n",
+                "terraform.TFSTATE": "example-api-5xx in state\n",
+                "prod.auto.tfvars": 'example_api_5xx_password = "x"\n',
+                "prod.tfvars.json": '{"example-api-5xx": "x"}\n',
+                "id_ed25519": "example-api-5xx key\n",
+                "README": "example-api-5xx without a suffix\n",
             },
             SHARED: {"shared.tf": "# EXAMPLE-API-5XX is shared\n"},
         },
@@ -151,6 +159,14 @@ def test_read_returns_numbered_lines() -> None:
         ("example-infra/deploy.pem", 1, 2),
         ("example-infra/tls.key", 1, 2),
         ("example-infra/logo.png", 1, 2),
+        ("example-infra/.ENV", 1, 2),
+        ("example-infra/.envrc", 1, 2),
+        ("example-infra/.GIT/config", 1, 2),
+        ("example-infra/terraform.TFSTATE", 1, 2),
+        ("example-infra/prod.auto.tfvars", 1, 2),
+        ("example-infra/prod.tfvars.json", 1, 2),
+        ("example-infra/id_ed25519", 1, 2),
+        ("example-infra/README", 1, 2),
         ("nowhere/alarms.tf", 1, 2),
         ("example-infra", 1, 2),
         ("example-infra/alarms.tf", 3, 2),
@@ -179,6 +195,14 @@ def test_search_never_returns_skipped_or_escaping_files() -> None:
         "example-infra/tls.key",
         "example-infra/logo.png",
         "example-infra/escape.tf",
+        "example-infra/.ENV",
+        "example-infra/.envrc",
+        "example-infra/.GIT/config",
+        "example-infra/terraform.TFSTATE",
+        "example-infra/prod.auto.tfvars",
+        "example-infra/prod.tfvars.json",
+        "example-infra/id_ed25519",
+        "example-infra/README",
     }
 
 
@@ -234,3 +258,28 @@ def test_infrastructure_results_are_redacted_like_every_result() -> None:
     failed, result = run_tool("search_iac", {"pattern": "password"}, context)
     assert not failed
     assert "hunter2" not in str(result)
+
+
+@spec("FR-013")
+def test_the_local_adapter_ignores_case_like_the_file_system(tmp_path: Path) -> None:
+    clone = tmp_path / "clone"
+    (clone / ".GIT").mkdir(parents=True)
+    (clone / "MOD").mkdir()
+    (clone / ".GIT" / "config").write_text("threshold in git\n", encoding="utf-8")
+    (clone / ".ENV").write_text("threshold=1\n", encoding="utf-8")
+    (clone / "Prod.TFSTATE").write_text("threshold in state\n", encoding="utf-8")
+    (clone / "prod.auto.tfvars").write_text('threshold_secret = "x"\n', encoding="utf-8")
+    (clone / "alarms.TF").write_text("threshold = 80\n", encoding="utf-8")
+    configured = config(f"    - {{name: example-infra, path: {clone}}}\n")
+    reader = LocalFiles()
+    data = iac.search(configured, reader, "threshold", environment=None, clone=None)
+    assert [m["path"] for m in data["matches"]] == ["example-infra/alarms.TF"]
+    for path in (
+        "example-infra/.ENV",
+        "example-infra/MOD/../.ENV",
+        "example-infra/.GIT/config",
+        "example-infra/Prod.TFSTATE",
+        "example-infra/prod.auto.tfvars",
+    ):
+        with pytest.raises(ToolError):
+            iac.read(configured, reader, path, 1, 1)

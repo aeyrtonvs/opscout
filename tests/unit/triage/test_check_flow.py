@@ -159,3 +159,24 @@ def test_a_verdict_holding_a_secret_is_refused_before_it_is_stored() -> None:
     record = used.records.get(run_id)
     assert record is not None
     assert "p4ssw0rd" not in record.model_dump_json()
+
+
+@spec("FR-019")
+def test_without_the_skeptic_a_checked_run_is_closed() -> None:
+    used, run_id, metric = opened()
+    check_verdict(run_id, verdict(metric), later(30), used)
+    with pytest.raises(ToolError) as refused:
+        check_verdict(run_id, verdict(metric), later(40), used)
+    assert refused.value.reason is ErrorReason.INVALID_INPUT
+
+
+@spec("FR-018")
+def test_evidence_from_a_later_run_is_refused() -> None:
+    used, run_id, _ = opened()
+    begin(ALERT, None, CONFIG, NOW + timedelta(seconds=20), used)
+    late = used.evidence.put(
+        "read_metric", {"environment": "example-prod", "data": {"value": 77.0}}, later(25)
+    )
+    data = check_verdict(run_id, verdict(late, "77.0"), later(30), used)
+    failure = next(f for f in data["failures"] if f["where"] == "claims[0].cites[0]")
+    assert failure["reason"] == "evidence from another run"

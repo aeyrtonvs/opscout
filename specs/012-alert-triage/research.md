@@ -60,6 +60,11 @@ The user registers their platform's official read-only server in Claude Code und
 the subagents not to try it. A claim citing it carries `{"observability": "<tool>",
 "quote": ...}`, which the check marks as "not checked" (FR-016, FR-018).
 
+The wildcard grants every tool of that server, write tools included, and
+`triage.observability: false` is enforced by the skill's instructions only. This is a
+residual risk under Principle II, stated in the reference: the user registers under that
+name a server with read-only tools only.
+
 **Rationale**, from the Claude Code documentation (sub-agents, plugin components and skills
 pages, read on 2026-11-06):
 
@@ -103,6 +108,10 @@ whose answer had the configuration name the server and its tools.
 
 **Residual risk**: other MCP servers the user has stay visible to the skill's own turn, under
 the user's permission prompts, because a skill cannot remove every server except one. The
+independent review (T051) found two more gaps, closed here: the skill pre-approved `Agent`
+of any type and kept `Read`, `Grep` and `Glob`. It now pre-approves its five subagents by
+name and removes file reads too, so the verdict schema is inline in the skill rather than in
+`references/`. The
 main turn reads the subagents' findings, not raw tool output. A headless triage (Phase 3)
 must instead start `claude -p` with `--tools`, as spec 007's runner does.
 
@@ -130,7 +139,11 @@ The check:
    - its quote, with whitespace collapsed, is a substring of one scalar of the stored result
      rendered as text;
    - a numeric quote also matches a number equal to it, so "52" finds `52.0`;
-   - a quote shorter than 3 characters must equal a whole scalar;
+   - a quote shorter than 4 characters must equal a whole scalar, and one shorter than 8
+     must not cut a number or a word (review: "202" matched any year);
+   - only the result's `data` counts, never the envelope every result shares, and only
+     citable results: errors and the tools that echo their input are not (review: an
+     echoed sentence could support any cause);
    - or, found in the first eval run (T028): the quote is a `"key": value` fragment of the
      result as the model saw it, whitespace ignored, holding at least one key and its value.
      The subagents quote such fragments naturally, and the fragment is in the output; a
@@ -249,6 +262,9 @@ carries delivery fields a triage does not have.
 | After a final result | Refused |
 
 **Rationale**: Principle VI's bounded convergence, enforced where the model cannot skip it.
+The revision after a pass is allowed only when the run's settings turn the skeptic on
+(review). Two concurrent `check_verdict` calls for one run are not serialized; one session
+runs one triage at a time, so this is accepted.
 
 ## R10. The draft's format
 

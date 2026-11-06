@@ -17,11 +17,13 @@ class MemoryEvidence:
     items: dict[str, StoredEvidence] = field(default_factory=dict)
     fail: bool = False
 
-    def put(self, tool: str, result: Mapping[str, Any], at: datetime) -> str:
+    def put(
+        self, tool: str, result: Mapping[str, Any], at: datetime, *, citable: bool = True
+    ) -> str:
         if self.fail:
             raise OSError("read-only file system")
         evidence_id = f"ev-{secrets.token_hex(5)}"
-        self.items[evidence_id] = StoredEvidence(evidence_id, tool, at, dict(result))
+        self.items[evidence_id] = StoredEvidence(evidence_id, tool, at, dict(result), citable)
         return evidence_id
 
     def get(self, evidence_id: str) -> StoredEvidence | None:

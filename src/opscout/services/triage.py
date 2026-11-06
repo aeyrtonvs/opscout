@@ -154,7 +154,9 @@ def begin(
         fields = {}
     resolution = _resolution(config, fields, text)
     when = _alert_time(fields, alert_time, now)
-    anchor: datetime = when["time"]
+    anchor: datetime = min(when["time"], now)
+    if when["time"] > now:
+        when["future"] = "the alert's time is after now, so the windows end now"
     triage = (config.triage if config is not None else None) or Triage()
     history = timedelta(days=triage.metric_history_days)
     run_id = _run_id(now)
@@ -241,6 +243,19 @@ def _tool_counts(stores: Stores, record: TriageRecord, now: datetime) -> dict[st
     return dict(sorted(counts.items()))
 
 
+def _next_start(stores: Stores, record: TriageRecord) -> datetime | None:
+    """When the next run on this machine began: evidence after it is not this run's."""
+    later = [
+        other.started_at
+        for other in stores.records.records(NEIGHBOURS)
+        if isinstance(other, TriageRecord) and other.started_at > record.started_at
+    ]
+    return min(later, default=None)
+
+
+NEIGHBOURS: Final = 50
+
+
 def check_verdict(
     run_id: str, verdict_json: Mapping[str, Any], now: datetime, stores: Stores
 ) -> dict[str, Any]:
@@ -248,7 +263,7 @@ def check_verdict(
     record = stores.records.get(run_id)
     if record is None:
         raise ToolError(ErrorReason.INVALID_INPUT, "no triage run has that id")
-    revising = record.outcome == "checked" and not record.revision_tried
+    revising = record.outcome == "checked" and record.settings.skeptic and not record.revision_tried
     if record.outcome != "open" and not revising:
         raise ToolError(ErrorReason.INVALID_INPUT, "the run is closed")
     try:
@@ -256,7 +271,14 @@ def check_verdict(
     except ValidationError as error:
         verdict, failures = None, _validation_failures(error)
     if verdict is not None:
-        result = check(verdict, stores.evidence.get, record.started_at, find_secrets)
+        result = check(
+            verdict,
+            stores.evidence.get,
+            record.started_at,
+            find_secrets,
+            until=_next_start(stores, record),
+            run_environment=record.alert.environment,
+        )
         failures = [
             {"where": f.where, "reason": f.reason, **_hint(f.reason)} for f in result.failures
         ]

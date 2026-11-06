@@ -19,16 +19,19 @@ REGISTRY: Final = Registry(
             "list_environments",
             "List the configured AWS environments: their names, regions, aliases and whether "
             "each uses opscout's reference read-only identity or the user's own.",
+            citable=False,
         ),
         ToolSpec(
             "parse_alert",
             "Parse an alert's text against the alert formats in the private configuration and "
             "return its fields, each with the text it came from; never guesses a field.",
+            citable=False,
         ),
         ToolSpec(
             "resolve_environment",
             "Resolve an alert's account, environment or project to a configured environment, "
             "or say that it is out of scope.",
+            citable=False,
         ),
         ToolSpec(
             "read_alarm",
@@ -115,6 +118,7 @@ REGISTRY: Final = Registry(
             "begin_triage",
             "Open an alert triage run: parse and resolve the alert, and return the run id, "
             "the windows, the settings and the ticket format. Writes only a local record.",
+            citable=False,
         ),
         ToolSpec(
             "check_verdict",

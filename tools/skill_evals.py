@@ -294,6 +294,28 @@ def _prepare(
             path.write_text(text, encoding="utf-8")
 
 
+def shadowed_servers(
+    cases: Sequence[Case], environment: dict[str, str], fixtures: Path | None = None
+) -> list[str]:
+    """Servers of the user's own that a case's ``--mcp-config`` would sit next to.
+
+    A fixture case runs without ``--strict-mcp-config``, so a server the user registered
+    under the same name as a case's stand-in could answer instead of it, with real data
+    (review M6). Returns those names; the runner refuses to start when there are any.
+    """
+    wanted: set[str] = set()
+    for case in cases:
+        if case.fixture and case.mcp_config:
+            source = (fixtures or FIXTURES) / case.fixture / case.mcp_config
+            if source.is_file():
+                wanted |= set(json.loads(source.read_text(encoding="utf-8"))["mcpServers"])
+    if not wanted:
+        return []
+    listing = _claude(["mcp", "list"], {**environment, "ENABLE_CLAUDEAI_MCP_SERVERS": "false"})
+    registered = {line.split(":", 1)[0].strip() for line in listing.splitlines() if ":" in line}
+    return sorted(wanted & registered)
+
+
 def _records(data: Path) -> list[dict[str, Any]]:
     records = []
     for path in sorted((data / "triage" / "runs").glob("*.json")):
@@ -429,9 +451,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     judge = _judge_with(environment, spent, notes)
     results: list[dict[str, Any]] = []
     partial = False
-    for case in load_cases(args.evals or plugin / "evals"):
-        if not fnmatch.fnmatch(case.name, args.case):
-            continue
+    selected = [
+        case
+        for case in load_cases(args.evals or plugin / "evals")
+        if fnmatch.fnmatch(case.name, args.case)
+    ]
+    shadowed = shadowed_servers(selected, environment, args.fixtures)
+    if shadowed:
+        print(
+            "skill_evals: your Claude Code has its own MCP server named "
+            f"{', '.join(shadowed)}; a case's stand-in has that name. Remove or rename "
+            "yours for the eval run, or leave those cases out with --case.",
+            file=sys.stderr,
+        )
+        return 2
+    for case in selected:
         record: dict[str, Any] = {"name": case.name}
         # A case may bring its own configuration, such as an invalid one (spec 003, FR-018).
         case_environment = environment
