@@ -15,7 +15,7 @@ SAFE_PROBES = re.compile(
     r"^(aws iam simulate-principal-policy --policy-source-arn \S+ --action-names [\w:\s-]+"
     r"|aws secretsmanager get-secret-value --secret-id opscout-probe-does-not-exist"
     r"|aws ssm get-parameter --name /opscout/probe-does-not-exist --with-decryption"
-    r"|aws ec2 (create-tags|run-instances) --dry-run [^#]+"
+    r"|aws ec2 (create-security-group|create-key-pair) --dry-run [^#]+"
     r"|aws ssm start-session --target i-0123456789abcdef0"
     r"|aws ssm send-command --document-name AWS-RunShellScript --instance-ids "
     r"i-0123456789abcdef0 --parameters commands=id"
@@ -81,6 +81,20 @@ def test_every_live_probe_cannot_change_anything_and_states_its_outcome() -> Non
     assert len(probes) >= 12
     for probe in probes:
         assert SAFE_PROBES.match(probe), probe
+
+
+@spec("FR-018")
+def test_dry_run_probes_name_no_resource_id() -> None:
+    """EC2 validates an ID before it checks permissions, so a fake ID never reaches the check.
+
+    Found in the live check (2026-11-06): a fake instance or image ID returns InvalidID or
+    InvalidAMIID.Malformed, never UnauthorizedOperation.
+    """
+    dry_runs = [line for line in _section("Live check").splitlines() if "--dry-run" in line]
+
+    assert len(dry_runs) == 2
+    for probe in dry_runs:
+        assert not re.search(r"\b(i|ami|vpc|subnet|sg)-[0-9a-f]{8,17}\b", probe), probe
 
 
 @spec("FR-019")

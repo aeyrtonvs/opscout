@@ -470,5 +470,23 @@ or role to choose, the ones never to choose, and how to confirm the result.
     so.
 - **The independent review** found three faults that passed the check (H1–H3) and five
   medium ones. Each was reproduced as a test and fixed (tasks.md, T037).
-- **The live check** in a sandbox account is not done yet. It waits for someone to
-  instantiate the identity (FR-021, PLAN.md §9).
+- **The live check (FR-021), 2026-11-06**, in a development account, with nothing left
+  behind:
+  - **AWS's own evaluator first, without creating anything**: `iam simulate-custom-policy`
+    on the reference documents, with the managed policies as AWS served them that day
+    (`ViewOnlyAccess` v48 and `ReadOnlyAccess` v191, equal to the recorded copies). With
+    `Allow *` added, 130/130 secret reads (126 actions, plus 4 resource-scoped entries) and
+    12,695/12,695 writes were denied; 41/41 distinct declared reads were allowed. It agrees
+    with `opscout identity check` on every action.
+  - **Then the instantiated role**: the read-only identity, created as a role under the
+    `ReadOnlyAccess` boundary with `ViewOnlyAccess`, the six capabilities and the
+    guardrail. AWS accepted every document. `simulate-principal-policy` gave 13/13 denied
+    and 6/6 allowed. As the role, `get-secret-value`, `get-parameter --with-decryption` and
+    `start-session` returned `AccessDenied`, and seven declared reads succeeded.
+  - **One defect, in the guide**: the two EC2 dry-run probes named fake instance and image
+    IDs, which EC2 rejects before it checks permissions (`InvalidID`,
+    `InvalidAMIID.Malformed`). They now use `create-security-group` and `create-key-pair`
+    with no ID: `UnauthorizedOperation` as the role, `DryRunOperation` as an administrator.
+    A test keeps resource IDs out of the dry-run probes.
+  - **Not covered**: the host identity and the clusters. The role and its policies were
+    deleted after the probes.

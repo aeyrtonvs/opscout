@@ -29,8 +29,11 @@ def test_every_requirement_has_a_test() -> None:
 
 
 @spec("FR-021")
-def test_the_live_check_is_an_open_item_in_the_plan() -> None:
+def test_the_live_check_is_recorded_and_what_it_left_out_is_open() -> None:
     plan = (REPO_ROOT / "docs" / "PLAN.md").read_text(encoding="utf-8")
+    spec = (REPO_ROOT / "specs" / "010-readonly-identity" / "spec.md").read_text(encoding="utf-8")
     open_items = plan.split("## 9. Open items", 1)[1]
-    assert "- [ ] Read-only identity, live check (spec 010, FR-021)" in open_items
+    assert "- [x] Read-only identity, live check (spec 010, FR-021)" in open_items
+    assert "- [ ] Live check of the host identity and the clusters (spec 010, FR-021)" in open_items
     assert "docs/reference/identity.md" in open_items
+    assert "**The live check (FR-021), 2026-11-06**" in spec.split("## Actuals", 1)[1]
