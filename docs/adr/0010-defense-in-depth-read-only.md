@@ -79,3 +79,8 @@ Facts that constrain the design (official docs, 2026-11-03):
 - **The check.** `opscout identity check` proves all of this offline, against a recorded
   copy of AWS's action catalog. It is the static half of this ADR's confirmation. The live
   half, a sandbox account, stays an open item in PLAN.md §9.
+
+**Amended 2026-11-06 by [ADR-0023](0023-read-only-identity-recommended.md).** Decision 1's
+identity is the recommended outer layer, not a requirement: a user may run with their own
+identity at their own risk. Layers 2 to 5 are unchanged, and the tool surface carries the
+guarantee whatever identity is used.

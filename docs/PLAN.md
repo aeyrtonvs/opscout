@@ -5,8 +5,8 @@
 > are merged. **Phase 1 in progress**: specs 007, daemon-core, 008, chat-output, and 009,
 > daily-standup, are merged; its last exit criterion, a week of dailies and their agreement
 > rate, is being measured (§9). **Phase 2 in progress**: spec 010, readonly-identity, is
-> implemented on `feat/010-readonly-identity`. The
-> constitution is ratified (1.0.2), ADRs 0001–0022 are accepted, Spec Kit 1.2.6 is
+> merged; ADR-0023 makes its identity recommended rather than required. The
+> constitution is at 2.0.0, ADRs 0001–0023 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
 > Company-specific facts behind this plan live in the private config repo
@@ -86,6 +86,7 @@ day.
 | [0020](adr/0020-toolchain-pinned-through-uv.md) | Development toolchain pinned through uv (`dev` group, pre-commit revs); prerequisites are git, uv and Claude Code; neither local use nor development needs containers | accepted |
 | [0021](adr/0021-local-first-portable-by-construction.md) | Local-first, portable by construction: host-specific code behind ports, scheduled jobs as idempotent commands; the foreseen hosted shape is a personal VM, not serverless | accepted |
 | [0022](adr/0022-plugin-runs-the-engine-through-uv.md) | The plugin runs the engine through a uv launcher in `bin/`: the clone's code, or the release matching the plugin's version (answers the §9 item on how the plugin finds the package) | accepted |
+| [0023](adr/0023-read-only-identity-recommended.md) | The read-only identity is recommended, not required; the tool surface stays mandatory; every integration is optional (amends 0010) | accepted |
 
 ## 4. How it is built: spec-driven
 
@@ -204,8 +205,9 @@ flowchart LR
 - **Daemon.** Scheduler, chat gateway in Socket Mode (no public endpoint), a runner that
   starts the user's own `claude -p` with a restricted profile (ADR-0012), and the run log.
 - **Trust boundary.** Alert bodies, logs and chat threads are untrusted input. They reach the
-  model only through tools that run under the read-only identity, and replies leave only to
-  the originating thread or the user's DM (ADR-0010).
+  model only through read-only tools, which run under the recommended read-only identity or
+  the user's own, and replies leave only to the originating thread or the user's DM
+  (ADR-0010, ADR-0023).
 - **Verification.** Each verdict cites evidence that the harness checks in code against the
   tool outputs of the same run. Outputs are validated against their schema, with one retry
   before the run ends as `inconclusive` and goes to the user. Investigations may add a
@@ -454,8 +456,9 @@ dailies and the agreement rate are measured after merge (§9).
 
 ### Phase 2 — investigation agents the user invokes
 
-Hard dependency: runs against real systems need the read-only identity (open items). Until it
-exists, development uses fixtures and MCP mocks.
+Runs against real systems use the reference read-only identity when the user has it, or the
+user's own identity at their own risk (ADR-0023). Each integration is optional: a feature
+works without the ones it does not use. Development uses fixtures and MCP mocks.
 
 | Planned spec | Need | Delivers | Exit criteria |
 |---|---|---|---|
@@ -489,7 +492,8 @@ check proves the following, even with `Allow *` attached:
 
 `opscout identity export` writes the editable tree, and the `opscout-identity-check`
 pre-commit hook runs the check in the infrastructure repository. The engine applies
-nothing. The live check in a sandbox account is an open item (§9).
+nothing. ADR-0023 (2026-11-06) makes the identity the recommended setup, not a requirement.
+The live check in a sandbox account validates the reference and is an open item (§9).
 
 Candidate, not committed: let alert triage see earlier verdicts for the same alert, since
 recurrence informs "real or tune the threshold?". Only verdicts the user agreed with, with
@@ -615,9 +619,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
       asking before every `gh` command. Still open: account
       connectors that also send data out (ticket and docs tools, artifact publishing) are
       not gated in this repo; decide whether rule 5 covers them.
-- [ ] Rule 3's gates (ADR-0010): the read-only identity and the allow-listed host documents
-      exist since spec 010, proved by `opscout identity check`. The tool allow-lists arrive
-      with ops-mcp-server.
+- [ ] Rule 3's gates (ADR-0010, ADR-0023): the reference identity and the allow-listed host
+      documents exist since spec 010, proved by `opscout identity check`. The tool
+      allow-lists, now the mandatory gate, arrive with ops-mcp-server, which also decides
+      how a run states the identity it used.
 - [x] **Before the first commit:** the global git e-mail is a work address. Done 2026-11-03:
       the repo-local `user.email` is the GitHub no-reply address.
 - [x] Name: **opscout** (ADR-0019). The working name `ops-harness` was taken on PyPI by an
@@ -626,9 +631,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [x] Runner (former item 1): ADR-0012 accepted. The user's own `claude -p` is the default
       runner; the Agent SDK is an optional API-key runner.
 - [ ] Read-only identity (former item 2): the reference policies come from this repo
-      (spec 010); who applies them, and through which IaC repo, is still open.
-- [ ] Read-only identity, live check (spec 010, FR-021): once the identity is instantiated in
-      a sandbox account, run the probes in `docs/reference/identity.md` ("Live check") and
+      (spec 010) and are recommended, not required (ADR-0023); who applies them, and
+      through which IaC repo, is the user's call and still open here.
+- [ ] Read-only identity, live check (spec 010, FR-021), which gates nothing: once the
+      identity is instantiated in a sandbox account, run the probes in `docs/reference/identity.md` ("Live check") and
       record each outcome in the spec's Actuals and in §7.
 - [x] GitHub account (former item 3): confirmed, the remote goes in `aeyrtonvs`.
 - [x] How the plugin finds the Python package: a uv launcher in the plugin's `bin/` (ADR-0022),
@@ -641,6 +647,9 @@ genai.owasp.org (Top 10 for Agentic Applications).
       ships no wheels, so actionlint comes from its upstream pre-commit hook.
 - [x] Constitution PATCH (→ 1.0.2): OS-specific code lives behind ports, such as the
       scheduler and the secret store, matching ADR-0011 and ADR-0021. Done 2026-11-03.
+- [x] Constitution MAJOR (→ 2.0.0, ADR-0023): the read-only identity is recommended, not
+      required; the tool surface and host documents stay mandatory; every integration is
+      optional. Decided by the maintainer on 2026-11-06.
 - [ ] Windows has no CI gate (ADR-0021): add a Windows job and the Task Scheduler adapter with
       the first Windows user.
 - [x] Manifest gate: no JSON Schema is published for the manifests, so

@@ -12,9 +12,12 @@ change the systems they look at.
 
 ## How it is meant to work
 
-- **Read-only by construction.** Agents use a read-only identity and allow-listed tools, so
-  read-only is enforced by permissions, not by prompts. They report whether a secret exists
-  and where it lives, never its value.
+- **Read-only by construction.** Agents get only allow-listed, read-only tools, so read-only
+  is enforced by the harness, not by prompts. A reference read-only identity is the
+  recommended outer layer; you may use your own identity at your own risk. Agents report
+  whether a secret exists and where it lives, never its value.
+- **Use only what you need.** Every integration (AWS, clusters, hosts, chat, code host) is
+  optional; a feature never waits on one it does not use.
 - **Public engine, private configuration.** This repository holds no organization's data.
   Accounts, alert formats, channels and schedules live in your own private configuration
   repository, validated against a versioned schema.
