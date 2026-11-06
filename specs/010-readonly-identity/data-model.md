@@ -23,7 +23,7 @@ publishes it.
 
 | Field | Type | Rule |
 |---|---|---|
-| `name` | slug | one of `configuration`, `metrics`, `logs`, `changes`, `cost`, `cluster`, `hosts` |
+| `name` | slug | one of `configuration`, `secret-metadata`, `metrics`, `logs`, `changes`, `cost`, `cluster`, `hosts` |
 | `purpose` | text | one sentence |
 | `agents` | list | of `alert-triage`, `cost-triage`, `ask` |
 | `identity` | enum | `readonly` or `hosts` |
@@ -44,7 +44,7 @@ proved with an exact probe on that resource.
 | Path | Kind | Required |
 |---|---|---|
 | `aws/guardrail.json` | IAM policy | yes |
-| `aws/readonly/capabilities/<name>.json` | IAM policy, one per `actions` capability of `readonly` | `metrics`, `logs`, `changes` and `cost` yes; `cluster` optional |
+| `aws/readonly/capabilities/<name>.json` | IAM policy, one per `actions` capability of `readonly` | `secret-metadata`, `metrics`, `logs`, `changes` and `cost` yes; `cluster` optional |
 | `aws/hosts/capability.json`, `aws/hosts/boundary.json` | IAM policies | optional, as a pair, with `ssm/` |
 | `ssm/opscout-ReadOnly-<Name>.yaml` | SSM Command document, schema 2.2 | all seven or none |
 | `eks/access-policy.json` | `associate-access-policy` input | optional, with `kubernetes/` or alone |

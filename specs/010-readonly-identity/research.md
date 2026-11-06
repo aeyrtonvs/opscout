@@ -133,6 +133,10 @@ each entry denied under the robust evaluation.
   `/apikeys`.
 - **Catalog-proved rows**: the `d` flag adds any further allowed data-plane action as a
   failure, unless a capability declares it, as the log reads are declared.
+- **Existence stays readable**: `ViewOnlyAccess` has no `secretsmanager` action and, for
+  SSM, only `ListAssociations` and `ListDocuments`. A `secret-metadata` capability therefore
+  grants `secretsmanager:ListSecrets`, `secretsmanager:DescribeSecret` and
+  `ssm:DescribeParameters`, for ask and alert-triage. None of them returns a value.
 - **Residual risk**: `ecs:DescribeTasks` can show run-time environment overrides. ECS triage
   needs it (stopped reasons), so it stays allowed, and the reference documentation names
   this residual risk, which is left to redaction (ADR-0010, layer 4).
@@ -223,7 +227,7 @@ is installed. It holds:
   the two managed policies (R2)
 - `guardrail-actions.json`, the reviewed list (R4)
 - `aws/guardrail.json`
-- `aws/readonly/capabilities/{metrics,logs,changes,cost,cluster}.json`
+- `aws/readonly/capabilities/{secret-metadata,metrics,logs,changes,cost,cluster}.json`
 - `aws/hosts/capability.json` and `aws/hosts/boundary.json`
 - `ssm/opscout-ReadOnly-*.yaml`
 - `eks/access-policy.json`
@@ -269,8 +273,8 @@ that by building the wheel and listing it.
 **Decision**: the check measures every editable AWS document, without whitespace, against
 6,144 characters (customer managed). It also measures the sum of the guardrail and the
 capabilities against 10,240, for anyone who inlines them in a permission set. The
-attachment count is checked against 20 per identity: one managed copy, five capabilities
-and the guardrail make 7.
+attachment count is checked against 20 per identity: one managed copy, six capabilities
+and the guardrail make 8.
 
 ## R9. The live check (FR-018)
 

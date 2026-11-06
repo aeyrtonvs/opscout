@@ -111,10 +111,10 @@ copy fails with its fault named.
 
 Each permission the identity grants belongs to a named capability: what it is for, which
 planned agents use it, and its actions. The capabilities are viewing configuration
-metadata, metrics and alarms, log queries, recent changes (the audit trail and deployments),
-cost and usage, cluster access, and host commands. The person who instantiates the identity
-reads the capabilities and fills the placeholders: the account, the environment name and the
-role or permission-set name. They can leave out a capability that their environment does not
+metadata, secret metadata, metrics and alarms, log queries, recent changes (the audit trail
+and deployments), cost and usage, cluster access, and host commands. The person who instantiates the identity
+reads the capabilities and fills the placeholders: the account, the cluster name, and the
+identity's role or group names. They can leave out a capability that their environment does not
 use.
 
 **Why this priority**: Constitution Principle II says that every integration declares the
@@ -263,14 +263,15 @@ or role to choose, the ones never to choose, and how to confirm the result.
   hides it from its consumer), stream records and SQL through a data API. These are denied.
   The agents read metadata, metrics and logs, not application data.
 - **Parameter values**: reading any SSM parameter's value is denied, whether it is plain or
-  encrypted. Its existence and metadata stay readable, so the agents report that a parameter
-  exists and where (Principle III).
+  encrypted. Its existence and metadata stay readable through the secret-metadata
+  capability, because the view-only grant has no secret or parameter metadata, so the agents
+  report that a secret or parameter exists and where (Principle III).
 - **A permission-set or policy size limit** is reached as capabilities grow: the check
   measures each document, and a capability is split rather than its actions widened.
-- **Wildcards**: an allow with a wildcard can grow when AWS adds actions. The documents allow
-  only exact actions or prefixes the check expands against the recorded catalog. A
-  catalog refresh that widens a prefix to a new write action is caught, because writes are
-  denied.
+- **Wildcards**: an allow with a wildcard can grow when AWS adds actions. Capability
+  documents therefore list exact action names only. The AWS-maintained view-only grant is
+  the only grant with wildcards, and the check expands it against the recorded catalog. A
+  refresh that widens it to a new write action is caught, because writes are denied.
 - **The recorded catalog is old**: an action missing from the catalog cannot be proved. The
   check names the catalog's date, and the guardrail denies every write by access level, not
   by a list.
@@ -302,7 +303,8 @@ or role to choose, the ones never to choose, and how to confirm the result.
   instances, which belongs to the host identity (FR-009). Log queries are reads (research
   R1).
 - **FR-004**: The capabilities MUST be listed with their purpose, the planned agents that use
-  them and their actions: configuration metadata, metrics and alarms, log queries, recent
+  them and their actions: configuration metadata, secret metadata (whether a secret or
+  parameter exists, and where, never its value), metrics and alarms, log queries, recent
   changes, cost and usage, cluster access, and host commands. Configuration metadata is
   AWS's maintained view-only policy, attached by reference. The other capabilities are
   explicit action lists maintained here.
@@ -346,7 +348,7 @@ or role to choose, the ones never to choose, and how to confirm the result.
   tagging action is allowed and is not a named exception within its resources; when a
   declared read is not allowed; or when an allowed action belongs to no capability.
 - **FR-013**: The check MUST verify the host catalog (FR-007, FR-008) and the cluster
-  references (FR-010), naming the offending document and line.
+  references (FR-010), naming the offending document and the place within it.
 - **FR-014**: The check MUST run offline in the test suite and in CI, with no AWS account,
   network access or credentials, and MUST finish within the suite's usual time.
 - **FR-015**: Refreshing the recorded catalog or the view-only policy copy MUST be a
@@ -410,8 +412,8 @@ or role to choose, the ones never to choose, and how to confirm the result.
 
 ### Measurable Outcomes
 
-- **SC-001**: For the reference documents, the check proves that 100 % of the catalog's
-  secret-value and credential actions are denied, and that 100 % of its write,
+- **SC-001**: For the reference documents, the check proves that 100 % of the reviewed list
+  of secret-value and credential actions are denied, and that 100 % of its write,
   permissions-management and tagging actions are denied outside the named exceptions.
 - **SC-002**: Every planted fault in the test corpus is caught, and the failure names the
   action or document responsible.

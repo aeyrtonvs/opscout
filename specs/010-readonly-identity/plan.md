@@ -9,8 +9,8 @@ The reference identity ships inside the package as documents with placeholders (
 **The read-only identity** has:
 
 - AWS's `ViewOnlyAccess` for configuration metadata (Q1)
-- five capability policies with exact action names: metrics, logs, recent changes, cost and
-  cluster
+- six capability policies with exact action names: secret metadata, metrics, logs, recent
+  changes, cost and cluster
 - a guardrail that explicitly denies secret values, credential issuance, plaintext-secret
   reads (Q2), data-plane reads, and sessions and shells (R4)
 - AWS's `ReadOnlyAccess` as the permissions boundary, the cap that keeps every write out
@@ -77,7 +77,7 @@ actions, and adds less than 10 seconds to the suite (SC-004).
 **Scale/Scope**:
 
 - 457 services and about 20,000 actions in the catalog
-- 2 identities and 8 AWS documents
+- 2 identities and 9 AWS documents
 - 7 host documents and 2 cluster documents
 
 ## Constitution Check

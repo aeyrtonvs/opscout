@@ -103,8 +103,9 @@ named.
   directory:
   - delete `DenySecretValues` → `secret-allowed`, naming `secretsmanager:GetSecretValue` and
     the others
-  - add an `Allow *` file → the deny properties still pass, and `layout` or
-    `undeclared-grant` fails
+  - add an `Allow *` statement as a new file → the deny properties still pass, and
+    `layout` fails; add the same statement inside `cost.json` → the deny properties still
+    pass, and `undeclared-grant` fails
   - replace the boundary with an `Allow *` → `write-allowed`
   - add a capability that allows `ec2:CreateTags` while the cap still holds → no
     `write-allowed`
@@ -115,8 +116,10 @@ named.
   `prove(tree, records) -> Report`, covering the guardrail, the writes, the data plane and
   the counts. Then wire the read-only identity: the `ViewOnlyAccess` copy, the capabilities
   and the guardrail, under the `ReadOnlyAccess` boundary (research R7). If the cap's copy
-  allows a write, add an explicit deny to the guardrail and record it in research R2. T011
-  and T012 pass.
+  allows a write, add an explicit deny to the guardrail and record it in research R2.
+  Measure the result first. If the guardrail would exceed 6,144 characters, stop and
+  escalate with the count, before changing the design (working rules). T011 and T012
+  pass.
 
 ## Phase 4: User Story 2 — capabilities, declared and sized (P1)
 
@@ -126,15 +129,20 @@ document fits.
 or an oversized document each fails.
 
 - [ ] T014 [P] [US2] Write `src/opscout/data/identity/capabilities.json` per data-model.md:
-  `name` is one of `configuration`, `metrics`, `logs`, `changes`, `cost`, `cluster`,
-  `hosts`; plus `purpose`, `agents` (any of `alert-triage`, `cost-triage`, `ask`),
+  `name` is one of `configuration`, `secret-metadata`, `metrics`, `logs`, `changes`, `cost`,
+  `cluster`, `hosts`; plus `purpose`, `agents` (any of `alert-triage`, `cost-triage`, `ask`),
   `identity` `readonly`|`hosts`, `optional` (true for `cluster` and `hosts`), `grant`
   `managed`|`actions`, `actions` (exact `service:Action` names, no wildcards) and `reads`.
-  Write `src/opscout/data/identity/aws/readonly/capabilities/{metrics,logs,changes,cost,cluster}.json`
-  to match.
+  Write
+  `src/opscout/data/identity/aws/readonly/capabilities/{secret-metadata,metrics,logs,changes,cost,cluster}.json`
+  to match. `secret-metadata` is `secretsmanager:ListSecrets`,
+  `secretsmanager:DescribeSecret` and `ssm:DescribeParameters` (research R4).
 - [ ] T015 [P] [US2] Write failing tests in `tests/unit/identity/test_capabilities.py`:
   - FR-004: every declaration has a purpose, its agents and its actions. `configuration` is
     `grant: managed` with the `ViewOnlyAccess` ARN. No value in it is organization-specific.
+  - FR-004 and FR-002: `secretsmanager:DescribeSecret` and `ssm:DescribeParameters` are
+    allowed, while `secretsmanager:GetSecretValue` and `ssm:GetParameter` stay denied on the
+    same resources (Principle III).
   - FR-004: every `reads` entry is allowed by the exact evaluation, otherwise
     `read-missing`, naming the capability and the denying statement.
   - FR-012: every action allowed by a capability file is in its declaration, otherwise
@@ -292,7 +300,14 @@ reference passes with exit 0.
   - Add `docs/reference/identity.md` to the docs index if one lists the references.
 - [ ] T034 Write the FR-021 test in `tests/unit/identity/test_traceability.py`: the live
   check is an open item in PLAN.md §9.
-- [ ] T035 Update `AGENTS.md`'s rule 3 gate and its repository map:
+- [ ] T035 Amend `docs/adr/0010-defense-in-depth-read-only.md`, decision 1 (Constitution,
+  definition of done):
+  - add an optional host identity per environment, which can only send catalog documents
+  - make AWS's `ReadOnlyAccess` the read-only identity's permissions boundary
+  - give the reason (research R2) and the date
+  - update `docs/adr/README.md` if it shows amendments
+
+  Then update `AGENTS.md`'s rule 3 gate and its repository map:
   - rule 3's gate names `opscout identity check`
   - `src/opscout/data/identity/` is listed
   - `tools/identity_refresh.py` is listed
