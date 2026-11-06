@@ -9,6 +9,7 @@ allow-list drops it.
 
 import pytest
 
+from tests.unit.chat.fakes import REASON_SENTINEL, TOKEN_SENTINEL
 from tests.unit.daemon.fakes import SENTINEL
 
 
@@ -22,6 +23,25 @@ def test_the_sentinel_is_in_no_file_the_suite_wrote(
         for path in root.rglob("*")
         if path.is_file() and path.suffix in (".json", ".jsonl", ".md", ".log", ".plist")
     ]
-    assert any(path.suffix == ".jsonl" for path in searched), "nothing was searched"
+    if not any(path.suffix == ".jsonl" for path in searched):
+        pytest.skip("nothing to search: run it after the daemon tests, as the whole suite does")
     leaks = [p for p in searched if SENTINEL in p.read_text(encoding="utf-8", errors="replace")]
     assert leaks == []
+
+
+@pytest.mark.spec("008", "FR-011")
+def test_no_chat_token_anywhere_and_a_reason_only_in_a_run_record(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    root = tmp_path_factory.getbasetemp()
+    files = [path for path in root.rglob("*") if path.is_file()]
+    texts = {path: path.read_text(encoding="utf-8", errors="replace") for path in files}
+    if not any(REASON_SENTINEL in text for text in texts.values()):
+        pytest.skip("nothing to search: run it after tests/unit/chat, as the whole suite does")
+    assert [path for path, text in texts.items() if TOKEN_SENTINEL in text] == []
+    assert [
+        path
+        for path, text in texts.items()
+        if REASON_SENTINEL in text
+        and not (path.parent.parent.name == "runs" and path.suffix == ".json")
+    ] == []

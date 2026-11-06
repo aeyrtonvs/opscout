@@ -17,6 +17,7 @@ from typing import Any, Final, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from opscout.core.chat import MAX_REASON, AgreementChoice, MessageRef
 from opscout.core.config import KeychainRef
 
 Outcome = Literal["delivered", "skipped", "refused", "inconclusive", "failed"]
@@ -95,6 +96,24 @@ class RunResult:
     facts: RunnerFacts | None = None
 
 
+class Agreement(BaseModel):
+    """The user's verdict on a delivered result (spec 008, FR-015, FR-016)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    choice: AgreementChoice
+    at: datetime
+    reason: str | None = Field(default=None, min_length=1, max_length=MAX_REASON)
+
+
+@dataclass(frozen=True)
+class Receipt:
+    """Where a delivery went: the outbox file and, with chat, the direct message."""
+
+    location: str
+    chat: MessageRef | None = None
+
+
 class RunRecord(BaseModel):
     """One start of a job, written once as JSON (FR-021). Never a secret or the prompt."""
 
@@ -115,7 +134,9 @@ class RunRecord(BaseModel):
     inputs: tuple[str, ...] = ()
     delivery: str | None = None
     runner: RunnerFacts | None = None
-    agreement: None = None
+    agreement: Agreement | None = None
+    chat: MessageRef | None = None
+    """The direct message of the result or notice (spec 008); added, so version 1 stays."""
 
 
 class CheckOutput(BaseModel):
@@ -212,7 +233,14 @@ class RecordError(StoreError):
 
 
 class DeliveryError(Exception):
-    """A delivery failed; the outcome is ``failed``, never ``delivered`` (FR-005)."""
+    """A delivery failed; the outcome is ``failed``, never ``delivered`` (FR-005).
+
+    ``location`` is the outbox copy when it was written before the failure (spec 008).
+    """
+
+    def __init__(self, message: str, location: str | None = None) -> None:
+        super().__init__(message)
+        self.location = location
 
 
 class SchedulerError(Exception):
@@ -230,6 +258,8 @@ class ScheduledJob:
     """Each (ISO weekday 1 to 7, hour, minute), in the machine's local time."""
     log: Path
     environment: Mapping[str, str]
+    keep_alive: bool = False
+    """Started at login and again after an error exit, with no times (spec 008)."""
 
     @property
     def label(self) -> str:
@@ -258,11 +288,13 @@ class InstalledJob:
 class SchedulerChange:
     """One change to the installed jobs."""
 
-    action: Literal["add", "update", "remove", "load"]
+    action: Literal["add", "update", "remove", "load", "restart"]
     label: str
     current: bytes | None
     new: bytes | None
     job: ScheduledJob | None = None
+    note: str | None = None
+    """Why, shown with the change; a restart says why the job stopped (spec 008)."""
 
 
 @dataclass(frozen=True)
@@ -299,11 +331,19 @@ class RunStore(Protocol):
         """Return the newest records, of one job or of all."""
         ...
 
+    def get(self, job: str, run_id: str) -> RunRecord | None:
+        """Return one record, or None when it is missing or unreadable (spec 008)."""
+        ...
+
 
 class Delivery(Protocol):
-    """The output port (FR-005, FR-008)."""
+    """The output port (FR-005, FR-008; spec 008)."""
 
-    def deliver(self, job: str, run_id: str, kind: DeliveryKind, text: str) -> str:
+    def preflight(self) -> None:
+        """Check, before any model run, that a delivery can work. Raises ``DeliveryError``."""
+        ...
+
+    def deliver(self, job: str, run_id: str, kind: DeliveryKind, text: str) -> Receipt:
         """Deliver the text and return where it went. Raises ``DeliveryError``."""
         ...
 

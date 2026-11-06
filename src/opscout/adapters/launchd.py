@@ -14,6 +14,7 @@ import os
 import plistlib
 import subprocess
 import tempfile
+import time
 from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +30,8 @@ from opscout.core.daemon import (
 )
 
 LAUNCHCTL: Final = "/bin/launchctl"
+UNLOAD_SECONDS: Final = 15.0
+UNLOAD_STEP: Final = 0.5
 
 
 class ServiceManager(Protocol):
@@ -46,6 +49,10 @@ class ServiceManager(Protocol):
         """Return whether launchd has the job loaded."""
         ...
 
+    def restart(self, label: str) -> None:
+        """Start a loaded job again, stopping it first if it runs."""
+        ...
+
 
 def _run(command: list[str]) -> "subprocess.CompletedProcess[str]":
     return subprocess.run(command, capture_output=True, text=True, check=False)  # noqa: S603
@@ -55,10 +62,14 @@ class Launchctl:
     """``ServiceManager`` on ``/bin/launchctl``, in the user's GUI domain."""
 
     def __init__(
-        self, uid: int, run: Callable[[list[str]], "subprocess.CompletedProcess[str]"] = _run
+        self,
+        uid: int,
+        run: Callable[[list[str]], "subprocess.CompletedProcess[str]"] = _run,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self._domain = f"gui/{uid}"
         self._run = run
+        self._sleep = sleep
 
     def load(self, plist: Path) -> None:
         """Bootstrap the job. Raises ``SchedulerError``."""
@@ -73,10 +84,24 @@ class Launchctl:
         result = self._run([LAUNCHCTL, "bootout", f"{self._domain}/{label}"])
         if result.returncode != 0:
             raise SchedulerError(f"launchctl bootout {label}: {_said(result)}")
+        # bootout returns before a running job has stopped (the gateway takes a few seconds);
+        # a bootstrap right after it would fail, so wait until launchd lets the job go.
+        waited = 0.0
+        while self.is_loaded(label):
+            if waited >= UNLOAD_SECONDS:
+                raise SchedulerError(f"launchctl bootout {label}: still loaded after 15 s")
+            self._sleep(UNLOAD_STEP)
+            waited += UNLOAD_STEP
 
     def is_loaded(self, label: str) -> bool:
         """Return whether launchd has the job loaded."""
         return self._run([LAUNCHCTL, "print", f"{self._domain}/{label}"]).returncode == 0
+
+    def restart(self, label: str) -> None:
+        """Kickstart the job (``-k``: stop it first if it runs). Raises ``SchedulerError``."""
+        result = self._run([LAUNCHCTL, "kickstart", "-k", f"{self._domain}/{label}"])
+        if result.returncode != 0:
+            raise SchedulerError(f"launchctl kickstart {label}: {_said(result)}")
 
 
 def _said(result: "subprocess.CompletedProcess[str]") -> str:
@@ -99,6 +124,10 @@ def plist_bytes(job: ScheduledJob) -> bytes:
         "EnvironmentVariables": dict(job.environment),
         "ProcessType": "Background",
     }  # fmt: skip
+    if job.keep_alive:
+        # Started at login, and again after an error exit; an exit 0 means "stay stopped".
+        del data["StartCalendarInterval"]
+        data.update(RunAtLoad=True, KeepAlive={"SuccessfulExit": False}, ThrottleInterval=30)
     return plistlib.dumps(data, sort_keys=True)
 
 
@@ -169,6 +198,9 @@ class LaunchdScheduler:
         """Apply the changes in order. Raises ``SchedulerError``."""
         for change in pending.changes:
             path = self._agents / f"{change.label}.plist"
+            if change.action == "restart":
+                self._manager.restart(change.label)
+                continue
             if change.action != "load":
                 # Also before an add: a job may be loaded with its file gone.
                 self._manager.unload(change.label)

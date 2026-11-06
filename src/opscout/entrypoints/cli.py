@@ -187,6 +187,14 @@ def build_parser() -> argparse.ArgumentParser:
     runs = daemon_commands.add_parser("runs", help="list recent runs, newest first")
     runs.add_argument("job", nargs="?", help="only this job's runs")
     runs.add_argument("--limit", type=int, default=20, metavar="N", help="at most N runs")
+    gateway = commands.add_parser(
+        "gateway",
+        help="hold the Slack connection and record agreement clicks (launchd runs it)",
+        description=(
+            "Connect to Slack over Socket Mode and store the configured user's agreement "
+            "clicks in the run records (spec 008). Runs until stopped."
+        ),
+    )
     secret = commands.add_parser(
         "secret",
         help="the harness's own secrets in the OS keychain",
@@ -201,7 +209,7 @@ def build_parser() -> argparse.ArgumentParser:
         "check", help="say whether each configured secret is in the keychain"
     )
     secret_check.add_argument("name", nargs="?", help="only this secret")
-    for command in (run, install, uninstall, status, runs, secret_set, secret_check):
+    for command in (run, install, uninstall, status, runs, gateway, secret_set, secret_check):
         command.add_argument(
             "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
         )
@@ -250,6 +258,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "daemon":
         return _daemon(args)
+    if args.command == "gateway":
+        return daemon.gateway_command(_given_directory(args.config))
     if args.command == "secret" and args.secret_command == "set":  # noqa: S105  (a command name)
         return daemon.secret_set_command(args.name, _given_directory(args.config))
     if args.command == "secret":

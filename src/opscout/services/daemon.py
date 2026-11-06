@@ -5,6 +5,7 @@ Everything here works through the ports of ``opscout.core.daemon``; the adapters
 by ``opscout.entrypoints.daemon``.
 """
 
+import hashlib
 import secrets
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -13,6 +14,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Final
 
+from opscout.core.chat import GatewayStatus, MessageRef
 from opscout.core.config import WEEKDAYS, Daemon, JobSettings, KeychainRef
 from opscout.core.daemon import (
     LABEL_PREFIX,
@@ -24,6 +26,7 @@ from opscout.core.daemon import (
     Job,
     Outcome,
     PendingSchedule,
+    Receipt,
     RecordError,
     Runner,
     RunnerFacts,
@@ -87,6 +90,8 @@ class Ports:
     secrets: SecretStore
     clock: Callable[[], datetime]
     new_id: Callable[[datetime], str] = field(default=lambda moment: new_run_id(moment))
+    alert: Callable[[str, str, str], MessageRef | None] | None = None
+    """Sends the notice of a failed run (spec 008, FR-024); None without chat."""
 
 
 def new_run_id(moment: datetime) -> str:
@@ -105,7 +110,10 @@ def run_job(start: Start, ports: Ports) -> RunRecord:
     key = run_key(start.job.name, period)
     run_id = ports.new_id(started)
     with ports.store.hold(start.job.name, period) as held:
-        outcome, reason, delivery, facts = _decide(start, ports, held, key, period, run_id)
+        outcome, reason, receipt, facts = _decide(start, ports, held, key, period, run_id)
+        chat = receipt.chat if receipt else None
+        if outcome == "failed" and ports.alert is not None and not _own_delivery(reason):
+            chat = _alert(ports.alert, start.job.name, run_id, period, reason)
         record = RunRecord(
             run_id=run_id,
             job=start.job.name,
@@ -118,7 +126,8 @@ def run_job(start: Start, ports: Ports) -> RunRecord:
             reason=reason,
             started_at=started,
             ended_at=ports.clock(),
-            delivery=delivery,
+            delivery=receipt.location if receipt else None,
+            chat=chat,
             runner=facts,
         )
         try:
@@ -131,7 +140,7 @@ def run_job(start: Start, ports: Ports) -> RunRecord:
     return record
 
 
-_Decision = tuple[Outcome, str | None, str | None, RunnerFacts | None]
+_Decision = tuple[Outcome, str | None, Receipt | None, RunnerFacts | None]
 
 
 def _decide(
@@ -143,6 +152,10 @@ def _decide(
     previous = ports.store.delivered(key)
     if previous is not None and not start.force:
         return "skipped", f"already delivered by run {previous.run_id}", None, None
+    try:
+        ports.delivery.preflight()
+    except DeliveryError as error:
+        return "failed", f"{DELIVERY_FAILED}{error}", None, None
     try:
         env = {
             variable: ports.secrets.resolve(name, start.secrets[name])
@@ -162,7 +175,8 @@ def _decide(
         try:
             delivery = ports.delivery.deliver(name, run_id, "result", text)
         except DeliveryError as error:
-            return "failed", f"delivery failed: {error}", None, result.facts
+            kept = Receipt(error.location) if error.location else None
+            return "failed", f"{DELIVERY_FAILED}{error}", kept, result.facts
         return "delivered", None, delivery, result.facts
     if result.status in ("ok", "error"):
         return "failed", result.reason or "the run failed", None, result.facts
@@ -190,8 +204,41 @@ def _decide(
     try:
         delivery = ports.delivery.deliver(name, run_id, "notice", notice)
     except DeliveryError as error:
-        return outcome, f"{reason} (the notice could not be delivered: {error})", None, result.facts
+        kept = Receipt(error.location) if error.location else None
+        return outcome, f"{reason} (the notice could not be delivered: {error})", kept, result.facts
     return outcome, reason, delivery, result.facts
+
+
+DELIVERY_FAILED: Final = "delivery failed: "
+
+
+def _own_delivery(reason: str | None) -> bool:
+    """Return whether a failure was the delivery's own: then no notice could reach anyone."""
+    return reason is not None and reason.startswith(DELIVERY_FAILED)
+
+
+def _alert(
+    alert: Callable[[str, str, str], MessageRef | None],
+    job: str,
+    run_id: str,
+    period: str,
+    reason: str | None,
+) -> MessageRef | None:
+    """Send a failed run's short notice (spec 008, FR-024); its failure changes nothing."""
+    text = "\n".join(
+        [
+            f"# opscout {job}, {period}: failed",
+            "",
+            reason or "The run failed.",
+            "",
+            f"See the runs with: opscout daemon runs {job}",
+            "",
+        ]
+    )
+    try:
+        return alert(job, run_id, text)
+    except Exception:  # the run already failed; the notice is a courtesy
+        return None
 
 
 def render_outcome(record: RunRecord) -> str:
@@ -253,8 +300,9 @@ def _version(text: str) -> tuple[int, ...]:
 def wanted_jobs(
     daemon: Daemon, command: Sequence[str], *, config: Path, logs: Path, path: str
 ) -> list[ScheduledJob]:
-    """Return the enabled jobs as the scheduler should run them (FR-010)."""
-    return [
+    """Return the enabled jobs, and the gateway when chat is on, as the scheduler should run
+    them (FR-010; spec 008, FR-013)."""
+    jobs = [
         ScheduledJob(
             name=name,
             arguments=(*command, "run", name, "--config", str(config), "--trigger", "scheduler"),
@@ -268,6 +316,26 @@ def wanted_jobs(
         for name, settings in sorted(daemon.jobs.items())
         if settings.enabled
     ]
+    if daemon.chat is not None:
+        # The gateway reads its configuration once, at start; a change of the chat setting
+        # changes this fingerprint, so install reloads it (independent review).
+        setting = daemon.chat.model_dump_json() + repr(sorted(daemon.secrets.items()))
+        fingerprint = hashlib.sha256(setting.encode("utf-8")).hexdigest()[:12]
+        jobs.append(
+            ScheduledJob(
+                name=GATEWAY,
+                arguments=(*command, "gateway", "--config", str(config)),
+                times=(),
+                log=logs / f"{GATEWAY}.log",
+                environment=MappingProxyType({"PATH": path, "OPSCOUT_CHAT_SETTING": fingerprint}),
+                keep_alive=True,
+            )
+        )
+    return jobs
+
+
+GATEWAY: Final = "gateway"
+"""The gateway's name as a scheduled entry (spec 008); no job may take it."""
 
 
 def _clock_time(at: str) -> tuple[int, int]:
@@ -289,6 +357,10 @@ def describe_schedule(settings: JobSettings) -> str:
 def describe_change(change: SchedulerChange, configured: Mapping[str, JobSettings]) -> str:
     """Return one line of an install's changes: ``add opscout.check (09:30 mon to fri)``."""
     settings = configured.get(change.label.removeprefix(LABEL_PREFIX))
+    if change.note is not None:
+        return f"{change.action} {change.label} ({change.note})"
+    if change.action in ("add", "update") and change.job is not None and change.job.keep_alive:
+        return f"{change.action} {change.label} (always)"
     if change.action in ("add", "update") and settings is not None:
         return f"{change.action} {change.label} ({describe_schedule(settings)})"
     return f"{change.action} {change.label}"
@@ -320,6 +392,25 @@ _STATES: Final = {
 }
 
 
+@dataclass(frozen=True)
+class GatewayView:
+    """What status knows of the gateway: whether chat is on, its last state, its log."""
+
+    configured: bool
+    status: GatewayStatus | None
+    log: Path
+    now: datetime | None = None
+    """The time to judge staleness by; status passes it, the session notice has its own."""
+
+
+_GATEWAY_STATES: Final = {
+    "add": "not installed",
+    "remove": "installed but chat is not configured",
+    "update": "differs from the configuration",
+    "load": "not loaded",
+}
+
+
 def render_status(
     configured: Mapping[str, JobSettings],
     installed: Sequence[InstalledJob],
@@ -327,12 +418,15 @@ def render_status(
     last: Mapping[str, RunRecord | None],
     engine_version: str,
     exists: Callable[[str], bool],
+    gateway: GatewayView | None = None,
 ) -> str:
-    """Return ``opscout daemon status``: one line per configured or installed job (FR-012)."""
+    """Return ``opscout daemon status``: one line per configured or installed job (FR-012),
+    then the gateway's when chat is configured or it is installed (spec 008, FR-020)."""
     by_name = {job.name: job for job in installed}
     changes = {change.label.removeprefix(LABEL_PREFIX): change for change in pending.changes}
-    names = sorted(set(configured) | set(by_name))
-    if not names:
+    names = sorted((set(configured) | set(by_name)) - {GATEWAY})
+    chat_line = _gateway_line(gateway, by_name, changes) if gateway is not None else None
+    if not names and chat_line is None:
         return "No jobs are configured or installed.\n"
     lines = []
     for name in names:
@@ -354,7 +448,36 @@ def render_status(
         record = last.get(name)
         when = f"{record.outcome} {record.started_at:%Y-%m-%d %H:%M}" if record else "none"
         lines.append(f"{name}  {schedule}  {state}  last: {when}")
+    if chat_line is not None:
+        lines.append(chat_line)
     return "\n".join(lines) + "\n"
+
+
+def _gateway_line(
+    view: GatewayView, installed: Mapping[str, InstalledJob], changes: Mapping[str, SchedulerChange]
+) -> str | None:
+    if not view.configured and GATEWAY not in installed:
+        return None
+    change = changes.get(GATEWAY)
+    if change is not None and change.action != "restart":
+        state = f"{_GATEWAY_STATES[change.action]} (run opscout daemon install)"
+        return f"{GATEWAY}  always  {state}"
+    status = view.status
+    see = f"see {view.log}"
+    if status is None:
+        connection = f"never connected ({see})"
+    elif status.state == "stopped":
+        connection = (
+            f"stopped: {status.reason}; last seen {status.last_seen:%Y-%m-%d %H:%M} "
+            f"(run opscout daemon install to start it again; {see})"
+        )
+    elif status.state == "connecting":
+        connection = f"not connected since {status.since:%Y-%m-%d %H:%M} ({see})"
+    elif view.now is not None and view.now - status.last_seen > GRACE:
+        connection = f"not running; last seen {status.last_seen:%Y-%m-%d %H:%M} ({see})"
+    else:
+        connection = f"connected since {status.since:%Y-%m-%d %H:%M}"
+    return f"{GATEWAY}  always  installed, loaded  {connection}"
 
 
 def render_runs(records: Sequence[RunRecord]) -> str:
@@ -396,10 +519,13 @@ def session_notices(
     records: Mapping[str, Sequence[RunRecord]],
     installed: Mapping[str, datetime] | None,
     now: datetime,
+    gateway: GatewayView | None = None,
 ) -> str | None:
-    """Return the SessionStart lines about jobs needing attention, or None (FR-028).
+    """Return the SessionStart lines about jobs needing attention, or None (FR-028), and
+    about the gateway when chat is configured (spec 008, FR-021).
 
-    ``installed`` is None where no scheduler exists; then "not installed" is never said.
+    ``installed`` is None where no scheduler exists; then nothing is said about what is not
+    installed, nor about the gateway, which only a scheduler keeps running.
     """
     lines = []
     for name, settings in sorted(daemon.jobs.items()):
@@ -425,6 +551,28 @@ def session_notices(
                 f"- {name}: the last run {_WORDING[last.outcome]} on "
                 f"{last.started_at:%Y-%m-%d %H:%M} {see}"
             )
+    if gateway is not None and gateway.configured and installed is not None:
+        line = _gateway_notice(gateway, installed.get(GATEWAY), now)
+        if line is not None:
+            lines.append(line)
     if not lines:
         return None
     return "\n".join(["opscout scheduled jobs:", *lines])
+
+
+def _gateway_notice(view: GatewayView, installed_at: datetime | None, now: datetime) -> str | None:
+    if installed_at is None:
+        return f"- {GATEWAY}: not installed (run opscout daemon install)"
+    see = f"(see {view.log})"
+    status = view.status
+    if status is None:
+        return f"- {GATEWAY}: never connected {see}" if now - installed_at > GRACE else None
+    if status.state == "stopped":
+        return (
+            f"- {GATEWAY}: stopped: {status.reason} (run opscout daemon install to start it again)"
+        )
+    if status.state == "connecting" and now - status.since > GRACE:
+        return f"- {GATEWAY}: not connected since {status.since:%Y-%m-%d %H:%M} {see}"
+    if now - status.last_seen > GRACE:
+        return f"- {GATEWAY}: not running since {status.last_seen:%Y-%m-%d %H:%M} {see}"
+    return None

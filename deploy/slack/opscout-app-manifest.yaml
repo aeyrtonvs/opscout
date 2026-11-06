@@ -1,0 +1,28 @@
+# The opscout Slack app (spec 008). Create it in your workspace with
+# "Create New App → From a manifest", then follow docs/reference/daemon.md.
+#
+# Least access: the app writes direct messages to you and opens its reason dialog; it reads
+# no channel and no message, and receives no event but the clicks on its own buttons, over
+# Socket Mode (an outward connection, no public address).
+display_information:
+  name: opscout
+  description: Delivers your opscout jobs by direct message.
+features:
+  bot_user:
+    display_name: opscout
+    always_online: false
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - im:write
+settings:
+  interactivity:
+    is_enabled: true
+  socket_mode_enabled: true
+  org_deploy_enabled: false
+  token_rotation_enabled: false

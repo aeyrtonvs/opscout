@@ -13,6 +13,7 @@ from opscout.core.daemon import (
     DeliveryKind,
     InstalledJob,
     PendingSchedule,
+    Receipt,
     RunProfile,
     RunRecord,
     RunResult,
@@ -88,6 +89,10 @@ class MemoryRunStore:
         chosen = [r for r in self.saved if job is None or r.job == job]
         return sorted(chosen, key=lambda record: record.run_id, reverse=True)[:limit]
 
+    def get(self, job: str, run_id: str) -> RunRecord | None:
+        found = [r for r in self.saved if r.job == job and r.run_id == run_id]
+        return found[-1] if found else None
+
 
 @dataclass
 class MemoryDelivery:
@@ -96,11 +101,17 @@ class MemoryDelivery:
     sent: list[tuple[str, str, DeliveryKind, str]] = field(default_factory=list)
     broken: bool = False
 
-    def deliver(self, job: str, run_id: str, kind: DeliveryKind, text: str) -> str:
+    unready: str | None = None
+
+    def preflight(self) -> None:
+        if self.unready is not None:
+            raise DeliveryError(self.unready)
+
+    def deliver(self, job: str, run_id: str, kind: DeliveryKind, text: str) -> Receipt:
         if self.broken:
             raise DeliveryError("the outbox cannot be written (PermissionError)")
         self.sent.append((job, run_id, kind, text))
-        return f"/example/outbox/{job}/{run_id}.md"
+        return Receipt(f"/example/outbox/{job}/{run_id}.md")
 
 
 @dataclass
@@ -138,6 +149,7 @@ class MemoryScheduler:
     loaded: set[str] = field(default_factory=set)
     times: dict[str, datetime] = field(default_factory=dict)
     applied: list[PendingSchedule] = field(default_factory=list)
+    restarted: list[str] = field(default_factory=list)
 
     def installed(self) -> list[InstalledJob]:
         return [
@@ -175,6 +187,9 @@ class MemoryScheduler:
     def apply(self, pending: PendingSchedule) -> None:
         self.applied.append(pending)
         for change in pending.changes:
+            if change.action == "restart":
+                self.restarted.append(change.label)
+                continue
             if change.action == "remove":
                 self.jobs.pop(change.label, None)
                 self.loaded.discard(change.label)

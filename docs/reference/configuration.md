@@ -200,7 +200,13 @@ daemon:
 | `jobs.<name>.budget_usd` | the job's own (0.05 for `check`) | the most one run may cost, above 0 and at most 5 |
 | `jobs.<name>.max_turns` | the job's own (3 for `check`) | the most turns one run may take, 1–50 |
 | `claude_path` | `claude` on `PATH` | the Claude Code executable, as an absolute path |
-| `secrets` | none | keychain references by name; the engine knows `claude_token`, a token from `claude setup-token` for jobs that cannot use your login |
+| `secrets` | none | keychain references by name: `claude_token`, a token from `claude setup-token` for jobs that cannot use your login; `slack_bot_token` and `slack_app_token`, the chat app's tokens (spec 008) |
+| `chat.service` | none | `slack`, the only chat service (spec 008) |
+| `chat.user` | none | your Slack member id, `U` or `W` then 2–20 capital letters or digits; deliveries go to it by direct message, and only its clicks count |
+
+`chat` needs both Slack tokens in `secrets`. With it, every delivery also goes to you as a
+direct message, each result asks whether you agree, and `opscout daemon install` installs
+the gateway that receives your answers.
 
 `opscout daemon install` schedules the enabled jobs, and `opscout secret set claude_token`
 stores the token; [daemon.md](daemon.md) covers the commands, the files and the outcomes.

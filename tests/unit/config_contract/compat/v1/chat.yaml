@@ -1,0 +1,13 @@
+# Every field of the daemon section's chat setting (spec 008), added to schema version 1
+# (spec 002, FR-030).
+schema_version: 1
+daemon:
+  chat:
+    service: slack
+    user: UEXAMPLE01
+  secrets:
+    slack_bot_token:
+      service: opscout-slack-bot
+      account: opscout
+    slack_app_token:
+      service: opscout-slack-app

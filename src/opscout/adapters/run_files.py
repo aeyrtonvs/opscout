@@ -18,7 +18,8 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from opscout.core.daemon import DeliveryError, DeliveryKind, RunRecord, StoreError
+from opscout.core.chat import GatewayStatus
+from opscout.core.daemon import DeliveryError, DeliveryKind, Receipt, RunRecord, StoreError
 
 
 def _write_atomically(directory: Path, name: str, data: bytes) -> Path:
@@ -95,6 +96,15 @@ class FileRunStore:
         every = [record for name in jobs for record in self._read(name)]
         return sorted(every, key=lambda record: record.run_id, reverse=True)[:limit]
 
+    def get(self, job: str, run_id: str) -> RunRecord | None:
+        """Return one record, or None when it is missing or unreadable."""
+        if "/" in job or "/" in run_id or job.startswith(".") or run_id.startswith("."):
+            return None
+        try:
+            return RunRecord.model_validate_json((self._runs / job / f"{run_id}.json").read_bytes())
+        except (OSError, ValidationError):
+            return None
+
     def _read(self, job: str) -> list[RunRecord]:
         """Return a job's readable records, newest first; others are skipped."""
         try:
@@ -110,13 +120,60 @@ class FileRunStore:
         return sorted(found, key=lambda record: record.run_id, reverse=True)
 
 
+class GatewayFiles:
+    """The gateway's lock and state file under the data directory (spec 008, R6, R7)."""
+
+    def __init__(self, data: Path) -> None:
+        self._data = data
+
+    @contextlib.contextmanager
+    def hold(self) -> Iterator[bool]:
+        """Hold the one-gateway lock; the value is False when another gateway has it."""
+        self._data.mkdir(parents=True, exist_ok=True)
+        with (self._data / "gateway.lock").open("a", encoding="utf-8") as lock:
+            try:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                yield False
+                return
+            try:
+                yield True
+            finally:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+
+    def write(self, status: GatewayStatus) -> None:
+        """Write the state in one step; a failure is not the gateway's to stop for."""
+        with contextlib.suppress(OSError):
+            data = status.model_dump_json(indent=2).encode("utf-8") + b"\n"
+            _write_atomically(self._data, "gateway.json", data)
+
+    def read(self) -> GatewayStatus | None:
+        """Return the last state, or None when there is none or it cannot be read."""
+        try:
+            return GatewayStatus.model_validate_json((self._data / "gateway.json").read_bytes())
+        except (OSError, ValidationError):
+            return None
+
+
 class LocalOutbox:
     """The ``Delivery`` port on Markdown files: chat-output adds the direct message."""
 
     def __init__(self, data: Path) -> None:
         self._outbox = data / "outbox"
 
-    def deliver(self, job: str, run_id: str, kind: DeliveryKind, text: str) -> str:
+    def preflight(self) -> None:
+        """Nothing to check: the outbox directory is created when it is written."""
+
+    def text(self, job: str, run_id: str) -> str | None:
+        """Return a delivered text, or None when it is missing or unreadable (spec 008)."""
+        if "/" in job or "/" in run_id or job.startswith(".") or run_id.startswith("."):
+            return None
+        try:
+            return (self._outbox / job / f"{run_id}.md").read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    def deliver(self, job: str, run_id: str, kind: DeliveryKind, text: str) -> Receipt:
         """Write the text to the job's outbox and return the file. Raises ``DeliveryError``."""
         try:
             path = _write_atomically(self._outbox / job, f"{run_id}.md", text.encode("utf-8"))
@@ -124,4 +181,4 @@ class LocalOutbox:
             raise DeliveryError(
                 f"{self._outbox / job}: cannot be written ({type(error).__name__})"
             ) from None
-        return str(path)
+        return Receipt(str(path))

@@ -88,3 +88,14 @@ daemon:
       at: "09:30"
       # The days it runs; without it, every day.
       weekdays: [mon, tue, wed, thu, fri]
+  # Delivery by direct message (spec 008). Uncomment both parts, with your own member id
+  # (Slack: your profile, then Copy member ID), after storing the two tokens with
+  # opscout secret set slack_bot_token and opscout secret set slack_app_token.
+  # chat:
+  #   service: slack
+  #   user: UEXAMPLE01
+  # secrets:
+  #   slack_bot_token:
+  #     service: opscout-slack-bot
+  #   slack_app_token:
+  #     service: opscout-slack-app

@@ -1,0 +1,48 @@
+{
+  "type": "interactive",
+  "envelope_id": "00000000-0000-4000-8000-eeeeeeeee201",
+  "accepts_response_payload": false,
+  "payload": {
+    "type": "block_actions",
+    "user": {
+      "id": "UEXAMPLE01",
+      "username": "example",
+      "team_id": "TEXAMPLE01"
+    },
+    "api_app_id": "AEXAMPLE01",
+    "container": {
+      "type": "message",
+      "message_ts": "1762336800.000100",
+      "channel_id": "DEXAMPLE01",
+      "is_ephemeral": false
+    },
+    "trigger_id": "1111.2222.example",
+    "team": {
+      "id": "TEXAMPLE01",
+      "domain": "example"
+    },
+    "channel": {
+      "id": "DEXAMPLE01",
+      "name": "directmessage"
+    },
+    "message": {
+      "type": "message",
+      "ts": "1762336800.000100",
+      "text": "opscout check, 2026-11-05",
+      "blocks": []
+    },
+    "actions": [
+      {
+        "action_id": "opscout_agree",
+        "block_id": "opscout_actions",
+        "text": {
+          "type": "plain_text",
+          "text": "Agree"
+        },
+        "value": "check/20261105T094500Z-a1b2c3",
+        "type": "button",
+        "action_ts": "1762336900.000200"
+      }
+    ]
+  }
+}

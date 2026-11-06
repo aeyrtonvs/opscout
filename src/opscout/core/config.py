@@ -333,8 +333,9 @@ class PersonalContext(BaseModel):
 JOB_NAMES: Final = ("check",)
 """The jobs the engine defines (spec 007); the configuration schedules them."""
 
-KEYCHAIN_ITEMS: Final = ("claude_token",)
-"""The names of the harness's own keychain items (spec 007): the fallback Claude Code token.
+KEYCHAIN_ITEMS: Final = ("claude_token", "slack_bot_token", "slack_app_token")
+"""The names of the harness's own keychain items: the fallback Claude Code token (spec 007)
+and the chat app's bot and app-level tokens (spec 008).
 
 Names only; a value never passes through the engine's output (FR-024)."""
 
@@ -389,10 +390,36 @@ class JobSettings(BaseModel):
     )
 
 
-class Daemon(BaseModel):
-    """Scheduled jobs and what their runs need (spec 007)."""
+CHAT_TOKENS: Final = ("slack_bot_token", "slack_app_token")
+
+
+class ChatSetting(BaseModel):
+    """Where deliveries go by direct message (spec 008)."""
 
     model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    service: Literal["slack"] = Field(description="The chat service; only slack.")
+    user: Annotated[str, StringConstraints(pattern=r"^[UW][A-Z0-9]{2,20}$")] = Field(
+        description="Your Slack member id (in Slack: your profile, then Copy member ID).",
+    )
+
+
+def _daemon_schema(schema: dict[str, Any]) -> None:
+    """Make the generated schema refuse chat without both tokens, as the model does."""
+    schema["dependentSchemas"] = {
+        "chat": {
+            "required": ["secrets"],
+            "properties": {"secrets": {"required": list(CHAT_TOKENS)}},
+        }
+    }
+
+
+class Daemon(BaseModel):
+    """Scheduled jobs and what their runs need (specs 007 and 008)."""
+
+    model_config = ConfigDict(
+        strict=True, extra="forbid", frozen=True, json_schema_extra=_daemon_schema
+    )
 
     jobs: Annotated[dict[Literal["check"], JobSettings], Field(max_length=20)] = Field(
         default_factory=dict,
@@ -405,13 +432,32 @@ class Daemon(BaseModel):
         default=None,
         description="The Claude Code executable, as an absolute path; without it, PATH.",
     )
-    secrets: dict[Literal["claude_token"], KeychainRef] = Field(
-        default_factory=dict,
-        description=(
-            "The harness's own secrets, by name, each a keychain reference; claude_token is "
-            "a token from claude setup-token, for jobs that cannot use your login."
-        ),
+    secrets: dict[Literal["claude_token", "slack_bot_token", "slack_app_token"], KeychainRef] = (
+        Field(
+            default_factory=dict,
+            description=(
+                "The harness's own secrets, by name, each a keychain reference: claude_token, "
+                "a token from claude setup-token for jobs that cannot use your login; "
+                "slack_bot_token and slack_app_token, the chat app's tokens."
+            ),
+        )
     )
+    chat: ChatSetting | None = Field(
+        default=None,
+        description="Deliver by direct message, and record agreement (spec 008).",
+    )
+
+    @model_validator(mode="after")
+    def _chat_tokens(self) -> "Daemon":
+        if self.chat is not None:
+            missing = [name for name in CHAT_TOKENS if name not in self.secrets]
+            if missing:
+                raise PydanticCustomError(
+                    "opscout_chat_tokens",
+                    "chat needs {missing} in daemon.secrets",
+                    {"missing": " and ".join(missing)},
+                )
+        return self
 
 
 class Configuration(BaseModel):
