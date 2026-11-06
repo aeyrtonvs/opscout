@@ -456,3 +456,7 @@ The live run (SC-006) is a manual step after merge, like spec 010's live check.
 - [X] T048 List every ECS service with the given name across clusters, up to the resources cap, when `describe_resource` gets no cluster, in `src/opscout/services/tools/resources.py`, per spec edge case "several matches" and FR-023 (partial)
 - [X] T049 Align `contracts/tools.md` with the code: `read_metric` returns no `unit`; `recent_changes` takes `resource_type` and `resource`; per contracts/tools.md (contradicts)
 - [X] T050 Align research R10 (the launcher exits 127 without `uv`) and data-model.md (`ToolSpec.needs_aws`) with the code, per plan (contradicts)
+
+## Phase 10: Pull request
+
+- [X] T051 Load the tool server only for `opscout mcp`, in `src/opscout/entrypoints/cli.py`. CI on pull request #17 failed the two launcher timing tests on macOS (`test_the_guard_decides_in_under_a_second`, 1.36 s; `test_the_hook_through_the_launcher_takes_under_a_second`, 1.04–1.16 s): the CLI imported the MCP SDK for every command, 270 ms of its 514 ms import. Now 210 ms; `tests/unit/mcp/test_plugin.py::test_other_commands_do_not_load_the_tool_server` keeps it so

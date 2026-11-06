@@ -20,7 +20,7 @@ from opscout.core.config import (
 )
 from opscout.core.context import PendingChange
 from opscout.core.sso import AwsConfigError
-from opscout.entrypoints import daemon, identity, mcp
+from opscout.entrypoints import daemon, identity
 from opscout.entrypoints.config import config_file, load_config
 from opscout.entrypoints.context import TargetError, default_target, pending, write
 from opscout.entrypoints.hook import (
@@ -323,6 +323,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "identity":
         return identity.export_command(Path(args.directory))
     if args.command == "mcp":
+        # Imported here: the MCP SDK takes a quarter of a second, and hooks must not wait.
+        from opscout.entrypoints import mcp
+
         return mcp.serve(_given_directory(args.config), Path(args.mock) if args.mock else None)
     if args.command == "gateway":
         return daemon.gateway_command(_given_directory(args.config))
