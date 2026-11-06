@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from opscout.core.chat import MAX_REASON, AgreementChoice, MessageRef
 from opscout.core.config import KeychainRef
+from opscout.core.standup import StandupOutput
 
 Outcome = Literal["delivered", "skipped", "refused", "inconclusive", "failed"]
 Trigger = Literal["scheduler", "user"]
@@ -49,6 +50,8 @@ class RunProfile:
     output: type[BaseModel]
     secrets: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
     """Environment variable → secret name."""
+    validation_context: Mapping[str, Any] | None = None
+    """What the output's validators may check against, such as the run's facts (spec 009)."""
 
     @property
     def schema(self) -> dict[str, Any]:
@@ -160,6 +163,28 @@ class Job:
     """The delivered text, from the validated output, the facts and the period."""
 
 
+@dataclass(frozen=True)
+class Run:
+    """A prepared model run: its prompt, what its output is checked against, its render."""
+
+    prompt: str
+    validation_context: Mapping[str, Any] | None
+    render: Callable[[Any, RunnerFacts, str], str]
+    inputs: tuple[str, ...] = ()
+    """The record's references to what was gathered; never their text (spec 009, FR-013)."""
+
+
+@dataclass(frozen=True)
+class Ready:
+    """A text to deliver without a model run, such as a quiet day (spec 009, FR-016)."""
+
+    text: str
+    inputs: tuple[str, ...] = ()
+
+
+Preparation = Run | Ready
+
+
 def _render_check(output: CheckOutput, facts: RunnerFacts, period: str) -> str:
     return "\n".join(
         [
@@ -197,7 +222,27 @@ CHECK: Final = Job(
     render=_render_check,
 )
 
-JOBS: Final[Mapping[str, Job]] = MappingProxyType({CHECK.name: CHECK})
+
+def _prepared_only(output: Any, facts: RunnerFacts, period: str) -> str:
+    raise RuntimeError("the standup job renders through its preparation")
+
+
+STANDUP: Final = Job(
+    name="standup",
+    description="The daily standup summary, from the user's sessions, commits and pull requests.",
+    profile=RunProfile(
+        tools=(),
+        mcp_servers=MappingProxyType({}),
+        model="haiku",  # the smallest that passes the evaluations (spec 009, research R7)
+        budget_usd=0.10,
+        max_turns=3,
+        output=StandupOutput,
+    ),
+    prompt="",  # built from the gathered facts at each run (spec 009)
+    render=_prepared_only,
+)
+
+JOBS: Final[Mapping[str, Job]] = MappingProxyType({CHECK.name: CHECK, STANDUP.name: STANDUP})
 
 
 @dataclass(frozen=True)

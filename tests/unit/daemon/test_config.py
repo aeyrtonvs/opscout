@@ -121,7 +121,7 @@ def test_the_schema_refuses_what_the_loader_refuses(tmp_path: Path) -> None:
     good = yaml.safe_load(f"schema_version: 1\n{SECTION}")
     assert list(validator.iter_errors(good)) == []
     for bad in (
-        {"jobs": {"standup": {"at": "09:30"}}},
+        {"jobs": {"daily": {"at": "09:30"}}},
         {"jobs": {"check": {"at": "24:00"}}},
         {"jobs": {"check": {"at": "09:30", "weekdays": ["mon", "mon"]}}},
         {"jobs": {"check": {"at": "09:30", "model": "gpt-4"}}},

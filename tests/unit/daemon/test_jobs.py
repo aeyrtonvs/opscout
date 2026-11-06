@@ -40,8 +40,8 @@ def test_the_period_is_the_local_date_at_start() -> None:
 
 
 @spec("FR-007")
-def test_the_check_job_is_the_only_job() -> None:
-    assert set(JOBS) == {"check"}
+def test_the_check_job_is_one_of_the_engine_s_jobs() -> None:
+    assert set(JOBS) == {"check", "standup"}  # standup: spec 009
     assert JOBS["check"] is CHECK
 
 

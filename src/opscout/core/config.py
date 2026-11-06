@@ -330,12 +330,12 @@ class PersonalContext(BaseModel):
         return self
 
 
-JOB_NAMES: Final = ("check",)
+JOB_NAMES: Final = ("check", "standup")
 """The jobs the engine defines (spec 007); the configuration schedules them."""
 
-KEYCHAIN_ITEMS: Final = ("claude_token", "slack_bot_token", "slack_app_token")
+KEYCHAIN_ITEMS: Final = ("claude_token", "slack_bot_token", "slack_app_token", "bitbucket_token")
 """The names of the harness's own keychain items: the fallback Claude Code token (spec 007)
-and the chat app's bot and app-level tokens (spec 008).
+the chat app's bot and app-level tokens (spec 008), and the code host's token (spec 009).
 
 Names only; a value never passes through the engine's output (FR-024)."""
 
@@ -421,7 +421,7 @@ class Daemon(BaseModel):
         strict=True, extra="forbid", frozen=True, json_schema_extra=_daemon_schema
     )
 
-    jobs: Annotated[dict[Literal["check"], JobSettings], Field(max_length=20)] = Field(
+    jobs: Annotated[dict[Literal["check", "standup"], JobSettings], Field(max_length=20)] = Field(
         default_factory=dict,
         description="The jobs to schedule, by name; the engine defines them (now only check).",
     )
@@ -432,15 +432,17 @@ class Daemon(BaseModel):
         default=None,
         description="The Claude Code executable, as an absolute path; without it, PATH.",
     )
-    secrets: dict[Literal["claude_token", "slack_bot_token", "slack_app_token"], KeychainRef] = (
-        Field(
-            default_factory=dict,
-            description=(
-                "The harness's own secrets, by name, each a keychain reference: claude_token, "
-                "a token from claude setup-token for jobs that cannot use your login; "
-                "slack_bot_token and slack_app_token, the chat app's tokens."
-            ),
-        )
+    secrets: dict[
+        Literal["claude_token", "slack_bot_token", "slack_app_token", "bitbucket_token"],
+        KeychainRef,
+    ] = Field(
+        default_factory=dict,
+        description=(
+            "The harness's own secrets, by name, each a keychain reference: claude_token, "
+            "a token from claude setup-token for jobs that cannot use your login; "
+            "slack_bot_token and slack_app_token, the chat app's tokens; "
+            "bitbucket_token, a read-only Bitbucket API token for the standup."
+        ),
     )
     chat: ChatSetting | None = Field(
         default=None,
@@ -457,6 +459,134 @@ class Daemon(BaseModel):
                     "chat needs {missing} in daemon.secrets",
                     {"missing": " and ".join(missing)},
                 )
+        return self
+
+
+_ProjectName = Annotated[
+    str, StringConstraints(max_length=40, pattern=r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
+]
+_AbsolutePath = Annotated[
+    str, StringConstraints(min_length=2, max_length=1024, pattern=r"^/[^\n]*$")
+]
+_Repository = Annotated[
+    str, StringConstraints(max_length=200, pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+]
+
+
+def _project_schema(schema: dict[str, Any]) -> None:
+    """Make the generated schema refuse a project with neither paths nor repositories."""
+    schema["anyOf"] = [
+        {"required": ["paths"], "properties": {"paths": {"minItems": 1}}},
+        {"required": ["repositories"], "properties": {"repositories": {"minItems": 1}}},
+    ]
+
+
+class StandupProject(BaseModel):
+    """A project the standup groups by: its local clones and code-host repositories."""
+
+    model_config = ConfigDict(
+        strict=True, extra="forbid", frozen=True, json_schema_extra=_project_schema
+    )
+
+    paths: Annotated[list[_AbsolutePath], Field(max_length=10)] = Field(
+        default_factory=list,
+        description="Absolute paths of the local clones; sessions in them belong here.",
+    )
+    repositories: Annotated[list[_Repository], Field(max_length=10)] = Field(
+        default_factory=list, description="Code-host repositories, as workspace/slug."
+    )
+
+    @model_validator(mode="after")
+    def _something(self) -> "StandupProject":
+        if not self.paths and not self.repositories:
+            raise PydanticCustomError("opscout_project", "give paths, repositories or both")
+        return self
+
+
+class CodeHost(BaseModel):
+    """Where the user's pull requests are (spec 009)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    service: Literal["bitbucket"] = Field(description="The code host; only bitbucket.")
+    login: Annotated[str, StringConstraints(min_length=1, max_length=200, pattern=r"^\S+$")] = (
+        Field(description="The account the token belongs to: its e-mail or username.")
+    )
+
+
+class StandupLimits(BaseModel):
+    """How much of each source the standup keeps (research R5)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    prompt_length: Annotated[int, Field(ge=80, le=1000)] = Field(
+        default=300, description="The longest a prompt is kept, in characters."
+    )
+    prompts_per_session: Annotated[int, Field(ge=2, le=100)] = Field(
+        default=20, description="The most prompts kept per session (first and last halves)."
+    )
+    prompts: Annotated[int, Field(ge=10, le=300)] = Field(
+        default=60, description="The most prompts kept in all."
+    )
+    commits: Annotated[int, Field(ge=10, le=200)] = Field(
+        default=40, description="The most commits kept."
+    )
+    pull_requests: Annotated[int, Field(ge=5, le=100)] = Field(
+        default=30, description="The most pull request facts kept."
+    )
+
+
+_Term = Annotated[str, StringConstraints(min_length=2, max_length=100, pattern=_OneLine)]
+
+
+def _standup_schema(schema: dict[str, Any]) -> None:
+    """Make the generated schema refuse a section with neither folders nor projects."""
+    schema["anyOf"] = [
+        {"required": ["folders"], "properties": {"folders": {"minItems": 1}}},
+        {"required": ["projects"], "properties": {"projects": {"minProperties": 1}}},
+    ]
+
+
+class Standup(BaseModel):
+    """The daily standup's sources and projects (spec 009)."""
+
+    model_config = ConfigDict(
+        strict=True, extra="forbid", frozen=True, json_schema_extra=_standup_schema
+    )
+
+    identities: Annotated[
+        list[Annotated[str, StringConstraints(min_length=1, max_length=200, pattern=_OneLine)]],
+        Field(min_length=1, max_length=10),
+    ] = Field(description="Your commit identities: author e-mails or names.")
+    code_host: CodeHost | None = Field(
+        default=None, description="Where your pull requests are; without it, none are read."
+    )
+    folders: Annotated[list[_AbsolutePath], Field(max_length=10)] = Field(
+        default_factory=list,
+        description=(
+            "Folders whose git repositories are your projects, each named after its "
+            "directory, with its Bitbucket repository from its origin remote."
+        ),
+    )
+    projects: Annotated[dict[_ProjectName, StandupProject], Field(max_length=30)] = Field(
+        default_factory=dict,
+        description=(
+            "Projects listed by hand, to group repositories or adjust one found in a folder."
+        ),
+        json_schema_extra={"additionalProperties": False},
+    )
+    redact: Annotated[list[_Term], Field(max_length=100)] = Field(
+        default_factory=list,
+        description="Terms never sent to the model, whatever their case: names, codes.",
+    )
+    limits: StandupLimits = Field(
+        default_factory=StandupLimits, description="How much of each source is kept."
+    )
+
+    @model_validator(mode="after")
+    def _somewhere(self) -> "Standup":
+        if not self.folders and not self.projects:
+            raise PydanticCustomError("opscout_standup", "give folders, projects or both")
         return self
 
 
@@ -499,6 +629,21 @@ class Configuration(BaseModel):
         description="Scheduled jobs, the Claude Code executable and the harness's secrets "
         "(spec 007).",
     )
+    standup: Standup | None = Field(
+        default=None, description="The daily standup's sources and projects (spec 009)."
+    )
+
+    @model_validator(mode="after")
+    def _standup_needs(self) -> "Configuration":
+        if "standup" in self.daemon.jobs and self.standup is None:
+            raise PydanticCustomError(
+                "opscout_standup", "the standup job needs the standup section"
+            )
+        if self.standup and self.standup.code_host and "bitbucket_token" not in self.daemon.secrets:
+            raise PydanticCustomError(
+                "opscout_standup", "a code host needs bitbucket_token in daemon.secrets"
+            )
+        return self
 
 
 @dataclass(frozen=True, order=True)

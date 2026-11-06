@@ -1,0 +1,26 @@
+# Every field of the standup section (spec 009), added to schema version 1 (spec 002, FR-030).
+schema_version: 1
+standup:
+  identities: [dev@example.com, Example Developer]
+  code_host:
+    service: bitbucket
+    login: dev@example.com
+  projects:
+    example-api:
+      paths: [/opt/example/src/example-api]
+      repositories: [example-workspace/example-api]
+  redact: [Example Corp]
+  limits:
+    prompt_length: 300
+    prompts_per_session: 20
+    prompts: 60
+    commits: 40
+    pull_requests: 30
+daemon:
+  jobs:
+    standup:
+      at: "09:45"
+      weekdays: [mon, tue, wed, thu, fri]
+  secrets:
+    bitbucket_token:
+      service: opscout-bitbucket

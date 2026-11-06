@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: Apache-2.0
+# A synthetic history for the standup's evaluations (spec 009, research R9). Fake values only.
+weekdays:
+- mon
+- tue
+- wed
+- thu
+- fri
+projects:
+  example-api:
+    paths:
+    - /opt/example/src/example-api
+    repositories:
+    - example-workspace/example-api
+  example-web:
+    paths:
+    - /opt/example/src/example-web
+redact:
+- Example Corp
+description: A pull request without approval for over a working day is a blocker; a younger one is open
+  work.
+now: '2026-11-10T09:45:00-06:00'
+sessions:
+- cwd: /opt/example/src/example-api
+  prompts:
+  - - '2026-11-09T09:00:00-06:00'
+    - Clean up the old export settings
+commits:
+  /opt/example/src/example-api:
+  - at: '2026-11-09T10:00:00-06:00'
+    ref: refs/heads/main
+    subject: Clean up old export settings
+pull_requests:
+  closed:
+    example-workspace/example-api: []
+  open:
+    example-workspace/example-api:
+    - number: 37
+      title: Old cleanup
+      state: OPEN
+      created: '2026-11-05T10:00:00-06:00'
+      updated: '2026-11-05T10:00:00-06:00'
+      branch: feature/37
+      participants:
+      - approved: false
+    - number: 45
+      title: Settings cleanup
+      state: OPEN
+      created: '2026-11-09T10:10:00-06:00'
+      updated: '2026-11-09T10:10:00-06:00'
+      branch: feature/45
+      participants:
+      - approved: false
+  reviews:
+    example-workspace/example-api: []
+expect:
+  quiet: false
+  blockers:
+  - p2
+good:
+  yesterday:
+  - project: example-api
+    text: Cleaned up the old export settings
+    facts:
+    - s1
+    - c1
+  today:
+  - text: Get the settings cleanup reviewed
+    facts:
+    - p1
+  blockers:
+  - text: Old cleanup still waits for review
+    facts:
+    - p2

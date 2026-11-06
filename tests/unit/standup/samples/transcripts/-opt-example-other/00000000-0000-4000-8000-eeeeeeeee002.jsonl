@@ -1,0 +1,1 @@
+{"type": "user", "cwd": "/opt/example/other", "sessionId": "00000000-0000-4000-8000-eeeeeeeee002", "timestamp": "2026-11-04T16:00:00.000Z", "gitBranch": "main", "userType": "external", "uuid": "00000000-0000-4000-8000-eeeeeeeee664", "message": {"role": "user", "content": "Something private in another directory"}, "promptSource": "typed"}

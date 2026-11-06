@@ -80,7 +80,7 @@ def test_chat_needs_both_tokens_by_reference(missing: str) -> None:
 
 @spec("FR-002")
 def test_the_tokens_are_known_keychain_items() -> None:
-    assert set(KEYCHAIN_ITEMS) == {"claude_token", "slack_bot_token", "slack_app_token"}
+    assert {"claude_token", "slack_bot_token", "slack_app_token"} <= set(KEYCHAIN_ITEMS)
     with pytest.raises(InvalidConfigError):
         configuration("daemon:\n  secrets:\n    slack_bot_token: xoxb-the-value\n")
 

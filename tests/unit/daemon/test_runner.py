@@ -14,6 +14,7 @@ from types import MappingProxyType
 from typing import Any
 
 import pytest
+from pydantic import ValidationInfo, model_validator
 
 from opscout.adapters.claude_cli import (
     ClaudeCliRunner,
@@ -394,3 +395,31 @@ def test_the_executable_comes_from_the_configuration_then_the_path(
     assert result.reason == (
         "Claude Code not found: daemon.claude_path is not set and claude is not on PATH (/missing)"
     )
+
+
+class _ContextChecked(CheckOutput):
+    """An output whose validator reads the run's validation context (spec 009)."""
+
+    @model_validator(mode="after")
+    def _context(self, info: ValidationInfo) -> "_ContextChecked":
+        if info.context and info.context.get("refuse"):
+            raise ValueError("the note cites a fact this run did not gather")
+        return self
+
+
+def spec_009(requirement: str) -> pytest.MarkDecorator:
+    """Mark a test as proving one requirement of spec 009."""
+    return pytest.mark.spec("009", requirement)
+
+
+@spec_009("FR-011")
+def test_the_validation_context_reaches_the_output_s_validators(fake: Fake, tmp_path: Path) -> None:
+    fake.script("success")
+    accepting = replace(PROFILE, output=_ContextChecked, validation_context={"refuse": False})
+    assert runner(fake, tmp_path).run(accepting, CHECK.prompt, {}).status == "ok"
+    refusing = replace(PROFILE, output=_ContextChecked, validation_context={"refuse": True})
+    result = runner(fake, tmp_path).run(refusing, CHECK.prompt, {})
+    assert result.status == "invalid_output"
+    assert result.reason is not None
+    assert "the note cites a fact this run did not gather" in result.reason
+    assert "the note cites a fact" in fake.starts()[-1]["stdin"]

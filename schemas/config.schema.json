@@ -26,6 +26,32 @@
       "title": "ChatSetting",
       "type": "object"
     },
+    "CodeHost": {
+      "additionalProperties": false,
+      "description": "Where the user's pull requests are (spec 009).",
+      "properties": {
+        "service": {
+          "const": "bitbucket",
+          "description": "The code host; only bitbucket.",
+          "title": "Service",
+          "type": "string"
+        },
+        "login": {
+          "description": "The account the token belongs to: its e-mail or username.",
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "^\\S+$",
+          "title": "Login",
+          "type": "string"
+        }
+      },
+      "required": [
+        "service",
+        "login"
+      ],
+      "title": "CodeHost",
+      "type": "object"
+    },
     "Daemon": {
       "additionalProperties": false,
       "dependentSchemas": {
@@ -52,7 +78,10 @@
           "description": "The jobs to schedule, by name; the engine defines them (now only check).",
           "maxProperties": 20,
           "propertyNames": {
-            "const": "check"
+            "enum": [
+              "check",
+              "standup"
+            ]
           },
           "title": "Jobs",
           "type": "object"
@@ -77,12 +106,13 @@
           "additionalProperties": {
             "$ref": "#/$defs/KeychainRef"
           },
-          "description": "The harness's own secrets, by name, each a keychain reference: claude_token, a token from claude setup-token for jobs that cannot use your login; slack_bot_token and slack_app_token, the chat app's tokens.",
+          "description": "The harness's own secrets, by name, each a keychain reference: claude_token, a token from claude setup-token for jobs that cannot use your login; slack_bot_token and slack_app_token, the chat app's tokens; bitbucket_token, a read-only Bitbucket API token for the standup.",
           "propertyNames": {
             "enum": [
               "claude_token",
               "slack_bot_token",
-              "slack_app_token"
+              "slack_app_token",
+              "bitbucket_token"
             ]
           },
           "title": "Secrets",
@@ -433,6 +463,208 @@
       "title": "Sso",
       "type": "object"
     },
+    "Standup": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "folders": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "folders"
+          ]
+        },
+        {
+          "properties": {
+            "projects": {
+              "minProperties": 1
+            }
+          },
+          "required": [
+            "projects"
+          ]
+        }
+      ],
+      "description": "The daily standup's sources and projects (spec 009).",
+      "properties": {
+        "identities": {
+          "description": "Your commit identities: author e-mails or names.",
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*\\S[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*$",
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "title": "Identities",
+          "type": "array"
+        },
+        "code_host": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CodeHost"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where your pull requests are; without it, none are read."
+        },
+        "folders": {
+          "description": "Folders whose git repositories are your projects, each named after its directory, with its Bitbucket repository from its origin remote.",
+          "items": {
+            "maxLength": 1024,
+            "minLength": 2,
+            "pattern": "^/[^\\n]*$",
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Folders",
+          "type": "array"
+        },
+        "projects": {
+          "additionalProperties": false,
+          "description": "Projects listed by hand, to group repositories or adjust one found in a folder.",
+          "maxProperties": 30,
+          "patternProperties": {
+            "^[a-z][a-z0-9]*(-[a-z0-9]+)*$": {
+              "$ref": "#/$defs/StandupProject"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 40
+          },
+          "title": "Projects",
+          "type": "object"
+        },
+        "redact": {
+          "description": "Terms never sent to the model, whatever their case: names, codes.",
+          "items": {
+            "maxLength": 100,
+            "minLength": 2,
+            "pattern": "^[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*\\S[^\\n\\r\\x0b\\x0c\\x1c-\\x1e\\x85\\u2028\\u2029]*$",
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Redact",
+          "type": "array"
+        },
+        "limits": {
+          "$ref": "#/$defs/StandupLimits",
+          "description": "How much of each source is kept."
+        }
+      },
+      "required": [
+        "identities"
+      ],
+      "title": "Standup",
+      "type": "object"
+    },
+    "StandupLimits": {
+      "additionalProperties": false,
+      "description": "How much of each source the standup keeps (research R5).",
+      "properties": {
+        "prompt_length": {
+          "default": 300,
+          "description": "The longest a prompt is kept, in characters.",
+          "maximum": 1000,
+          "minimum": 80,
+          "title": "Prompt Length",
+          "type": "integer"
+        },
+        "prompts_per_session": {
+          "default": 20,
+          "description": "The most prompts kept per session (first and last halves).",
+          "maximum": 100,
+          "minimum": 2,
+          "title": "Prompts Per Session",
+          "type": "integer"
+        },
+        "prompts": {
+          "default": 60,
+          "description": "The most prompts kept in all.",
+          "maximum": 300,
+          "minimum": 10,
+          "title": "Prompts",
+          "type": "integer"
+        },
+        "commits": {
+          "default": 40,
+          "description": "The most commits kept.",
+          "maximum": 200,
+          "minimum": 10,
+          "title": "Commits",
+          "type": "integer"
+        },
+        "pull_requests": {
+          "default": 30,
+          "description": "The most pull request facts kept.",
+          "maximum": 100,
+          "minimum": 5,
+          "title": "Pull Requests",
+          "type": "integer"
+        }
+      },
+      "title": "StandupLimits",
+      "type": "object"
+    },
+    "StandupProject": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "paths": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "paths"
+          ]
+        },
+        {
+          "properties": {
+            "repositories": {
+              "minItems": 1
+            }
+          },
+          "required": [
+            "repositories"
+          ]
+        }
+      ],
+      "description": "A project the standup groups by: its local clones and code-host repositories.",
+      "properties": {
+        "paths": {
+          "description": "Absolute paths of the local clones; sessions in them belong here.",
+          "items": {
+            "maxLength": 1024,
+            "minLength": 2,
+            "pattern": "^/[^\\n]*$",
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Paths",
+          "type": "array"
+        },
+        "repositories": {
+          "description": "Code-host repositories, as workspace/slug.",
+          "items": {
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+            "type": "string"
+          },
+          "maxItems": 10,
+          "title": "Repositories",
+          "type": "array"
+        }
+      },
+      "title": "StandupProject",
+      "type": "object"
+    },
     "WriteupFormat": {
       "additionalProperties": false,
       "description": "A shape for a write-up: its sections in order, its rules and its length (spec 003).",
@@ -578,6 +810,18 @@
     "daemon": {
       "$ref": "#/$defs/Daemon",
       "description": "Scheduled jobs, the Claude Code executable and the harness's secrets (spec 007)."
+    },
+    "standup": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Standup"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The daily standup's sources and projects (spec 009)."
     }
   },
   "required": [

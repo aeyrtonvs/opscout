@@ -187,6 +187,21 @@ def build_parser() -> argparse.ArgumentParser:
     runs = daemon_commands.add_parser("runs", help="list recent runs, newest first")
     runs.add_argument("job", nargs="?", help="only this job's runs")
     runs.add_argument("--limit", type=int, default=20, metavar="N", help="at most N runs")
+    standup = commands.add_parser(
+        "standup", help="the daily standup", description="The daily standup (spec 009)."
+    )
+    standup_commands = standup.add_subparsers(
+        dest="standup_command", metavar="COMMAND", required=True
+    )
+    preview = standup_commands.add_parser(
+        "preview",
+        help="show what the standup would send to the model; nothing is sent",
+        description=(
+            "Gather the window's facts as the standup would, redacted and shortened, and "
+            "print them with the counts. Nothing is sent anywhere."
+        ),
+    )
+    preview.add_argument("--counts", action="store_true", help="print the counts only")
     gateway = commands.add_parser(
         "gateway",
         help="hold the Slack connection and record agreement clicks (launchd runs it)",
@@ -209,7 +224,9 @@ def build_parser() -> argparse.ArgumentParser:
         "check", help="say whether each configured secret is in the keychain"
     )
     secret_check.add_argument("name", nargs="?", help="only this secret")
-    for command in (run, install, uninstall, status, runs, gateway, secret_set, secret_check):
+    for command in (
+        run, install, uninstall, status, runs, gateway, preview, secret_set, secret_check,
+    ):  # fmt: skip
         command.add_argument(
             "--config", metavar="DIR", help="the configuration directory; empty counts as absent"
         )
@@ -258,6 +275,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "daemon":
         return _daemon(args)
+    if args.command == "standup":
+        return daemon.preview_command(_given_directory(args.config), counts_only=args.counts)
     if args.command == "gateway":
         return daemon.gateway_command(_given_directory(args.config))
     if args.command == "secret" and args.secret_command == "set":  # noqa: S105  (a command name)

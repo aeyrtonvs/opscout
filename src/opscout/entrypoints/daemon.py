@@ -22,7 +22,10 @@ import platformdirs
 
 import opscout
 from opscout import __version__
+from opscout.adapters.bitbucket import BitbucketCloud
 from opscout.adapters.claude_cli import ClaudeCliRunner
+from opscout.adapters.claude_transcripts import TranscriptFiles
+from opscout.adapters.git_log import GitLog
 from opscout.adapters.keychain import KeyringSecretStore
 from opscout.adapters.launchd import Launchctl, LaunchdScheduler
 from opscout.adapters.run_files import FileRunStore, GatewayFiles, LocalOutbox
@@ -39,12 +42,15 @@ from opscout.core.config import (
     InvalidConfigError,
     JobSettings,
     KeychainRef,
+    Standup,
 )
 from opscout.core.daemon import (
     JOBS,
+    STANDUP,
     SUCCESS,
     Delivery,
     PendingSchedule,
+    Preparation,
     RecordError,
     Runner,
     RunStore,
@@ -57,6 +63,7 @@ from opscout.core.daemon import (
     StoreError,
     Trigger,
 )
+from opscout.core.standup import CodeHost, Commits, SourceError, Transcripts
 from opscout.entrypoints.config import load_config
 from opscout.services.chat import ChatDelivery, Clicks, GatewayRecorder, handle_event
 from opscout.services.config import ConfigLocation, resolve_config_dir
@@ -75,6 +82,8 @@ from opscout.services.daemon import (
     session_notices,
     wanted_jobs,
 )
+from opscout.services.standup import Sources, gather, render_preview, window_for
+from opscout.services.standup import prepare as prepare_standup
 
 
 @dataclass(frozen=True)
@@ -111,6 +120,14 @@ class Wiring:
     sleep: Callable[[float], None] = time.sleep
     gateway: Callable[[str, str], Gateway] = SlackGateway
     """Build the gateway from the app-level and bot tokens."""
+    transcripts: Callable[[], Transcripts] = field(
+        default=lambda: TranscriptFiles(_claude_projects(os.environ))
+    )
+    commits: Callable[[], Commits] = GitLog
+    code_host: Callable[[str, Callable[[], str]], CodeHost] = field(
+        default=lambda login, token: BitbucketCloud(login, token)
+    )
+    """The standup's three sources (spec 009); the code host gets its login and token."""
 
 
 def engine_command(package: Path, version: str, which: Callable[[str], str | None]) -> list[str]:
@@ -131,6 +148,13 @@ def engine_command(package: Path, version: str, which: Callable[[str], str | Non
     if program is None:
         raise LookupError("uvx is required to schedule jobs: https://docs.astral.sh/uv/")
     return [program, "--quiet", "--from", f"opscout=={version}", "opscout"]
+
+
+def _claude_projects(environ: Mapping[str, str]) -> Path:
+    """Return Claude Code's session transcripts directory (spec 009, research R1)."""
+    configured = environ.get("CLAUDE_CONFIG_DIR")
+    base = Path(configured).expanduser() if configured else Path.home() / ".claude"
+    return base / "projects"
 
 
 def _ask(prompt: str) -> str:
@@ -212,8 +236,14 @@ def run_command(job_name: str, *, force: bool, trigger: Trigger, flag: Path | No
     if job is None:
         configured = ", ".join(daemon.jobs) or f"none (the engine's jobs: {', '.join(JOB_NAMES)})"
         return _fail("run", f'unknown job "{job_name}"; configured jobs: {configured}')
+    prepare = None
+    if job.name == STANDUP.name:
+        if configuration.standup is None:
+            return _fail("run", "the standup job needs the standup section in the configuration")
+        prepare = _standup_prepare(wired, configuration, configuration.standup)
     start = Start(
         job=job,
+        prepare=prepare,
         profile=resolve_profile(job, _settings(daemon).get(job_name), daemon),
         secrets=dict(daemon.secrets.items()),
         trigger=trigger,
@@ -272,6 +302,58 @@ def _chat_delivery(wired: Wiring, daemon: Daemon, chat: ChatSetting) -> ChatDeli
         clock=wired.clock,
         sleep=wired.sleep,
     )
+
+
+def _standup_sources(wired: Wiring, configuration: Configuration, standup: Standup) -> Sources:
+    """Build the standup's sources; the code host's token is resolved only when used."""
+    code_host = None
+    if standup.code_host is not None:
+        item = _keychain_item(wired, configuration.daemon, "bitbucket_token")
+
+        def token() -> str:
+            try:
+                return item()
+            except SecretError as error:  # a missing source, named, never a crash
+                raise SourceError(str(error)) from None
+
+        code_host = wired.code_host(standup.code_host.login, token)
+    return Sources(transcripts=wired.transcripts(), commits=wired.commits(), code_host=code_host)
+
+
+def _standup_weekdays(configuration: Configuration) -> list[str]:
+    settings = _settings(configuration.daemon).get(STANDUP.name)
+    return list(settings.weekdays) if settings else ["mon", "tue", "wed", "thu", "fri"]
+
+
+def _standup_prepare(
+    wired: Wiring, configuration: Configuration, standup: Standup
+) -> Callable[[datetime], Preparation]:
+    """Return the standup's preparation: gather, minimize, redact, then the run (spec 009)."""
+    sources = _standup_sources(wired, configuration, standup)
+    weekdays = _standup_weekdays(configuration)
+    language = configuration.writeups.language
+
+    def prepared(now: datetime) -> Preparation:
+        return prepare_standup(standup, sources, weekdays, language, now)
+
+    return prepared
+
+
+def preview_command(flag: Path | None, *, counts_only: bool) -> int:
+    """Show what the standup would send to the model; nothing is sent (spec 009, FR-022)."""
+    wired = wiring()
+    try:
+        configuration, _ = _configuration(flag, wired.environ)
+    except CommandError as error:
+        return _fail("standup preview", str(error))
+    if configuration.standup is None:
+        return _fail("standup preview", "the configuration has no standup section")
+    weekdays = _standup_weekdays(configuration)
+    sources = _standup_sources(wired, configuration, configuration.standup)
+    window = window_for(wired.clock(), weekdays)
+    gathered = gather(configuration.standup, window, sources, weekdays)
+    sys.stdout.write(render_preview(gathered, counts_only=counts_only))
+    return 0
 
 
 NO_SCHEDULER = "no scheduler is available for this system (only launchd, on macOS)"

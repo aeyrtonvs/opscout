@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: Apache-2.0
+# A synthetic history for the standup's evaluations (spec 009, research R9). Fake values only.
+weekdays:
+- mon
+- tue
+- wed
+- thu
+- fri
+projects:
+  example-api:
+    paths:
+    - /opt/example/src/example-api
+    repositories:
+    - example-workspace/example-api
+  example-web:
+    paths:
+    - /opt/example/src/example-web
+redact:
+- Example Corp
+description: An ordinary working day in two projects, one review waiting.
+now: '2026-11-10T09:45:00-06:00'
+sessions:
+- cwd: /opt/example/src/example-api
+  prompts:
+  - - '2026-11-09T09:10:00-06:00'
+    - Fix the retry of the export job when the API answers 503
+  - - '2026-11-09T10:30:00-06:00'
+    - Add a test for the retry and run the suite
+- cwd: /opt/example/src/example-web
+  prompts:
+  - - '2026-11-09T15:00:00-06:00'
+    - Make the login form show the error under the field
+commits:
+  /opt/example/src/example-api:
+  - at: '2026-11-09T11:00:00-06:00'
+    ref: refs/heads/feature/retry
+    subject: Retry export job on 503
+  /opt/example/src/example-web:
+  - at: '2026-11-09T16:00:00-06:00'
+    ref: refs/heads/main
+    subject: Show login errors under the field
+pull_requests:
+  closed:
+    example-workspace/example-api: []
+  open:
+    example-workspace/example-api:
+    - number: 42
+      title: Retry export job
+      state: OPEN
+      created: '2026-11-09T11:05:00-06:00'
+      updated: '2026-11-09T11:05:00-06:00'
+      branch: feature/42
+      participants:
+      - approved: false
+  reviews:
+    example-workspace/example-api:
+    - number: 55
+      title: 'Teammate: new billing report'
+      state: OPEN
+      created: '2026-11-09T08:00:00-06:00'
+      updated: '2026-11-09T08:00:00-06:00'
+      branch: feature/55
+expect:
+  quiet: false
+good:
+  yesterday:
+  - project: example-api
+    text: Fixed the export job's retry on 503
+    facts:
+    - s1
+    - c1
+  - project: example-api
+    text: Opened the retry pull request
+    facts:
+    - p1
+  - project: example-web
+    text: Login errors now show under the field
+    facts:
+    - s2
+    - c2
+  today:
+  - text: Get the retry reviewed
+    facts:
+    - p1
+  - text: Review the billing report
+    facts:
+    - r1
+  blockers: []
