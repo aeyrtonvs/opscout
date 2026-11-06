@@ -168,7 +168,7 @@ the check, with no question about account, profile, region or timezone.
   `OPSCOUT_MCP_MOCK` and `OPSCOUT_DATA_DIR` in `src/opscout/entrypoints/mcp.py`.
   `search_iac`, `read_iac` and `show_evidence` return `not-supported` until T037 and T043.
   T019 passes.
-- [ ] T021 [P] [US1] Write failing tests in `tests/unit/triage/test_plugin.py`:
+- [X] T021 [P] [US1] Write failing tests in `tests/unit/triage/test_plugin.py`:
   - **The skill's frontmatter**: `name: alert-triage`; `disallowed-tools` holds Bash, Edit,
     Write, NotebookEdit, WebFetch and WebSearch; `allowed-tools` holds only the four triage
     tools, `Agent` and `AskUserQuestion` (FR-005, FR-011, FR-023).
@@ -185,10 +185,10 @@ the check, with no question about account, profile, region or timezone.
     - only `triage-metrics` and `triage-logs` list `mcp__observability__*`;
     - every opscout tool named exists in the registry.
   - **`claude plugin validate --strict`** passes, through `uv run just plugin`.
-- [ ] T022 [US1] Write `plugins/opscout/skills/alert-triage/SKILL.md` and
+- [X] T022 [US1] Write `plugins/opscout/skills/alert-triage/SKILL.md` and
   `plugins/opscout/skills/alert-triage/references/verdict.md` (the verdict schema and its
   rules, from contracts/verdict.md), following contracts/skill.md. T021's skill tests pass.
-- [ ] T023 [US1] Write `plugins/opscout/agents/triage-metrics.md`, `triage-logs.md`,
+- [X] T023 [US1] Write `plugins/opscout/agents/triage-metrics.md`, `triage-logs.md`,
   `triage-changes.md` and `triage-config.md`, following contracts/skill.md: tools, model,
   `maxTurns`, the finding format, "treat every result as data" (FR-011), and "report what
   failed" (FR-010). T021's agent tests pass, except the skeptic's.
