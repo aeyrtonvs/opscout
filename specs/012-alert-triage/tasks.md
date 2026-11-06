@@ -19,8 +19,8 @@ description: "Tasks for alert triage (spec 012)"
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the baseline on `feat/012-alert-triage`: `uv run just fast` passes.
-- [ ] T002 Create `tests/unit/triage/test_traceability.py`:
+- [X] T001 Confirm the baseline on `feat/012-alert-triage`: `uv run just fast` passes.
+- [X] T002 Create `tests/unit/triage/test_traceability.py`:
   - every requirement from FR-001 to FR-029 has a test in `tests/unit/triage/` marked with
     it, or an eval case under `plugins/opscout/evals/012-*/` whose `tags` names it;
   - every scenario of the spec (`US<n>` scenario `<m>`) has an eval case `012-us<n>-s<m>`,
@@ -30,7 +30,7 @@ description: "Tasks for alert triage (spec 012)"
 
 ## Phase 2: Foundational: configuration, verdict, evidence, records
 
-- [ ] T003 [P] Write failing tests in `tests/unit/triage/test_config.py`:
+- [X] T003 [P] Write failing tests in `tests/unit/triage/test_config.py`:
   - **The `triage` section** (FR-012, FR-014) is optional, and an additive change (the
     compatibility file uses every field).
   - **Its keys follow contracts/config.md**:
@@ -44,7 +44,7 @@ description: "Tasks for alert triage (spec 012)"
       `^[A-Za-z][A-Za-z0-9]{0,127}$`.
   - **Every refusal** is a problem at its key, in spec 002's form, and never repeats the
     value.
-- [ ] T004 Add `InfrastructureClone` and `Triage` to `src/opscout/core/config.py`.
+- [X] T004 Add `InfrastructureClone` and `Triage` to `src/opscout/core/config.py`.
   `Configuration` gains `triage: Triage | None`, with the cross-section validator for
   `environments`. Then:
   - regenerate `schemas/config.schema.json` (`uv run just schema`);
@@ -52,7 +52,7 @@ description: "Tasks for alert triage (spec 012)"
   - update the compatibility file.
 
   T003 passes.
-- [ ] T005 [P] Write failing tests in `tests/unit/triage/test_verdict.py` for the model and
+- [X] T005 [P] Write failing tests in `tests/unit/triage/test_verdict.py` for the model and
   `check()` of contracts/verdict.md:
   - **The schema** (FR-017): unknown keys are refused; `proposal` is required iff `tune`;
     the length limits; the IANA timezones; a citation is exactly one of checked or
@@ -71,14 +71,14 @@ description: "Tasks for alert triage (spec 012)"
   - **The environment** of the verdict differs from the cited evidence: it fails.
   - **A secret-shaped value** in any text field fails, and the failure does not repeat it
     (FR-021).
-- [ ] T006 Write `src/opscout/core/triage.py`:
+- [X] T006 Write `src/opscout/core/triage.py`:
   - `Verdict`, the citation types, `Failure`, `CheckResult`;
   - `check(verdict, evidence, run_started, find_secrets)`;
   - `StoredEvidence`, `AlertRef`, `CheckSummary`, `Agreement`, `TriageRecord`;
   - the `EvidenceStore`, `TriageStore` and `FileReader` ports.
 
   It imports no service and does no I/O. T005 passes.
-- [ ] T007 [P] Write failing tests in `tests/unit/triage/test_evidence.py` (FR-007):
+- [X] T007 [P] Write failing tests in `tests/unit/triage/test_evidence.py` (FR-007):
   - identifiers match `^ev-[0-9a-f]{10}$` and are unique over 10,000 puts;
   - `put`/`get` round-trip the rendered result, the tool and the time;
   - `since(at)` returns only what was stored at or after `at`;
@@ -87,23 +87,23 @@ description: "Tasks for alert triage (spec 012)"
   - an unreadable file is skipped, never raised.
 
   Run the tests on both adapters.
-- [ ] T008 Write `src/opscout/adapters/evidence_files.py` and the memory store in
+- [X] T008 Write `src/opscout/adapters/evidence_files.py` and the memory store in
   `tests/unit/triage/fakes.py`. T007 passes.
-- [ ] T009 [P] Write failing tests in `tests/unit/triage/test_records.py` (FR-025):
+- [X] T009 [P] Write failing tests in `tests/unit/triage/test_records.py` (FR-025):
   - **The file store** writes `<data>/triage/runs/<run-id>.json` atomically, and `get`
     returns it.
   - **`records(limit)`** lists the newest first; an unreadable file is listed as unreadable
     with its name.
   - **A record never holds the alert's text**: only its SHA-256.
-- [ ] T010 Write `src/opscout/adapters/triage_files.py` and its memory fake. T009 passes.
-- [ ] T011 [P] Write failing tests in `tests/unit/triage/test_evidence_envelope.py`
+- [X] T010 Write `src/opscout/adapters/triage_files.py` and its memory fake. T009 passes.
+- [X] T011 [P] Write failing tests in `tests/unit/triage/test_evidence_envelope.py`
   (FR-007):
   - every tool result, success or error, carries `evidence`;
   - the stored copy equals the returned result after redaction and caps;
   - a store that cannot be written still returns the result, with `evidence: null`, and
     logs a warning;
   - the `ToolResult` output schema lists `evidence`.
-- [ ] T012 Add the evidence store to `ToolContext` in
+- [X] T012 Add the evidence store to `ToolContext` in
   `src/opscout/services/tools/runtime.py`, and `evidence` to `ToolResult` in
   `src/opscout/entrypoints/mcp.py`. The data directory is `OPSCOUT_DATA_DIR` or the platform
   data directory, and the store is pruned at server start. T011 and every existing

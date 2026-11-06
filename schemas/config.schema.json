@@ -299,6 +299,53 @@
       "title": "Daemon",
       "type": "object"
     },
+    "InfrastructureClone": {
+      "additionalProperties": false,
+      "description": "A local clone of infrastructure code that triage reads (spec 012, FR-012).",
+      "properties": {
+        "name": {
+          "description": "How citations and read_iac name this clone.",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "path": {
+          "description": "The clone's absolute path; it is only read.",
+          "maxLength": 1024,
+          "minLength": 2,
+          "pattern": "^/[^\\n]*$",
+          "title": "Path",
+          "type": "string"
+        },
+        "environments": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9._-]+$",
+                "type": "string"
+              },
+              "maxItems": 50,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The environments this clone declares; absent means every environment.",
+          "title": "Environments"
+        }
+      },
+      "required": [
+        "name",
+        "path"
+      ],
+      "title": "InfrastructureClone",
+      "type": "object"
+    },
     "JobSettings": {
       "additionalProperties": false,
       "description": "When a job runs and the limits of its model run (spec 007).",
@@ -951,6 +998,53 @@
       "title": "Tools",
       "type": "object"
     },
+    "Triage": {
+      "additionalProperties": false,
+      "description": "Alert triage's settings (spec 012).",
+      "properties": {
+        "infrastructure": {
+          "description": "Local clones of infrastructure code, read only by the triage tools.",
+          "items": {
+            "$ref": "#/$defs/InfrastructureClone"
+          },
+          "maxItems": 20,
+          "title": "Infrastructure",
+          "type": "array"
+        },
+        "observability": {
+          "default": false,
+          "description": "True when a read-only observability server is registered in Claude Code under the name `observability`; its evidence is marked not checked.",
+          "title": "Observability",
+          "type": "boolean"
+        },
+        "skeptic": {
+          "default": false,
+          "description": "Run the skeptic pass after a verdict passes its check.",
+          "title": "Skeptic",
+          "type": "boolean"
+        },
+        "metric_history_days": {
+          "default": 7,
+          "description": "Days of metric history for the threshold assessment.",
+          "maximum": 14,
+          "minimum": 1,
+          "title": "Metric History Days",
+          "type": "integer"
+        },
+        "background_actions": {
+          "description": "More CloudTrail actions to drop from recent changes as background.",
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9]{0,127}$",
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Background Actions",
+          "type": "array"
+        }
+      },
+      "title": "Triage",
+      "type": "object"
+    },
     "WriteupFormat": {
       "additionalProperties": false,
       "description": "A shape for a write-up: its sections in order, its rules and its length (spec 003).",
@@ -1136,6 +1230,18 @@
     "tools": {
       "$ref": "#/$defs/Tools",
       "description": "Timezone, redaction and caps for the tool server's results (spec 011)."
+    },
+    "triage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Triage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Alert triage: infrastructure clones, observability, the skeptic pass (spec 012)."
     }
   },
   "required": [

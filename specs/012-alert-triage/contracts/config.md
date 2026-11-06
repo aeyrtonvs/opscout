@@ -28,8 +28,9 @@ triage:
 Validation errors use spec 002's form and never repeat the refused value:
 
 - `triage.infrastructure[0].path: must be an absolute path`
-- `triage.infrastructure[1].name: is used by another clone`
-- `triage.infrastructure[0].environments[0]: is not a configured environment`
+- `triage: two clones share a name`
+- `a clone in triage.infrastructure lists an environment that is not a configured environment`
+  (a check across sections, reported at the file's root)
 - `triage.metric_history_days: at least 1 and at most 14`
 
 A clone whose path does not exist is not a validation error; `search_iac` reports it as

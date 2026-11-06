@@ -9,16 +9,19 @@ gateway is built on the first cloud call, so listing tools never loads the AWS S
 
 import json
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
 
+import platformdirs
 from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult, TextContent
 from pydantic import BaseModel, Field
 
 from opscout.core.aws import AwsGateway, CallLog
 from opscout.core.config import ConfigLocationError, Configuration
+from opscout.core.triage import EvidenceStore
 from opscout.entrypoints.config import load_config
 from opscout.services.config import ENV_VAR, resolve_config_dir
 from opscout.services.tools.registry import SPECS
@@ -59,6 +62,9 @@ class ToolResult(BaseModel):
     error: dict[str, Any] | None = Field(
         description="The reason, message and fix when the call failed; null otherwise."
     )
+    evidence: str | None = Field(
+        description="This result's evidence identifier, for citing it in a triage verdict."
+    )
 
 
 Result = Annotated[CallToolResult, ToolResult]
@@ -68,10 +74,14 @@ def build_server(
     config_loader: ConfigLoader,
     gateway_factory: Callable[[], AwsGateway],
     call_log: CallLog,
+    evidence: EvidenceStore | None = None,
 ) -> MCPServer:
     """Build the server with every registered tool (FR-002, FR-003)."""
     context = ToolContext(
-        config_loader=config_loader, gateway_factory=gateway_factory, call_log=call_log
+        config_loader=config_loader,
+        gateway_factory=gateway_factory,
+        call_log=call_log,
+        evidence=evidence,
     )
     server = MCPServer("opscout", instructions=INSTRUCTIONS)
 
@@ -273,9 +283,29 @@ def config_loader(flag: Path | None, environ: dict[str, str]) -> ConfigLoader:
     return load
 
 
+DATA_ENV = "OPSCOUT_DATA_DIR"
+MOCK_ENV = "OPSCOUT_MCP_MOCK"
+EVIDENCE_HOURS = 24
+
+
+def data_directory(environ: Mapping[str, str]) -> Path:
+    """``OPSCOUT_DATA_DIR``, else the platform data directory (spec 012, research R2)."""
+    given = environ.get(DATA_ENV, "")
+    if given and not given.startswith("${"):
+        return Path(given)
+    return Path(platformdirs.user_data_dir("opscout", appauthor=False))
+
+
 def serve(flag: Path | None, mock: Path | None) -> int:
     """Run ``opscout mcp [--mock DIR]`` until the client closes stdin."""
     from opscout.adapters.call_log import JsonlCallLog
+    from opscout.adapters.evidence_files import FileEvidence
+
+    environ = dict(os.environ)
+    if mock is None and environ.get(MOCK_ENV):
+        mock = Path(environ[MOCK_ENV])
+    evidence = FileEvidence(data_directory(environ))
+    evidence.prune(datetime.now(UTC) - timedelta(hours=EVIDENCE_HOURS))
 
     def gateway() -> AwsGateway:
         if mock is not None:
@@ -286,6 +316,6 @@ def serve(flag: Path | None, mock: Path | None) -> int:
 
         return LiveGateway()
 
-    server = build_server(config_loader(flag, dict(os.environ)), gateway, JsonlCallLog())
+    server = build_server(config_loader(flag, environ), gateway, JsonlCallLog(), evidence)
     server.run("stdio")
     return 0

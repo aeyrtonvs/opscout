@@ -31,6 +31,7 @@ from opscout.core.tools import (
     fit,
     parse_window,
 )
+from opscout.core.triage import EvidenceStore
 from opscout.services.redact import redact_structure
 from opscout.services.tools.settings import kept_kinds, tool_timezone
 
@@ -134,6 +135,8 @@ class ToolContext:
     clock: Callable[[], float] = time.monotonic
     sleep: Callable[[float], None] = time.sleep
     deadline_seconds: float = DEADLINE_SECONDS
+    evidence: EvidenceStore | None = None
+    """Where every result is kept for the triage check (spec 012, research R2)."""
     _gateway: AwsGateway | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
@@ -181,6 +184,17 @@ def _render(outcome: Outcome, call: Call) -> dict[str, Any]:
     rendered["data"], dropped = fit(rendered["data"], limit)
     rendered["capped"] += [entry.render() for entry in dropped]
     return rendered
+
+
+def _keep(name: str, result: dict[str, Any], context: ToolContext) -> str | None:
+    """Store the result as evidence; a store that fails never fails the call (spec 012)."""
+    if context.evidence is None:
+        return None
+    try:
+        return context.evidence.put(name, dict(result), context.now())
+    except Exception:
+        logger.warning("the evidence store could not be written", exc_info=True)
+        return None
 
 
 def run_tool(
@@ -240,6 +254,7 @@ def run_tool(
         logger.exception("tool %s failed", name)
         result = _error_result(ToolError(ErrorReason.INTERNAL, type(error).__name__), zone, keep)
         failed, status = True, ErrorReason.INTERNAL.value
+    result["evidence"] = _keep(name, result, context)
     entry = CallEntry(
         time=context.now(),
         tool=name,
