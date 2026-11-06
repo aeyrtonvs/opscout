@@ -449,6 +449,12 @@ unreachable region, and call every tool.
   - `@timestamp` and `@ingestionTime` came in UTC without an offset (FR-013);
   - ECS task IDs and ARNs, a Secrets Manager secret's included, were redacted as secret
     shapes, which hid where things are.
+
+  The independent review of the fixes found that the first redaction fix, which took ARNs
+  out of redaction, let credentials glued to an ARN through. The fix now keeps every rule
+  and adds two narrow exceptions; the review's inputs are tests. It also moved the option
+  from the server's `env` to `--config`, so an empty value cannot hide a user's own
+  `OPSCOUT_CONFIG`.
 - **Seen in the live run, for the next spec**: in an account with SSM-managed instances, the
   last 24 hours of API changes are mostly agent heartbeats (`UpdateInstanceInformation`,
   `PutInventory`), which fill the change cap. Alert triage should ask for changes to a

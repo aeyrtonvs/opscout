@@ -14,14 +14,16 @@ POLL_SECONDS: Final = 1.0
 STOP_MARGIN: Final = 12.0
 """Seconds kept for StopQuery before the deadline."""
 _RUNNING: Final = frozenset({"Scheduled", "Running", "Unknown"})
-_LIMIT: Final = re.compile(r"(?i)(?:^|\|)\s*limit\s+(\d+)\s*(?=\||$)")
+_LIMIT: Final = re.compile(r"(?im)(?:^|\|)\s*limit\s+(\d+)\s*(?=\||$)")
 """A ``limit`` command of the query: StartQuery's own limit would override it."""
+_NOT_COMMANDS: Final = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'|#[^\n]*")
+"""Strings and comments, where ``limit`` is text, not a command."""
 _TIMES: Final = frozenset({"@timestamp", "@ingestionTime"})
 """Fields Logs Insights writes in UTC without an offset (FR-013)."""
 
 
 def _query_limit(query: str) -> int | None:
-    found = [int(value) for value in _LIMIT.findall(query)]
+    found = [int(value) for value in _LIMIT.findall(_NOT_COMMANDS.sub(" ", query))]
     return min(found) if found else None
 
 

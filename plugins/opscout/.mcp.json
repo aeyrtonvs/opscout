@@ -2,10 +2,7 @@
   "mcpServers": {
     "opscout": {
       "command": "${CLAUDE_PLUGIN_ROOT}/bin/opscout",
-      "args": ["mcp"],
-      "env": {
-        "OPSCOUT_CONFIG": "${user_config.config_dir}"
-      }
+      "args": ["mcp", "--config", "${user_config.config_dir}"]
     }
   }
 }

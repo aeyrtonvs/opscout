@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Faults found by the live run (spec 011, SC-006, T052).
 
-Each test reproduces one fault the run found against a real environment: a server Claude
+The tests reproduce the faults the run found against a real environment: a server Claude
 Code would not start (LR1), a query's own row limit overridden (LR2), log times without a
-timezone (LR3), and identifiers redacted as if they were secrets (LR4).
+timezone (LR3), and identifiers redacted as if they were secrets (LR4). Others guard what
+the fixes must not break, as the independent review of the fixes asked.
 """
 
 import json
@@ -39,6 +40,16 @@ def test_every_option_the_server_uses_has_a_default() -> None:
         assert options[key].get("required", False) is False, key
 
 
+@spec("FR-029")
+def test_an_empty_option_leaves_the_user_s_own_variable_in_force() -> None:
+    """The option goes in ``--config``, where empty means none, not in ``env``, where an
+    empty ``OPSCOUT_CONFIG`` would hide the user's own (review of T052)."""
+    server = json.loads((PLUGIN / ".mcp.json").read_text("utf-8"))["mcpServers"]["opscout"]
+
+    assert server["args"][-2:] == ["--config", "${user_config.config_dir}"]
+    assert "OPSCOUT_CONFIG" not in server.get("env", {})
+
+
 def _logs(rows: list[list[dict[str, str]]]) -> FakeGateway:
     return FakeGateway(
         responses={
@@ -56,6 +67,10 @@ def _logs(rows: list[list[dict[str, str]]]) -> FakeGateway:
         ("fields @message | limit 500 | sort @timestamp desc", None, 100),
         ("fields @message | limit 20", 10, 10),
         ("filter @message like /limit 5/", None, 100),
+        ("fields @message | limit 20 # the newest", None, 20),
+        ('filter @message like "| limit 5 |" | fields @message', None, 100),
+        ("# | limit 5\nfields @message", None, 100),
+        ("fields @message\n| LIMIT 7", None, 7),
     ],
 )
 def test_the_query_s_own_limit_is_kept(query: str, asked: int | None, expected: int) -> None:
@@ -139,18 +154,34 @@ def test_an_identifier_still_loses_what_the_configuration_redacts() -> None:
         "arn:aws:iam::123456789012:user/x password=hunter2xyz",
         "arn:aws:s3:::example/password=hunter2xyz",
         "token 0123456789abcdef0123456789abcdef",
+        "api_key: task 0123456789abcdef0123456789abcdef",
+        "task 0123456789abcdef0123456789abcdef",
+        "arn:aws:ssm:us-east-1:123456789012:parameter/app/db_password: hunter2xyz",
+        "arn:aws:s3:::example/token:hunter2xyz",
+        "arn:aws:iam::123456789012:user/x:AKIAEXAMPLEEXAMPLE12",
+        "arn:aws:s3:::example/ghp_exampleexampleexampleexampleexamp1",
+        "arn:aws:s3:::example/eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.hunter2xyzsig",
+        "arn:aws:s3:::example/postgres://admin:hunter2xyz@db.example.com/app",
+        '{"Value":"arn:aws:s3:::example/k:secret:hunter2xyz"}',
+        "arn:aws:s3:::example/k Authorization: Bearer hunter2xyzabcdef",
+        "arn:aws:s3:::example/hunter2xyzhunter2xyzhunter2xyz12",
+        "arn:aws:s3:::secret:hunter2xyz",
     ],
 )
-def test_a_secret_next_to_an_identifier_is_still_redacted(text: str) -> None:
-    redacted, _ = redact(text, keep=KEEP)
+def test_a_secret_in_or_next_to_an_identifier_is_still_redacted(text: str) -> None:
+    """Only the two shapes the live run hit are let through (review of T052)."""
+    redacted, counts = redact(text, keep=KEEP)
 
     assert "hunter2xyz" not in redacted
     assert "0123456789abcdef0123456789abcdef" not in redacted
+    assert "AKIAEXAMPLEEXAMPLE12" not in redacted
+    assert "ghp_" not in redacted
+    assert counts, text
 
 
 @spec("FR-009")
-def test_text_cannot_forge_a_stash_marker() -> None:
-    redacted, _ = redact("\x000\x00 password=hunter2xyz \x007\x00", keep=KEEP)
+def test_a_deny_listed_term_at_the_end_of_an_identifier_is_redacted() -> None:
+    redacted, counts = redact("arn:aws:s3:::example corp", ["Example Corp"])
 
-    assert "hunter2xyz" not in redacted
-    assert "\x00" not in redacted
+    assert redacted == "arn:aws:s3:::[deny-listed]"
+    assert counts == {"deny-listed": 1}
