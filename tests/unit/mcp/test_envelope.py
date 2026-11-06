@@ -210,3 +210,21 @@ def test_every_tool_returns_within_sixty_seconds_against_a_slow_gateway(
     run_tool(tool, {"environment": "example-prod", **arguments}, tool_context(gateway, time=time))
 
     assert time.now - 1000.0 < 60, tool
+
+
+@spec("FR-009")
+def test_an_alert_carrying_a_secret_is_redacted_when_parsed() -> None:
+    config = (
+        "schema_version: 1\nalerts:\n  formats:\n"
+        "    - {name: example, recognize: '^CRITICAL', fields: {title: '^CRITICAL: (.+)$'}}\n"
+    )
+
+    failed, result = run_tool(
+        "parse_alert",
+        {"text": f"CRITICAL: cannot reach {LEAK}"},
+        tool_context(FakeGateway(), config=config),
+    )
+
+    assert not failed
+    assert "hunter2pass" not in json.dumps(result)
+    assert result["redacted"]["connection-string"] == 2  # the field's value and its source

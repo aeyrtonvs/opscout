@@ -5,7 +5,8 @@
 > are merged. **Phase 1 in progress**: specs 007, daemon-core, 008, chat-output, and 009,
 > daily-standup, are merged; its last exit criterion, a week of dailies and their agreement
 > rate, is being measured (§9). **Phase 2 in progress**: spec 010, readonly-identity, is
-> merged; ADR-0023 makes its identity recommended rather than required. The
+> merged; ADR-0023 makes its identity recommended rather than required. Spec 011,
+> ops-mcp-server, is implemented on `feat/011-ops-mcp-server`. The
 > constitution is at 2.0.0, ADRs 0001–0023 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -244,6 +245,7 @@ opscout/
 ├── example-config/                   # fake values, validated in CI
 ├── .pre-commit-hooks.yaml            # opscout-config-validate, for private configuration repositories
 ├── src/opscout/data/identity/        # the read-only identity's reference documents and AWS records (spec 010)
+├── evals/mcp/                        # the tool server's mock-mode fixtures and alert corpus (spec 011)
 ├── deploy/                           # Slack app manifest, launchd template
 ├── specs/NNN-slug/                   # Spec Kit features
 ├── docs/                             # PLAN.md, adr/, tutorials/, how-to/, reference/, explanation/
@@ -497,6 +499,31 @@ The live check (2026-11-06, a development account) agreed with the offline check
 action and found one defect, in the guide's EC2 dry-run probes, now fixed; the spec's
 Actuals hold the results.
 
+**ops-mcp-server** (spec 011, implemented 2026-11-06): `opscout mcp`, a local stdio server
+that the plugin's `.mcp.json` starts in every session. It offers nine typed tools:
+
+- **Alerts, with no cloud access**: `parse_alert`, against the formats declared in the
+  configuration; `resolve_environment`; `list_environments`.
+- **AWS reads**: `read_alarm`, `read_metric`, `query_logs`, `recent_changes`,
+  `find_resources`, and `describe_resource` for a fixed list of types.
+
+The surface is read-only whatever the identity, so it is rule 3's mandatory gate (ADR-0023):
+
+- **Proved in a test**: every one of the 27 declared AWS actions is in spec 010's catalog,
+  is not a write, and is allowed by the reference identity.
+- **Enforced at run time**: the gateway refuses any undeclared operation before it is
+  built.
+
+Every result is redacted, with account IDs, IP addresses and e-mail addresses kept unless
+the configuration redacts them. It is capped in window, items and size; has a 45 s
+deadline; and states its environment, the identity kind declared for it, and its timezone.
+The tools never return a CloudTrail request, a stack event's properties, a stack's
+parameters, a task definition's contents or a Lambda function's configuration.
+
+Mock mode (`--mock`) answers from `evals/mcp/aws/`, which the alert-triage spec's evals
+reuse. Each integration is optional; with no AWS, the AWS tools say so. Spec 010's
+capabilities gained three reads that the tools need.
+
 Candidate, not committed: let alert triage see earlier verdicts for the same alert, since
 recurrence informs "real or tune the threshold?". Only verdicts the user agreed with, with
 their dates, to limit memory poisoning (OWASP ASI06).
@@ -621,10 +648,16 @@ genai.owasp.org (Top 10 for Agentic Applications).
       asking before every `gh` command. Still open: account
       connectors that also send data out (ticket and docs tools, artifact publishing) are
       not gated in this repo; decide whether rule 5 covers them.
-- [ ] Rule 3's gates (ADR-0010, ADR-0023): the reference identity and the allow-listed host
+- [x] Rule 3's gates (ADR-0010, ADR-0023): the reference identity and the allow-listed host
       documents exist since spec 010, proved by `opscout identity check`. The tool
-      allow-lists, now the mandatory gate, arrive with ops-mcp-server, which also decides
-      how a run states the identity it used.
+      allow-list, the mandatory gate, exists since spec 011: the surface check
+      (`tests/unit/mcp/test_surface.py`) and the gateway's run-time refusal. Each result
+      states the identity kind its environment declares.
+- [ ] Tool server, live run (spec 011, SC-006), which gates nothing: with one environment
+      configured and logged in, ask Claude to read an alarm, a metric, a log query, recent
+      changes and one ECS service through the tools (quickstart step 6). Record the outcome
+      in the spec's Actuals, along with whether Claude Code substitutes
+      `${user_config.config_dir}` in the server's `env` (research R10).
 - [x] **Before the first commit:** the global git e-mail is a work address. Done 2026-11-03:
       the repo-local `user.email` is the GitHub no-reply address.
 - [x] Name: **opscout** (ADR-0019). The working name `ops-harness` was taken on PyPI by an

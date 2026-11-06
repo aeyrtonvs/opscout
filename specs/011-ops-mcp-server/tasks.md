@@ -357,7 +357,7 @@ caps, redaction, timezone and identity.
 
 ## Phase 8: Polish and gates
 
-- [ ] T040 [P] Write `docs/reference/tools.md`, a reference for the user. It covers:
+- [X] T040 [P] Write `docs/reference/tools.md`, a reference for the user. It covers:
   - what the server is;
   - the nine tools and what they never read;
   - mock mode;
@@ -370,18 +370,18 @@ caps, redaction, timezone and identity.
   Link it from `docs/reference/` and from the configuration reference. Then add a test in
   `tests/unit/mcp/test_docs.py` (FR-028): every tool, every error reason and every cap in
   the code appears in the document.
-- [ ] T041 Check FR-028 against the suite: for each tool, its schemas, declared actions,
+- [X] T041 Check FR-028 against the suite: for each tool, its schemas, declared actions,
   redaction, caps, mock answer and errors each have a test. Fill any gap.
-- [ ] T042 Update `docs/PLAN.md`:
+- [X] T042 Update `docs/PLAN.md`:
   - **status line**: spec 011 is in progress;
   - **§6**: `.mcp.json`, `evals/mcp/`, and the new core, service and adapter modules;
   - **§7**: an ops-mcp-server paragraph;
   - **§9**: rule 3's gate, the tool allow-lists, exists, proved by the surface check; add
     an open item for the live check (SC-006).
-- [ ] T043 Update `AGENTS.md`: rule 3's gate now names the surface check
+- [X] T043 Update `AGENTS.md`: rule 3's gate now names the surface check
   (`tests/unit/mcp/test_surface.py`) beside `opscout identity check`, and the repository
   map lists `.mcp.json` and `evals/mcp/`.
-- [ ] T044 Run `uv run just check` and `uv run just coverage` (100 % on `core` and
+- [X] T044 Run `uv run just check` and `uv run just coverage` (100 % on `core` and
   `services`). Run the quickstart's steps 1 to 5.
 - [ ] T045 Converge, then run the independent review of the diff in a fresh context. Record
   the findings and fixes in this file, each reproduced as a test before its fix.

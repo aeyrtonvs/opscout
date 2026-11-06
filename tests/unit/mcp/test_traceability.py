@@ -17,7 +17,6 @@ def spec(requirement: str) -> pytest.MarkDecorator:
 
 
 @spec("FR-030")
-@pytest.mark.xfail(strict=True, reason="until T047: every requirement gets its test")
 def test_every_requirement_has_a_test() -> None:
     required = set(re.findall(r"\*\*(FR-\d{3})\*\*", SPEC_FILE.read_text(encoding="utf-8")))
     proven: set[str] = set()

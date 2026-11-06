@@ -170,7 +170,6 @@ docs/reference/
 ├── tools.md               # new: the tools, mock mode, configuration, errors
 └── identity.md            # capabilities table and counts
 tests/unit/mcp/            # new
-tests/support/list_tools.py
 ```
 
 **Structure Decision**: the existing single package, in its four layers (ADR-0011). New

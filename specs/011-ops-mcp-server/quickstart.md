@@ -29,17 +29,16 @@ policies (research R4).
 ## 3. The server starts with no configuration
 
 ```sh
-OPSCOUT_CONFIG=/nonexistent uv run --extra aws python -m tests.support.list_tools
+uv run pytest tests/unit/mcp/test_plugin.py tests/unit/mcp/test_server.py -q
 ```
 
 Expected:
 
-- the nine tools are listed within 2 seconds;
-- `parse_alert` returns `not-configured`;
-- `list_environments` returns an empty list.
-
-The helper starts `opscout mcp` over stdio with the MCP client and prints the tool names;
-it lives in `tests/support/`.
+- the command in `plugins/opscout/.mcp.json` starts the server through the launcher, and it
+  lists the nine tools within 2 seconds of launch;
+- with no configuration, `parse_alert` returns `not-configured`, and `list_environments`
+  returns an empty list;
+- listing does not load boto3.
 
 ## 4. Mock mode
 
