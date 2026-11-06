@@ -213,7 +213,8 @@ Three new optional sections in schema version 1, each an additive change (spec 0
   `${user_config.…}` in a plugin MCP server's `env` is not verified yet; quickstart step 5
   checks it, and this note records the result.
 - **Launcher**: adds the `aws` extra (R2). Unlike the session hook, it must never print a
-  JSON hook message for `mcp`; on a missing `uv` it writes to stderr and exits 1.
+  JSON hook message for `mcp`; on a missing `uv` it writes to stderr and exits 127, as for
+  any command, and with no release to run it exits 1 (both checked in T023).
 - **Checks**: a test reads `.mcp.json` and runs the same command with `StdioServerParameters`
   against the clone; `claude plugin eval` and `uv run just plugin` keep validating the
   plugin. The live check lists the tools in a session (`/mcp`).

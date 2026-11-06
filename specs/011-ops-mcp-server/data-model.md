@@ -38,7 +38,8 @@ of `formats` is the order of precedence.
 ## Core
 
 - **ToolSpec**: the `name`, the `description`, the `actions` (frozenset of IAM action
-  names; empty for tools that call no cloud) and the `needs` (`config`, `aws`).
+  names; empty for tools that call no cloud) and `needs_aws` (true exactly when `actions`
+  is not empty).
 - **Registry**: the tuple of ToolSpecs; names are unique.
 - **Window**: `start` and `end`, both aware. A window is valid when start < end ≤ now + 5
   minutes. If its length passes the tool's maximum, the start moves later and `capped`

@@ -428,3 +428,9 @@ mock mode with the shipped fixtures (US4), which the next spec's evals depend on
 error paths (US5).
 
 The live run (SC-006) is a manual step after merge, like spec 010's live check.
+
+## Phase 9: Convergence
+
+- [X] T048 List every ECS service with the given name across clusters, up to the resources cap, when `describe_resource` gets no cluster, in `src/opscout/services/tools/resources.py`, per spec edge case "several matches" and FR-023 (partial)
+- [X] T049 Align `contracts/tools.md` with the code: `read_metric` returns no `unit`; `recent_changes` takes `resource_type` and `resource`; per contracts/tools.md (contradicts)
+- [X] T050 Align research R10 (the launcher exits 127 without `uv`) and data-model.md (`ToolSpec.needs_aws`) with the code, per plan (contradicts)

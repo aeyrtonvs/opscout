@@ -119,56 +119,63 @@ def _ecs(call: Call, env: AwsEnvironment, region: str, name: str) -> dict[str, A
     if not clusters:
         listed = call.aws(env, region, "ecs:ListClusters", maxResults=100)
         clusters = [arn.rsplit("/", 1)[-1] for arn in listed.get("clusterArns", [])]
+    matches: list[dict[str, Any]] = []
     for cluster in clusters:
         response = call.aws(
             env, region, "ecs:DescribeServices", cluster=cluster, services=[service]
         )
         for found in response.get("services", []):
             network = (found.get("networkConfiguration") or {}).get("awsvpcConfiguration", {})
-            return {
-                "name": found.get("serviceName"),
-                "arn": found.get("serviceArn"),
-                "cluster": found.get("clusterArn"),
-                "status": found.get("status"),
-                "counts": {
-                    "desired": found.get("desiredCount"),
-                    "running": found.get("runningCount"),
-                    "pending": found.get("pendingCount"),
-                },
-                "launch_type": found.get("launchType"),
-                "capacity_providers": [
-                    entry.get("capacityProvider")
-                    for entry in found.get("capacityProviderStrategy", [])
-                ],
-                # The ARN only: the task definition's contents hold its environment.
-                "task_definition": found.get("taskDefinition"),
-                "deployments": [
-                    _pick(
-                        deployment,
-                        {
-                            "status": "status",
-                            "rollout": "rolloutState",
-                            "rollout_reason": "rolloutStateReason",
-                            "desired": "desiredCount",
-                            "running": "runningCount",
-                            "created": "createdAt",
-                            "updated": "updatedAt",
-                            "task_definition": "taskDefinition",
-                        },
-                    )
-                    for deployment in found.get("deployments", [])
-                ],
-                "load_balancers": found.get("loadBalancers", []),
-                "network": {
-                    "subnets": network.get("subnets", []),
-                    "security_groups": network.get("securityGroups", []),
-                    "public_ip": network.get("assignPublicIp"),
-                },
-                "events": [
-                    {"time": event.get("createdAt"), "message": event.get("message")}
-                    for event in found.get("events", [])[:EVENTS]
-                ],
-            }
+            matches.append(
+                {
+                    "name": found.get("serviceName"),
+                    "arn": found.get("serviceArn"),
+                    "cluster": found.get("clusterArn"),
+                    "status": found.get("status"),
+                    "counts": {
+                        "desired": found.get("desiredCount"),
+                        "running": found.get("runningCount"),
+                        "pending": found.get("pendingCount"),
+                    },
+                    "launch_type": found.get("launchType"),
+                    "capacity_providers": [
+                        entry.get("capacityProvider")
+                        for entry in found.get("capacityProviderStrategy", [])
+                    ],
+                    # The ARN only: the task definition's contents hold its environment.
+                    "task_definition": found.get("taskDefinition"),
+                    "deployments": [
+                        _pick(
+                            deployment,
+                            {
+                                "status": "status",
+                                "rollout": "rolloutState",
+                                "rollout_reason": "rolloutStateReason",
+                                "desired": "desiredCount",
+                                "running": "runningCount",
+                                "created": "createdAt",
+                                "updated": "updatedAt",
+                                "task_definition": "taskDefinition",
+                            },
+                        )
+                        for deployment in found.get("deployments", [])
+                    ],
+                    "load_balancers": found.get("loadBalancers", []),
+                    "network": {
+                        "subnets": network.get("subnets", []),
+                        "security_groups": network.get("securityGroups", []),
+                        "public_ip": network.get("assignPublicIp"),
+                    },
+                    "events": [
+                        {"time": event.get("createdAt"), "message": event.get("message")}
+                        for event in found.get("events", [])[:EVENTS]
+                    ],
+                }
+            )
+    if len(matches) > 1:
+        return {"matches": matches[: call.caps.default("resources")]}
+    if matches:
+        return matches[0]
     raise ToolError(ErrorReason.NOT_FOUND, f"no ECS service {service} in {env.name}")
 
 

@@ -445,3 +445,26 @@ def test_several_instances_with_one_name_are_listed() -> None:
     assert not failed
     assert len(result["data"]["matches"]) == 3
     assert gateway.calls[0][3] == {"Filters": [{"Name": "tag:Name", "Values": ["example-api"]}]}
+
+
+@spec("FR-023")
+def test_one_service_name_in_several_clusters_lists_every_match() -> None:
+    other = {**SERVICE, "clusterArn": f"arn:aws:ecs:us-east-1:{ACCOUNT}:cluster/other"}
+    gateway = FakeGateway(
+        responses={
+            "ecs:ListClusters": {"clusterArns": ["arn:c/example", "arn:c/other", "arn:c/empty"]},
+            "ecs:DescribeServices": [
+                {"services": [SERVICE]},
+                {"services": [other]},
+                {"services": []},
+            ],
+        }
+    )
+
+    failed, result = _describe(gateway, "ecs-service", "example-api")
+
+    assert not failed
+    assert [match["cluster"] for match in result["data"]["matches"]] == [
+        SERVICE["clusterArn"],
+        other["clusterArn"],
+    ]
