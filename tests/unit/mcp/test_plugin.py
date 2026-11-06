@@ -4,6 +4,8 @@
 import json
 import os
 import re
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -103,3 +105,21 @@ def test_an_unsubstituted_placeholder_counts_as_no_directory(tmp_path: Path) -> 
 
     assert isinstance(config_loader(tmp_path, placeholder)(), Configuration)
     assert config_loader(None, {"OPSCOUT_CONFIG": str(tmp_path / "missing")})() is None
+
+
+@spec("FR-001")
+def test_other_commands_do_not_load_the_tool_server() -> None:
+    """The hooks share the CLI and must decide within a second (specs 004, 005).
+
+    Importing the MCP SDK costs about a quarter of a second, so only ``opscout mcp`` loads
+    it.
+    """
+    probe = (
+        "import sys, opscout.entrypoints.cli;"
+        "print(sorted(m for m in sys.modules if m == 'mcp' or m.startswith(('mcp.', 'boto'))))"
+    )
+    result = subprocess.run(  # noqa: S603  (this interpreter, a fixed probe)
+        [sys.executable, "-c", probe], capture_output=True, text=True, check=True
+    )
+
+    assert result.stdout.strip() == "[]"
