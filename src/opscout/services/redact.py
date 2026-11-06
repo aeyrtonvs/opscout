@@ -54,6 +54,38 @@ _BEARER = re.compile(r"(?i)\b(bearer\s+)[A-Za-z0-9._~+/=-]{8,}")
 _SECRET_KEY = re.compile(rf"(?i)(?:{_NAMES})|(?<![a-z])auth(?![a-z])|authorization")
 """A key or pair name whose value is hidden whole (spec 011, research R6)."""
 _SECRET_LIKE = re.compile(r"(?<![\w+=])(?=[\w+=]*\d)(?=[\w+=]*[A-Za-z])[\w+=]{32,}(?![\w+=])")
+_ARN = re.compile(
+    r"\barn:aws[\w-]*:(?P<service>[\w-]+):[^\s:]*:[^\s:]*:(?P<resource>[^\s\"',;()]*)"
+)
+"""An ARN as the rules see it, its account possibly already redacted."""
+_HEX_ID = re.compile(r"[0-9a-f]{32}")
+_TASK_ID = re.compile(r"\(task ([0-9a-f]{32})\)")
+"""An ECS service event's task: ``(task <id>)``."""
+
+
+def _arn_fields(text: str) -> frozenset[int]:
+    """Where an ARN's service and resource type start: ``secretsmanager:`` and ``secret:``
+    are the names of an ARN's fields, not a secret's name and value (spec 011, SC-006)."""
+    starts: set[int] = set()
+    for match in _ARN.finditer(text):
+        starts.add(match.start("service"))
+        if match.group("service") == "secretsmanager" and match.group("resource").startswith(
+            "secret:"
+        ):
+            starts.add(match.start("resource"))
+    return frozenset(starts)
+
+
+def _identifier_ids(text: str) -> frozenset[tuple[int, int]]:
+    """The spans of 32-hex IDs an ARN or an ECS event names, such as a task's: they say
+    where something is, which rule 3 allows (spec 011, SC-006)."""
+    spans = {match.span(1) for match in _TASK_ID.finditer(text)}
+    for arn in _ARN.finditer(text):
+        offset = arn.start("resource")
+        for part in re.finditer(r"[^/:]+", arn.group("resource")):
+            if _HEX_ID.fullmatch(part.group(0)):
+                spans.add((offset + part.start(), offset + part.end()))
+    return frozenset(spans)
 
 
 OPTIONAL_KINDS: Final = frozenset({"account-id", "ip", "email"})
@@ -85,7 +117,14 @@ def redact(
         counts["credential"] = counts.get("credential", 0) + 1
         return f"{match.group(1)}[credential]"
 
-    text = _ASSIGNMENT.sub(assignment, text)
+    fields = _arn_fields(text)
+
+    def unless_arn_field(match: re.Match[str]) -> str:
+        if match.start(1) in fields:
+            return match.group(0)
+        return assignment(match)
+
+    text = _ASSIGNMENT.sub(unless_arn_field, text)
     text = _FLAG.sub(assignment, text)
     text = _BEARER.sub(assignment, text)
     for kind, pattern in RULES[3:]:
@@ -96,7 +135,15 @@ def redact(
         # spaces, hyphens, underscores or nothing ("Example Corp", "examplecorp_api").
         words = r"[\s_-]*".join(re.escape(word) for word in term.split())
         text = replace("deny-listed", re.compile(rf"(?i){words}"), text)
-    return replace("secret-like", _SECRET_LIKE, text), counts
+    ids = _identifier_ids(text)
+
+    def unless_identifier(match: re.Match[str]) -> str:
+        if match.span() in ids:
+            return match.group(0)
+        counts["secret-like"] = counts.get("secret-like", 0) + 1
+        return "[secret-like]"
+
+    return _SECRET_LIKE.sub(unless_identifier, text), counts
 
 
 _PAIRS: Final = (

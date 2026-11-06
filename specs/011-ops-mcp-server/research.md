@@ -217,6 +217,12 @@ Three new optional sections in schema version 1, each an additive change (spec 0
   `${user_config.…}` value (spec 003, FR-009). Whether Claude Code substitutes
   `${user_config.…}` in a plugin MCP server's `env` is not verified yet; quickstart step 5
   checks it, and this note records the result.
+- **Result (live run, 2026-11-06)**: Claude Code substitutes the option when it is set, and
+  refuses to start the server when it is not (`Plugin option "config_dir" isn't set`).
+  MCP servers get no `CLAUDE_PLUGIN_OPTION_*` variables, unlike hooks. So `config_dir` has
+  an empty `default` and is not required, and the server takes it as `--config` in its
+  `args`, as the skills do: an empty value means the usual resolution order, so a user's
+  own `OPSCOUT_CONFIG` stays in force, which an empty `env` value would have hidden.
 - **Launcher**: adds the `aws` extra (R2). Unlike the session hook, it must never print a
   JSON hook message for `mcp`; on a missing `uv` it writes to stderr and exits 127, as for
   any command, and with no release to run it exits 1 (both checked in T023).

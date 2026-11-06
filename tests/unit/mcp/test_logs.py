@@ -61,7 +61,7 @@ def test_a_query_starts_is_polled_and_returns_rows_and_statistics() -> None:
     data = result["data"]
     assert data["status"] == "complete"
     assert data["rows"][0] == {
-        "@timestamp": "2026-11-06 11:59:00.000",
+        "@timestamp": "2026-11-06T11:59:00+00:00",
         "@message": "ERROR timeout calling example-db 0",
     }
     assert len(data["rows"]) == 3

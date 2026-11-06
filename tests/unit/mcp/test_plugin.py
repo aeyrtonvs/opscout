@@ -38,8 +38,8 @@ def test_the_plugin_defines_one_local_stdio_server() -> None:
     server = _definition()
 
     assert server["command"] == "${CLAUDE_PLUGIN_ROOT}/bin/opscout"
-    assert server["args"] == ["mcp"]
-    assert server["env"] == {"OPSCOUT_CONFIG": "${user_config.config_dir}"}
+    assert server["args"] == ["mcp", "--config", "${user_config.config_dir}"]
+    assert "env" not in server
     assert server.get("type", "stdio") == "stdio"
     assert "url" not in server
     assert "port" not in json.dumps(server)

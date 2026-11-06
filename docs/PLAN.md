@@ -286,7 +286,7 @@ The order matters: commit identity comes before the first commit.
    step 6.
 5. Plugin skeleton: marketplace and plugin manifests, with `userConfig` for the config
    directory; `claude plugin validate --strict` passes. Done 2026-11-03: `config_dir` is a
-   required `directory` option (ADR-0014); the version lives only in `plugin.json`, and a
+   `directory` option (ADR-0014), optional with an empty default since spec 011's live run; the version lives only in `plugin.json`, and a
    test keeps it equal to the package's (ADR-0016); `just check` validates both manifests.
 6. Gates: pre-commit with gitleaks and actionlint (upstream hooks pinned by `rev`) and the
    generic leak patterns; CI workflows with pinned actions that install only uv and run
@@ -653,11 +653,12 @@ genai.owasp.org (Top 10 for Agentic Applications).
       allow-list, the mandatory gate, exists since spec 011: the surface check
       (`tests/unit/mcp/test_surface.py`) and the gateway's run-time refusal. Each result
       states the identity kind its environment declares.
-- [ ] Tool server, live run (spec 011, SC-006), which gates nothing: with one environment
-      configured and logged in, ask Claude to read an alarm, a metric, a log query, recent
-      changes and one ECS service through the tools (quickstart step 6). Record the outcome
-      in the spec's Actuals, along with whether Claude Code substitutes
-      `${user_config.config_dir}` in the server's `env` (research R10).
+- [x] Tool server, live run (spec 011, SC-006). Done 2026-11-06 against one sandbox
+      environment with the user's own role, through the launcher and in a headless Claude
+      Code session. It found four faults, all fixed: an unset `config_dir` kept Claude Code
+      from starting the server, a query's own `limit` was overridden, log times lacked an
+      offset, and ARNs and ECS task IDs were redacted as secrets (spec Actuals, research
+      R10).
 - [x] **Before the first commit:** the global git e-mail is a work address. Done 2026-11-03:
       the repo-local `user.email` is the GitHub no-reply address.
 - [x] Name: **opscout** (ADR-0019). The working name `ops-harness` was taken on PyPI by an

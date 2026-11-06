@@ -21,7 +21,9 @@ at run time.
 - Resolution order: the `--config` flag, then `OPSCOUT_CONFIG`, then
   `~/.config/opscout/`.
 - Inside Claude Code, the plugin asks for the configuration directory at install time through
-  `userConfig` (type `directory`) and passes it to its MCP server and hooks.
+  `userConfig` (type `directory`) and passes it to its MCP server and hooks. The option is
+  optional, with an empty default that means the resolution order above: Claude Code does
+  not start a plugin's MCP server that names an unset option (spec 011, research R10).
 - `opscout config validate` runs in this repository's CI against `example-config/`, and in
   the private repository's pre-commit.
 - The configuration contains no secrets, only keychain service names.

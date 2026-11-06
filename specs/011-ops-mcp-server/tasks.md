@@ -460,3 +460,7 @@ The live run (SC-006) is a manual step after merge, like spec 010's live check.
 ## Phase 10: Pull request
 
 - [X] T051 Load the tool server only for `opscout mcp`, in `src/opscout/entrypoints/cli.py`. CI on pull request #17 failed the two launcher timing tests on macOS (`test_the_guard_decides_in_under_a_second`, 1.36 s; `test_the_hook_through_the_launcher_takes_under_a_second`, 1.04–1.16 s): the CLI imported the MCP SDK for every command, 270 ms of its 514 ms import. Now 210 ms; `tests/unit/mcp/test_plugin.py::test_other_commands_do_not_load_the_tool_server` keeps it so
+
+## Phase 11: Live run
+
+- [X] T052 Fix what the live run (SC-006) found, each reproduced first in `tests/unit/mcp/test_live_run.py`: make `config_dir` optional with an empty default in `plugins/opscout/.claude-plugin/plugin.json`, since Claude Code does not start an MCP server that names an unset option (FR-029); keep a query's own smaller `limit` and give `@timestamp` and `@ingestionTime` in the configured timezone in `src/opscout/services/tools/logs.py` (FR-021, FR-013); keep ARNs' 32-hex IDs, ECS `(task <id>)` and an ARN's field names out of the secret-shape rules in `src/opscout/services/redact.py`, every other rule still applying (FR-009); pass the option to the server as `--config`, not in `env`. The independent review of the first version found credentials glued to an ARN let through; its inputs are tests. Record the run in the spec's Actuals and research R10

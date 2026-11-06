@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """query_logs: a CloudWatch Logs Insights query, bounded in time and rows (spec 011, FR-021)."""
 
+import re
+from datetime import UTC, datetime
 from typing import Any, Final
 
 from opscout.core.tools import ErrorReason, ToolError
@@ -12,11 +14,35 @@ POLL_SECONDS: Final = 1.0
 STOP_MARGIN: Final = 12.0
 """Seconds kept for StopQuery before the deadline."""
 _RUNNING: Final = frozenset({"Scheduled", "Running", "Unknown"})
+_LIMIT: Final = re.compile(r"(?im)(?:^|\|)\s*limit\s+(\d+)\s*(?=\||$)")
+"""A ``limit`` command of the query: StartQuery's own limit would override it."""
+_NOT_COMMANDS: Final = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'|#[^\n]*")
+"""Strings and comments, where ``limit`` is text, not a command."""
+_TIMES: Final = frozenset({"@timestamp", "@ingestionTime"})
+"""Fields Logs Insights writes in UTC without an offset (FR-013)."""
 
 
-def _rows(results: list[list[dict[str, str]]]) -> list[dict[str, str]]:
+def _query_limit(query: str) -> int | None:
+    found = [int(value) for value in _LIMIT.findall(_NOT_COMMANDS.sub(" ", query))]
+    return min(found) if found else None
+
+
+def _value(field: str, value: str) -> Any:
+    if field in _TIMES:
+        try:
+            return datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=UTC)
+        except ValueError:
+            return value
+    return value
+
+
+def _rows(results: list[list[dict[str, str]]]) -> list[dict[str, Any]]:
     return [
-        {cell["field"]: cell.get("value", "") for cell in row if cell.get("field") != "@ptr"}
+        {
+            cell["field"]: _value(cell["field"], cell.get("value", ""))
+            for cell in row
+            if cell.get("field") != "@ptr"
+        }
         for row in results
     ]
 
@@ -47,6 +73,9 @@ def query_logs(call: Call) -> Outcome:
         )
     window, window_cap = call.window("log_window_hours")
     rows, rows_cap = call.caps.bound("log_rows", call.argument("limit"))
+    own = _query_limit(query)
+    if own is not None:
+        rows = max(1, min(rows, own))
     capped = [entry for entry in (window_cap, rows_cap) if entry is not None]
     try:
         started = call.aws(
