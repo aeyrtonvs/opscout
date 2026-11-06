@@ -2,9 +2,48 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/aeyrtonvs/opscout/main/schemas/config.schema.json",
   "$defs": {
+    "ChatSetting": {
+      "additionalProperties": false,
+      "description": "Where deliveries go by direct message (spec 008).",
+      "properties": {
+        "service": {
+          "const": "slack",
+          "description": "The chat service; only slack.",
+          "title": "Service",
+          "type": "string"
+        },
+        "user": {
+          "description": "Your Slack member id (in Slack: your profile, then Copy member ID).",
+          "pattern": "^[UW][A-Z0-9]{2,20}$",
+          "title": "User",
+          "type": "string"
+        }
+      },
+      "required": [
+        "service",
+        "user"
+      ],
+      "title": "ChatSetting",
+      "type": "object"
+    },
     "Daemon": {
       "additionalProperties": false,
-      "description": "Scheduled jobs and what their runs need (spec 007).",
+      "dependentSchemas": {
+        "chat": {
+          "properties": {
+            "secrets": {
+              "required": [
+                "slack_bot_token",
+                "slack_app_token"
+              ]
+            }
+          },
+          "required": [
+            "secrets"
+          ]
+        }
+      },
+      "description": "Scheduled jobs and what their runs need (specs 007 and 008).",
       "properties": {
         "jobs": {
           "additionalProperties": {
@@ -38,12 +77,28 @@
           "additionalProperties": {
             "$ref": "#/$defs/KeychainRef"
           },
-          "description": "The harness's own secrets, by name, each a keychain reference; claude_token is a token from claude setup-token, for jobs that cannot use your login.",
+          "description": "The harness's own secrets, by name, each a keychain reference: claude_token, a token from claude setup-token for jobs that cannot use your login; slack_bot_token and slack_app_token, the chat app's tokens.",
           "propertyNames": {
-            "const": "claude_token"
+            "enum": [
+              "claude_token",
+              "slack_bot_token",
+              "slack_app_token"
+            ]
           },
           "title": "Secrets",
           "type": "object"
+        },
+        "chat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ChatSetting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Deliver by direct message, and record agreement (spec 008)."
         }
       },
       "title": "Daemon",

@@ -2,8 +2,8 @@
 
 > Status (2026-11-05): **Phase 0a done**: the repository is public at
 > `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b done** (§7): specs 001 to 006
-> are merged. **Phase 1 in progress**: spec 007, daemon-core, is implemented on
-> `feat/007-daemon-core`. The
+> are merged. **Phase 1 in progress**: spec 007, daemon-core, is merged; spec 008,
+> chat-output, is implemented on `feat/008-chat-output`. The
 > constitution is ratified (1.0.2), ADRs 0001–0022 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -424,6 +424,17 @@ chat-output. The SessionStart hook also names jobs that failed or did not run (d
 the clarification). The macOS test jobs stay informational (ADR-0016, amended). Checked
 live: a launchd job uses the user's existing Claude Code login (ADR-0012, More Information).
 
+**chat-output** (spec 008, implemented 2026-11-05): with `daemon.chat`, every delivery also
+reaches the user as a Slack direct message from their own app, which asks for two
+permissions only (`chat:write`, `im:write`), reads nothing and connects outward over Socket
+Mode; a delivery counts only once Slack accepted it, and is retried for up to 10 minutes. A
+failed run sends a short notice (decided in the clarification). Each result carries Agree
+and Disagree, with an optional reason; `opscout gateway`, kept running by launchd from
+login, stores the user's own clicks in the run record's `agreement` and ignores everything
+else. Status and the session start report the gateway. Two runtime dependencies:
+`slack-sdk` and `truststore`. Checked live on the maintainer's workspace: a scheduled DM,
+agreement clicks stored, reconnection after a network loss.
+
 ### Phase 2 — investigation agents the user invokes
 
 Hard dependency: runs against real systems need the read-only identity (open items). Until it
@@ -618,6 +629,10 @@ genai.owasp.org (Top 10 for Agentic Applications).
 - [ ] Ship skill, draft pull request (spec 004, US2 scenarios 4 and 5): they follow a
       confirmed push, which no headless eval can give; check them on the first real use and
       record the outcome in the spec.
+- [ ] Push-guard timing test (spec 004, `test_the_guard_decides_in_under_a_second`): it
+      measured 1.09 s against its 1 s limit once, on a hosted macOS runner, in the coverage
+      step (run 42123108217, pull request #10), and passes elsewhere. Decide whether the
+      coverage step should time it, rather than loosening the limit.
 - [ ] Scheduled jobs and a locked screen (spec 007): a launchd job used the Claude Code login
       with the session unlocked; whether it still can while the screen is locked was not
       observed. If a scheduled run fails then, store the `claude_token` fallback

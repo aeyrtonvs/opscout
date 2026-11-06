@@ -1,0 +1,34 @@
+{
+  "type": "interactive",
+  "envelope_id": "00000000-0000-4000-8000-eeeeeeeee202",
+  "accepts_response_payload": true,
+  "payload": {
+    "type": "view_submission",
+    "user": {
+      "id": "UEXAMPLE01",
+      "username": "example",
+      "team_id": "TEXAMPLE01"
+    },
+    "api_app_id": "AEXAMPLE01",
+    "team": {
+      "id": "TEXAMPLE01",
+      "domain": "example"
+    },
+    "view": {
+      "id": "VEXAMPLE01",
+      "type": "modal",
+      "callback_id": "opscout_reason",
+      "private_metadata": "check/20261105T094500Z-a1b2c3 DEXAMPLE01 1762336800.000100",
+      "state": {
+        "values": {
+          "opscout_reason": {
+            "reason": {
+              "type": "plain_text_input",
+              "value": null
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -113,6 +113,73 @@ daemon:
 
 The runner then passes it as `CLAUDE_CODE_OAUTH_TOKEN` to Claude Code only.
 
+## Delivery by direct message (Slack)
+
+With the `daemon.chat` setting, every delivery also reaches you as a Slack direct message
+from your own opscout app, and each result asks **Agree** or **Disagree**; your answer is
+stored in the run's record, for the evidence later phases depend on (spec 008).
+
+The app can only write to you: it asks for two permissions, `chat:write` and `im:write`,
+reads no channel and no message, receives no event but the clicks on its own buttons, and
+its Messages tab is read-only. It connects outward over Socket Mode, so your machine opens
+no port.
+
+### Set it up once
+
+1. In Slack, **Create New App → From a manifest**, choose your workspace and paste
+   [`deploy/slack/opscout-app-manifest.yaml`](../../deploy/slack/opscout-app-manifest.yaml).
+   **Install to Workspace**. The **Bot User OAuth Token** (`xoxb-…`) is under **OAuth &
+   Permissions**.
+2. Under **Basic Information → App-Level Tokens**, generate a token with the scope
+   `connections:write` (`xapp-…`).
+3. In your Slack profile, **⋮ → Copy member ID**.
+4. Store both tokens; they are read without echo and never shown again:
+
+   ```sh
+   opscout secret set slack_bot_token
+   opscout secret set slack_app_token
+   opscout secret check
+   ```
+
+5. In your configuration:
+
+   ```yaml
+   daemon:
+     chat:
+       service: slack
+       user: UEXAMPLE01             # your member id
+     secrets:
+       slack_bot_token:
+         service: opscout-slack-bot
+       slack_app_token:
+         service: opscout-slack-app
+   ```
+
+6. `opscout daemon install` (it now also adds `opscout.gateway`), then `opscout run check
+   --force` to see a message arrive.
+
+### What happens
+
+- A result goes to the outbox file first, then by direct message; it counts as delivered
+  only once Slack accepted it. When Slack cannot be reached, the run keeps trying for up to
+  10 minutes, then ends `failed`. A text longer than about 11,000 characters is cut, and
+  the message names the outbox file.
+- A refused or inconclusive run sends its notice, and a failed run a short notice, without
+  buttons. A failure of the delivery itself is reported at the next session start.
+- **The gateway** (`opscout gateway`, run by launchd from login, restarted after an error)
+  holds the connection and stores your clicks. **Agree** stores `agree`; **Disagree** asks
+  for an optional reason of up to 500 characters; clicking the other button changes your
+  answer. Only your own clicks count; anything else is ignored. A reason is kept in the run
+  record only, never in a log.
+- Its log is `~/Library/Logs/opscout/gateway.log`, with states and counts only; its state
+  is `~/Library/Application Support/opscout/gateway.json`. `opscout daemon status` shows
+  whether it is connected, and the session start says when it is not installed, stopped,
+  or not connected for 15 minutes.
+- A token Slack rejects (revoked, app removed) stops the gateway for good, and status says
+  so; after you store a new token, `opscout daemon install` starts it again. A missing
+  token or an invalid configuration makes it try again every 5 minutes. A change of
+  `daemon.chat` takes effect at the next `opscout daemon install`.
+
 ## Other systems
 
 The scheduler adapter is launchd, on macOS. Elsewhere `opscout run` works (with cron or a

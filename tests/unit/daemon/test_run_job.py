@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from opscout.core.chat import MessageRef
 from opscout.core.config import Daemon, KeychainRef
 from opscout.core.daemon import (
     CHECK,
@@ -58,6 +59,12 @@ class World:
         self.delivery = MemoryDelivery()
         self.keychain = MemorySecretStore()
         self.daemon = Daemon(secrets={"claude_token": REF} if secrets else {})
+        self.alerts: list[tuple[str, str, str]] | None = None
+
+    def alert(self, job: str, run_id: str, text: str) -> MessageRef | None:
+        assert self.alerts is not None
+        self.alerts.append((job, run_id, text))
+        return MessageRef("DEXAMPLE01", "1762336800.000900")
 
     def start(
         self, *, at: datetime = START, force: bool = False, clock: Clock | None = None
@@ -68,6 +75,7 @@ class World:
             delivery=self.delivery,
             secrets=self.keychain,
             clock=clock or Clock([at]),
+            alert=self.alert if self.alerts is not None else None,
         )
         start = Start(
             job=CHECK,
@@ -315,3 +323,93 @@ def test_a_record_that_cannot_be_written_after_the_run_is_named(
         ", but its record could not be written: /example/runs/check: the record cannot be "
         "written (OSError); the next start may deliver again"
     )
+
+
+@spec("FR-005")
+def test_a_delivery_that_cannot_work_fails_before_the_model() -> None:
+    world = World()
+    world.delivery.unready = "the secret slack_bot_token is missing from the keychain"
+    record = world.start()
+    assert record.outcome == "failed"
+    assert (
+        record.reason == "delivery failed: the secret slack_bot_token is missing from the keychain"
+    )
+    assert world.runner.calls == []
+
+
+def spec_008(requirement: str) -> pytest.MarkDecorator:
+    """Mark a test as proving one requirement of spec 008."""
+    return pytest.mark.spec("008", requirement)
+
+
+@spec_008("FR-024")
+@pytest.mark.parametrize(
+    ("results", "secrets", "reason"),
+    [
+        ((RunResult("error", reason="exit 1"),), False, "exit 1"),
+        ((OK,), True, "opscout secret set claude_token"),
+    ],
+)
+def test_a_failed_run_sends_a_short_notice(
+    results: tuple[RunResult, ...], secrets: bool, reason: str
+) -> None:
+    world = World(*results, secrets=secrets)
+    world.alerts = []
+    record = world.start()
+    assert record.outcome == "failed"
+    [(job, run_id, text)] = world.alerts
+    assert (job, run_id) == ("check", record.run_id)
+    assert "check" in text
+    assert "2026-11-05" in text
+    assert reason in text
+    assert "opscout daemon runs check" in text
+    assert record.chat == MessageRef("DEXAMPLE01", "1762336800.000900")
+    assert world.store.delivered("check:2026-11-05") is None
+
+
+@spec_008("FR-024")
+def test_no_notice_when_the_delivery_itself_failed_or_chat_is_off() -> None:
+    broken = World()
+    broken.alerts = []
+    broken.delivery.broken = True
+    assert broken.start().outcome == "failed"
+    unready = World()
+    unready.alerts = []
+    unready.delivery.unready = "the secret slack_bot_token is missing"
+    assert unready.start().outcome == "failed"
+    assert broken.alerts == unready.alerts == []
+    off = World(RunResult("error", reason="exit 1"))
+    assert off.start().chat is None
+    fine = World()
+    fine.alerts = []
+    fine.start()
+    assert fine.alerts == []
+
+
+@spec_008("FR-024")
+def test_a_notice_that_raises_leaves_the_failed_record() -> None:
+    world = World(RunResult("error", reason="exit 1"))
+    world.alerts = []
+
+    def broken(job: str, run_id: str, text: str) -> MessageRef | None:
+        raise RuntimeError("the chat adapter broke")
+
+    world.alert = broken  # type: ignore[method-assign]
+    record = world.start()
+    assert record.outcome == "failed"
+    assert record.chat is None
+
+
+@spec_008("FR-006")
+def test_a_failed_direct_message_keeps_the_outbox_file_in_the_record() -> None:
+    from opscout.core.daemon import DeliveryError
+
+    world = World()
+
+    def chat_down(job: str, run_id: str, kind: str, text: str) -> object:
+        raise DeliveryError("Slack could not be reached for 10 minutes", location="/example/x.md")
+
+    world.delivery.deliver = chat_down  # type: ignore[method-assign,assignment]
+    record = world.start()
+    assert record.outcome == "failed"
+    assert record.delivery == "/example/x.md"

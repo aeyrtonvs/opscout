@@ -41,6 +41,10 @@ to launchd is `ServiceManager` in `opscout.adapters.launchd` (`load(plist)`,
 (FR-013). `ClaudeCliRunner` gets `compare_profile` from the composition root, since an
 adapter does not import `services` (ADR-0011).
 
+Spec 008 changes two ports, additively: `Delivery.deliver` returns a `Receipt` (the outbox
+file and, with chat, the message reference) and `Delivery` gains `preflight()`; `RunStore`
+gains `get(job, run_id)` (spec 008, `contracts/ports.md`).
+
 | Port | Adapter (this feature) | Fake |
 |---|---|---|
 | `Runner` | `adapters.claude_cli.ClaudeCliRunner`, which starts the executable through `subprocess.Popen` | a scripted runner; the adapter is tested against a fake `claude` script that prints recorded streams |

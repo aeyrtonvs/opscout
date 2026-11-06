@@ -16,7 +16,7 @@ import pytest
 
 from opscout.adapters.launchd import Launchctl, LaunchdScheduler, plist_bytes
 from opscout.core.config import Daemon, JobSettings
-from opscout.core.daemon import ScheduledJob
+from opscout.core.daemon import ScheduledJob, SchedulerError
 from opscout.entrypoints.daemon import engine_command
 from opscout.services.daemon import wanted_jobs
 
@@ -55,6 +55,9 @@ class RecordingManager:
 
     def is_loaded(self, label: str) -> bool:
         return label in self.loaded
+
+    def restart(self, label: str) -> None:
+        self.calls.append(("restart", label))
 
 
 # The property lists (FR-010)
@@ -258,3 +261,68 @@ def test_an_add_first_unloads_a_job_left_loaded_without_its_file(agents: Path) -
     scheduler = LaunchdScheduler(agents, manager)
     scheduler.apply(scheduler.plan([job()]))
     assert manager.calls == [("unload", "opscout.check"), ("load", "opscout.check.plist")]
+
+
+@spec("FR-010")
+def test_a_kept_alive_entry_runs_at_login_and_after_an_error() -> None:
+    gateway = ScheduledJob(
+        name="gateway",
+        arguments=(*COMMAND, "gateway", "--config", "/opt/config"),
+        times=(),
+        log=Path("/opt/log/gateway.log"),
+        environment=MappingProxyType({"PATH": "/usr/bin:/bin"}),
+        keep_alive=True,
+    )
+    data: dict[str, Any] = plistlib.loads(plist_bytes(gateway))
+    assert data["Label"] == "opscout.gateway"
+    assert data["RunAtLoad"] is True
+    assert data["KeepAlive"] == {"SuccessfulExit": False}
+    assert data["ThrottleInterval"] == 30
+    assert "StartCalendarInterval" not in data
+    assert "RunAtLoad" not in plistlib.loads(plist_bytes(job()))
+
+
+@spec("FR-011")
+def test_unload_waits_until_launchd_has_let_the_job_go() -> None:
+    answers = iter([0, 0, 0, 113])  # loaded; then still loaded twice after the bootout
+    calls: list[list[str]] = []
+    slept: list[float] = []
+
+    def run(command: list[str]) -> "subprocess.CompletedProcess[str]":
+        calls.append(command)
+        code = 0 if command[1] == "bootout" else next(answers)
+        return subprocess.CompletedProcess(command, code, "", "")
+
+    Launchctl(501, run, sleep=slept.append).unload("opscout.gateway")
+    assert [c[1] for c in calls] == ["print", "bootout", "print", "print", "print"]
+    assert slept == [0.5, 0.5]
+
+
+@spec("FR-011")
+def test_unload_gives_up_after_15_seconds() -> None:
+    def run(command: list[str]) -> "subprocess.CompletedProcess[str]":
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    slept: list[float] = []
+    with pytest.raises(SchedulerError, match="still loaded"):
+        Launchctl(501, run, sleep=slept.append).unload("opscout.gateway")
+    assert sum(slept) == pytest.approx(15)
+
+
+@spec("FR-013")
+def test_a_restart_kickstarts_the_loaded_job(agents: Path) -> None:
+    from opscout.core.daemon import PendingSchedule, SchedulerChange
+
+    manager = RecordingManager(loaded={"opscout.gateway"})
+    LaunchdScheduler(agents, manager).apply(
+        PendingSchedule((SchedulerChange("restart", "opscout.gateway", None, None),))
+    )
+    assert manager.calls == [("restart", "opscout.gateway")]
+    calls: list[list[str]] = []
+
+    def run(command: list[str]) -> "subprocess.CompletedProcess[str]":
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    Launchctl(501, run).restart("opscout.gateway")
+    assert calls == [["/bin/launchctl", "kickstart", "-k", "gui/501/opscout.gateway"]]

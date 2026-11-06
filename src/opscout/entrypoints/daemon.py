@@ -10,9 +10,11 @@ import getpass
 import os
 import shlex
 import shutil
+import signal
 import sys
+import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -23,10 +25,13 @@ from opscout import __version__
 from opscout.adapters.claude_cli import ClaudeCliRunner
 from opscout.adapters.keychain import KeyringSecretStore
 from opscout.adapters.launchd import Launchctl, LaunchdScheduler
-from opscout.adapters.run_files import FileRunStore, LocalOutbox
+from opscout.adapters.run_files import FileRunStore, GatewayFiles, LocalOutbox
+from opscout.adapters.slack import SlackChat, SlackGateway
+from opscout.core.chat import Chat, Gateway, GatewayEvent
 from opscout.core.config import (
     JOB_NAMES,
     KEYCHAIN_ITEMS,
+    ChatSetting,
     ConfigError,
     ConfigLocationError,
     Configuration,
@@ -43,7 +48,9 @@ from opscout.core.daemon import (
     RecordError,
     Runner,
     RunStore,
+    ScheduledJob,
     Scheduler,
+    SchedulerChange,
     SchedulerError,
     SecretError,
     SecretStore,
@@ -51,9 +58,11 @@ from opscout.core.daemon import (
     Trigger,
 )
 from opscout.entrypoints.config import load_config
+from opscout.services.chat import ChatDelivery, Clicks, GatewayRecorder, handle_event
 from opscout.services.config import ConfigLocation, resolve_config_dir
 from opscout.services.confirm import schedule_code
 from opscout.services.daemon import (
+    GatewayView,
     Ports,
     Start,
     compare_profile,
@@ -96,6 +105,12 @@ class Wiring:
     read_secret: Callable[[str], str]
     which: Callable[[str, str], str | None]
     """Find a program on a search path."""
+    chat: Callable[[Callable[[], str]], Chat] = field(
+        default=lambda token: SlackChat(token)  # the bot token, resolved on first use
+    )
+    sleep: Callable[[float], None] = time.sleep
+    gateway: Callable[[str, str], Gateway] = SlackGateway
+    """Build the gateway from the app-level and bot tokens."""
 
 
 def engine_command(package: Path, version: str, which: Callable[[str], str | None]) -> list[str]:
@@ -205,12 +220,18 @@ def run_command(job_name: str, *, force: bool, trigger: Trigger, flag: Path | No
         force=force,
         engine_version=__version__,
     )
+    delivery: Delivery = wired.delivery
+    alert = None
+    if daemon.chat is not None:
+        chat_delivery = _chat_delivery(wired, daemon, daemon.chat)
+        delivery, alert = chat_delivery, chat_delivery.alert
     ports = Ports(
         runner=wired.runner(daemon, wired.directories.cache / "run"),
         store=wired.store,
-        delivery=wired.delivery,
+        delivery=delivery,
         secrets=wired.secrets,
         clock=wired.clock,
+        alert=alert,
     )
     try:
         record = run_job(start, ports)
@@ -221,6 +242,36 @@ def run_command(job_name: str, *, force: bool, trigger: Trigger, flag: Path | No
         return _fail("run", f"the run store cannot be used: {error}")
     print(render_outcome(record))
     return 0 if record.outcome in SUCCESS else 1
+
+
+def _keychain_item(wired: Wiring, daemon: Daemon, name: str) -> Callable[[], str]:
+    """Return a function that resolves one keychain item once, when first needed."""
+    references = {str(key): ref for key, ref in daemon.secrets.items()}
+    resolved: list[str] = []
+
+    def resolve() -> str:
+        if not resolved:
+            resolved.append(wired.secrets.resolve(name, references[name]))
+        return resolved[0]
+
+    return resolve
+
+
+def _chat_delivery(wired: Wiring, daemon: Daemon, chat: ChatSetting) -> ChatDelivery:
+    """Return the delivery by direct message (spec 008); tokens stay in this process."""
+    bot_token = _keychain_item(wired, daemon, "slack_bot_token")
+
+    def check() -> None:
+        bot_token()  # raises SecretError, named, before any model run
+
+    return ChatDelivery(
+        outbox=wired.delivery,
+        chat=wired.chat(bot_token),
+        user=chat.user,
+        check=check,
+        clock=wired.clock,
+        sleep=wired.sleep,
+    )
 
 
 NO_SCHEDULER = "no scheduler is available for this system (only launchd, on macOS)"
@@ -268,7 +319,7 @@ def schedule_command(
         except (CommandError, LookupError) as error:
             return _fail(command, str(error))
     try:
-        pending = scheduler.plan(wanted)
+        pending = _with_restart(scheduler.plan(wanted), wanted, wired)
     except SchedulerError as error:
         return _fail(command, str(error))
     if not pending.changes:
@@ -291,7 +342,7 @@ def schedule_command(
             print("Nothing was changed.")
             return 1
         try:
-            again = scheduler.plan(wanted)
+            again = _with_restart(scheduler.plan(wanted), wanted, wired)
         except SchedulerError as error:
             return _fail(command, str(error))
         if schedule_code(again) != code:
@@ -304,6 +355,22 @@ def schedule_command(
     print(f"\nConfirmation code: {code}")
     print(f"To apply it: opscout {command}{_flags(flag)} --confirm {code}")
     return 1
+
+
+def _with_restart(
+    pending: PendingSchedule, wanted: list[ScheduledJob], wired: Wiring
+) -> PendingSchedule:
+    """Add a restart of a gateway that is installed, up to date, but stopped for good."""
+    gateway = next((job for job in wanted if job.keep_alive), None)
+    if gateway is None or any(change.label == gateway.label for change in pending.changes):
+        return pending
+    status = GatewayFiles(wired.directories.data).read()
+    if status is None or status.state != "stopped":
+        return pending
+    restart = SchedulerChange(
+        "restart", gateway.label, None, None, gateway, note=f"stopped: {status.reason}"
+    )
+    return PendingSchedule((*pending.changes, restart))
 
 
 def _apply(command: str, wired: Wiring, pending: PendingSchedule) -> int:
@@ -319,8 +386,12 @@ def _apply(command: str, wired: Wiring, pending: PendingSchedule) -> int:
         f"Installed {actions.count('add')}, updated {actions.count('update')}, "
         f"removed {actions.count('remove')}"
     )
-    loaded = actions.count("load")
-    print(summary + (f", loaded {loaded}." if loaded else "."))
+    extra = [
+        f"{word} {actions.count(action)}"
+        for action, word in (("load", "loaded"), ("restart", "restarted"))
+        if action in actions
+    ]
+    print(summary + "".join(f", {part}" for part in extra) + ".")
     return 0
 
 
@@ -340,14 +411,20 @@ def status_command(flag: Path | None) -> int:
             path=job_path(wired, configuration.daemon, command_line),
         )
         installed = wired.scheduler.installed()
-        pending = wired.scheduler.plan(wanted)
+        pending = _with_restart(wired.scheduler.plan(wanted), wanted, wired)
     except (CommandError, LookupError, SchedulerError) as error:
         return _fail("daemon status", str(error))
     configured = _settings(configuration.daemon)
     names = set(configured) | {job.name for job in installed}
     last = {name: next(iter(wired.store.records(name, 1)), None) for name in names}
+    gateway = GatewayView(
+        configured=configuration.daemon.chat is not None,
+        status=GatewayFiles(wired.directories.data).read(),
+        log=wired.directories.log / "gateway.log",
+        now=wired.clock(),
+    )
     sys.stdout.write(
-        render_status(configured, installed, pending, last, __version__, wired.path_exists)
+        render_status(configured, installed, pending, last, __version__, wired.path_exists, gateway)
     )
     return 0
 
@@ -434,12 +511,88 @@ def job_notices(location: ConfigLocation, now: datetime) -> str | None:
         daemon = load_config(location.directory).daemon
     except ConfigError:
         return None  # the SSO check already says what is wrong with the configuration
-    if not any(settings.enabled for settings in daemon.jobs.values()):
+    enabled = any(settings.enabled for settings in daemon.jobs.values())
+    if not enabled and daemon.chat is None:
         return None
     try:
         wired = wiring()
         records = {str(name): wired.store.records(name, 100) for name in daemon.jobs}
         installed = wired.scheduler.installed_times() if wired.scheduler else None
+        gateway = GatewayView(
+            configured=daemon.chat is not None,
+            status=GatewayFiles(wired.directories.data).read(),
+            log=wired.directories.log / "gateway.log",
+        )
     except Exception as error:  # the session start is never blocked (spec 005)
         return f"opscout scheduled jobs: could not be checked ({type(error).__name__})"
-    return session_notices(daemon, records, installed, now)
+    return session_notices(daemon, records, installed, now, gateway)
+
+
+RETRY_SECONDS = 300.0
+"""How long the gateway waits before exiting to be restarted, when it cannot start (R6)."""
+
+
+def _gateway_log(line: str) -> None:
+    sys.stderr.write(f"opscout gateway: {line}\n")
+    sys.stderr.flush()
+
+
+def gateway_command(flag: Path | None) -> int:
+    """Hold the chat connection and store the user's clicks (``opscout gateway``, spec 008).
+
+    Exit 0 when it must stay stopped (chat off, a token rejected, another gateway); exit 1
+    after 5 minutes when it cannot start for a reason the user can fix, so launchd tries
+    again.
+    """
+    wired = wiring()
+    files = GatewayFiles(wired.directories.data)
+    recorder = GatewayRecorder(files.write, _gateway_log, wired.clock)
+
+    def cannot_start(reason: str, kind: str) -> int:
+        recorder.state("stopped", kind, quiet=True)
+        _gateway_log(f"stopped: {reason}; retrying in 5 minutes")
+        wired.sleep(RETRY_SECONDS)
+        return 1
+
+    with files.hold() as held:
+        if not held:
+            _gateway_log("another gateway is running")
+            return 0
+        try:
+            configuration, _ = _configuration(flag, wired.environ)
+        except CommandError:
+            return cannot_start("the configuration is invalid", "configuration invalid")
+        daemon = configuration.daemon
+        if daemon.chat is None:
+            recorder.state("stopped", "daemon.chat is not configured")
+            return 0
+        try:
+            bot_token = _keychain_item(wired, daemon, "slack_bot_token")()
+            app_token = _keychain_item(wired, daemon, "slack_app_token")()
+        except SecretError as error:
+            return cannot_start(str(error), "token missing")
+        outbox = LocalOutbox(wired.directories.data)
+        clicks = Clicks(
+            user=daemon.chat.user,
+            store=wired.store,
+            chat=wired.chat(lambda: bot_token),
+            read_text=outbox.text,
+            clock=wired.clock,
+            sleep=wired.sleep,
+        )
+        gateway = wired.gateway(app_token, bot_token)
+
+        def handle(event: GatewayEvent) -> None:
+            try:
+                recorder.count(handle_event(event, clicks))
+            except Exception as error:  # one bad event must not stop the gateway
+                _gateway_log(f"an event could not be handled ({type(error).__name__})")
+
+        previous = signal.signal(signal.SIGTERM, lambda *_: gateway.stop())
+        try:
+            code = gateway.serve(handle, recorder.state)
+        finally:
+            signal.signal(signal.SIGTERM, previous)
+        if recorder.current != "stopped":
+            recorder.state("stopped", "asked to stop")  # logout, uninstall or a signal
+        return code

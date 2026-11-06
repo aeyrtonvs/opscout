@@ -69,7 +69,7 @@ def test_a_record_is_one_json_file_with_every_field(tmp_path: Path) -> None:
     assert set(data) == {
         "run_id", "record_version", "job", "period", "run_key", "trigger", "forced",
         "engine_version", "outcome", "reason", "started_at", "ended_at", "inputs",
-        "delivery", "runner", "agreement",
+        "delivery", "runner", "agreement", "chat",
     }  # fmt: skip
     assert data["record_version"] == 1
     assert data["agreement"] is None
@@ -158,7 +158,10 @@ def test_the_lock_is_exclusive_between_processes_and_dies_with_its_holder(tmp_pa
 @spec("FR-008")
 def test_the_outbox_writes_one_file_per_delivery(tmp_path: Path) -> None:
     outbox = LocalOutbox(tmp_path / "data")
-    path = outbox.deliver("check", "20261105T083000Z-a1b2c3", "result", "# Text\n")
+    outbox.preflight()
+    receipt = outbox.deliver("check", "20261105T083000Z-a1b2c3", "result", "# Text\n")
+    assert receipt.chat is None
+    path = receipt.location
     assert path == str(tmp_path / "data" / "outbox" / "check" / "20261105T083000Z-a1b2c3.md")
     assert Path(path).read_text(encoding="utf-8") == "# Text\n"
     assert [p.name for p in Path(path).parent.iterdir()] == ["20261105T083000Z-a1b2c3.md"]
@@ -266,3 +269,17 @@ def test_daemon_runs_lists_the_records(
     assert capsys.readouterr().out == "No runs recorded.\n"
     assert main(["daemon", "runs", "--limit", "1", "--config", str(config)]) == 0
     assert capsys.readouterr().out.count("\n") == 1
+
+
+@spec("FR-020")
+def test_a_record_written_before_spec_008_still_reads(tmp_path: Path) -> None:
+    store = FileRunStore(tmp_path / "data")
+    written = record("20261105T083000Z-a1b2c3")
+    data = json.loads(written.model_dump_json())
+    del data["chat"]
+    directory = tmp_path / "data" / "runs" / "check"
+    directory.mkdir(parents=True)
+    (directory / "20261105T083000Z-a1b2c3.json").write_text(json.dumps(data), encoding="utf-8")
+    assert store.get("check", "20261105T083000Z-a1b2c3") == written
+    assert store.get("check", "20261105T083000Z-ffffff") is None
+    assert store.get("check", "../check/20261105T083000Z-a1b2c3") is None
