@@ -165,3 +165,17 @@ tools:
   caps:
     # The most log rows a query returns.
     log_rows: 200
+# Alert triage (spec 012). Optional; without it, triage reads no infrastructure code, no
+# observability platform, and runs no skeptic pass.
+triage:
+  # Local clones of infrastructure code, read only by the triage tools.
+  infrastructure:
+    - name: example-infra
+      # The clone's absolute path.
+      path: /Users/example/src/example-infra
+      # The environments this clone declares; absent means every environment.
+      environments: [example-prod]
+  # True when a read-only observability server is registered in Claude Code as `observability`.
+  observability: false
+  # Days of metric history for the threshold assessment, 1 to 14.
+  metric_history_days: 7

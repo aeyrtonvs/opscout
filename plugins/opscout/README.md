@@ -34,6 +34,11 @@ repository's marketplace, and it runs the engine release of exactly its own vers
   or a postmortem, in your configured formats (spec 003).
 - `ship`: branch, commit with a checked Conventional Commit message, push through the push
   guard, and open a draft pull request with your `gh` (spec 004).
+- `alert-triage`: paste an alert and get "real, false positive or inconclusive", its
+  cause and a threshold assessment, every claim checked against read-only evidence, then a
+  draft ticket and one agreement question (spec 012). Its five subagents
+  (`triage-metrics`, `triage-logs`, `triage-changes`, `triage-config`, `triage-skeptic`)
+  have only read-only tools and no shell. See `docs/reference/triage.md`.
 
 ## Hooks
 

@@ -1,0 +1,13 @@
+[
+ {
+  "match": {},
+  "response": {
+   "AlarmHistoryItems": [
+    {
+     "Timestamp": "2026-11-06T11:45:00Z",
+     "HistorySummary": "Alarm updated from OK to ALARM"
+    }
+   ]
+  }
+ }
+]

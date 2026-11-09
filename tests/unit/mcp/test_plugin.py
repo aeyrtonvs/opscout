@@ -71,7 +71,7 @@ def test_with_no_release_the_server_fails_on_stderr_without_hook_output(tmp_path
 
 
 @spec("FR-029")
-def test_the_command_in_the_definition_starts_the_server_and_lists_nine_tools() -> None:
+def test_the_command_in_the_definition_starts_the_server_and_lists_every_tool() -> None:
     server = _definition()
     command = str(server["command"]).replace("${CLAUDE_PLUGIN_ROOT}", str(PLUGIN))
     parameters = StdioServerParameters(
@@ -91,7 +91,7 @@ def test_the_command_in_the_definition_starts_the_server_and_lists_nine_tools() 
 
     count, elapsed = anyio.run(main)
 
-    assert count == 9
+    assert count == 15  # nine from spec 011, six from spec 012
     assert elapsed < 2.0, f"listing took {elapsed:.2f} s from launch (SC-002)"
 
 

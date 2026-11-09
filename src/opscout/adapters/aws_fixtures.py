@@ -4,12 +4,15 @@
 Each action of each environment has a file, ``<root>/<environment>/<prefix>/<Action>.json``,
 holding a list of entries: ``{"match": {...}, "response": {...}}`` or ``{"match": {...},
 "error": {"reason": ..., "fix": ...}}``. The first entry whose ``match`` is a subset of the
-call's parameters answers. Nothing ever falls back to AWS. Timestamps written as ISO 8601
+call's parameters answers; a list in ``match`` matches a list of the same length item by
+item (spec 012). Several roots may be given: the first that has the file answers, so a
+scenario's few files can override a shared base (spec 012, research R12).
+Nothing ever falls back to AWS. Timestamps written as ISO 8601
 become datetimes, as botocore returns them.
 """
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -22,6 +25,10 @@ def _matches(expected: object, given: object) -> bool:
     if isinstance(expected, Mapping):
         return isinstance(given, Mapping) and all(
             key in given and _matches(value, given[key]) for key, value in expected.items()
+        )
+    if isinstance(expected, list) and isinstance(given, list | tuple):
+        return len(expected) == len(given) and all(
+            _matches(item, other) for item, other in zip(expected, given, strict=True)
         )
     return expected == given
 
@@ -43,8 +50,8 @@ def _times(value: Any) -> Any:
 class FixtureGateway:
     """Answers declared AWS read actions from a fixtures directory."""
 
-    def __init__(self, root: Path) -> None:
-        self._root = root
+    def __init__(self, root: Path | Sequence[Path]) -> None:
+        self._roots = [root] if isinstance(root, Path) else list(root)
 
     def call(
         self,
@@ -61,8 +68,11 @@ class FixtureGateway:
         prefix, operation = action.split(":", 1)
         relative = f"{environment.name}/{prefix}/{operation}.json"
         given = json.dumps(params, sort_keys=True, default=str)
+        found = next((r / relative for r in self._roots if (r / relative).is_file()), None)
         try:
-            entries = json.loads((self._root / relative).read_text(encoding="utf-8"))
+            if found is None:
+                raise FileNotFoundError(relative)
+            entries = json.loads(found.read_text(encoding="utf-8"))
         except FileNotFoundError:
             raise ToolError(ErrorReason.FIXTURE_MISSING, f"{relative} for {given}") from None
         for entry in entries:

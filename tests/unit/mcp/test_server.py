@@ -26,6 +26,12 @@ TOOLS = [
     "recent_changes",
     "find_resources",
     "describe_resource",
+    "begin_triage",
+    "check_verdict",
+    "record_agreement",
+    "show_evidence",
+    "search_iac",
+    "read_iac",
 ]
 
 
@@ -74,7 +80,7 @@ def _call(
 
 @spec("FR-002")
 @pytest.mark.parametrize("loader", [_absent, _invalid, _no_cloud])
-def test_the_server_lists_nine_tools_whatever_the_configuration(
+def test_the_server_lists_every_tool_whatever_the_configuration(
     loader: Callable[[], Configuration | None],
 ) -> None:
     assert _list(loader) == TOOLS
@@ -114,7 +120,7 @@ def test_listing_is_fast_and_does_not_load_the_aws_sdk() -> None:
         [sys.executable, "-c", script], capture_output=True, text=True, check=True
     )
     count, seconds, boto3, botocore = done.stdout.split()
-    assert (count, boto3, botocore) == ("9", "False", "False")
+    assert (count, boto3, botocore) == ("15", "False", "False")
     assert float(seconds) < 2.0
 
 

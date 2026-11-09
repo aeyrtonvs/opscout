@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The nine tools, their declared AWS actions and their handlers (spec 011, contracts/tools.md).
+"""The tools, their declared AWS actions and their handlers (specs 011 and 012).
 
 A tool's ``actions`` are every AWS action its handler may call. The surface check proves
 each one is a read the reference identity allows (FR-006), and the gateway refuses any
@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from typing import Final
 
 from opscout.core.tools import Registry, ToolSpec
-from opscout.services.tools import alarms, alerts, changes, logs, resources
+from opscout.services.tools import alarms, alerts, changes, logs, resources, triage
 from opscout.services.tools.runtime import Handler
 
 REGISTRY: Final = Registry(
@@ -19,16 +19,19 @@ REGISTRY: Final = Registry(
             "list_environments",
             "List the configured AWS environments: their names, regions, aliases and whether "
             "each uses opscout's reference read-only identity or the user's own.",
+            citable=False,
         ),
         ToolSpec(
             "parse_alert",
             "Parse an alert's text against the alert formats in the private configuration and "
             "return its fields, each with the text it came from; never guesses a field.",
+            citable=False,
         ),
         ToolSpec(
             "resolve_environment",
             "Resolve an alert's account, environment or project to a configured environment, "
             "or say that it is out of scope.",
+            citable=False,
         ),
         ToolSpec(
             "read_alarm",
@@ -111,6 +114,39 @@ REGISTRY: Final = Registry(
             ),
             needs_aws=True,
         ),
+        ToolSpec(
+            "begin_triage",
+            "Open an alert triage run: parse and resolve the alert, and return the run id, "
+            "the windows, the settings and the ticket format. Writes only a local record.",
+            citable=False,
+        ),
+        ToolSpec(
+            "check_verdict",
+            "Check a triage verdict: validate it and check every citation against the tool "
+            "results of the same run. One retry, then the run ends as inconclusive.",
+            evidence=False,
+        ),
+        ToolSpec(
+            "record_agreement",
+            "Record whether the user agrees with a run's verdict, in its local record.",
+            evidence=False,
+        ),
+        ToolSpec(
+            "show_evidence",
+            "Return earlier tool results of this machine's runs by evidence id, as the model "
+            "saw them.",
+            evidence=False,
+        ),
+        ToolSpec(
+            "search_iac",
+            "Search the configured infrastructure-code clones for a literal; returns file, "
+            "line and text. Reads nothing outside the clones, nor state, key or .env files.",
+        ),
+        ToolSpec(
+            "read_iac",
+            "Read up to 200 lines of one file in a configured infrastructure-code clone, "
+            "with their line numbers.",
+        ),
     )
 )
 
@@ -125,6 +161,12 @@ HANDLERS: dict[str, Handler] = {
     "recent_changes": changes.recent_changes,
     "find_resources": resources.find_resources,
     "describe_resource": resources.describe_resource,
+    "begin_triage": triage.begin_triage,
+    "check_verdict": triage.check_verdict,
+    "record_agreement": triage.record_agreement,
+    "show_evidence": triage.show_evidence,
+    "search_iac": triage.search_iac,
+    "read_iac": triage.read_iac,
 }
 
 SPECS: Final[Mapping[str, ToolSpec]] = {tool.name: tool for tool in REGISTRY}

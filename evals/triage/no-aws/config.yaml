@@ -1,0 +1,29 @@
+# The configuration of spec 012's eval scenarios: spec 011's two example formats, with a
+# time field, and one fake environment.
+schema_version: 1
+alerts:
+  formats:
+    - name: example-notifier
+      recognize: '^(CRITICAL|WARNING): '
+      fields:
+        severity: '^(CRITICAL|WARNING): '
+        title: '^(?:CRITICAL|WARNING): (.+)$'
+        project: '^Project: (.+)$'
+        environment: '^Environment: (.+)$'
+        resource: '^Resource: (.+)$'
+        account: '^Account: (\d{12})'
+        region: '^Region: ([a-z0-9-]+)$'
+        metric: '^Metric: (.+)$'
+        threshold: '^Threshold: (.+)$'
+        time: '^Time: (.+)$'
+    - name: example-monitor
+      recognize: '^Triggered: \['
+      fields:
+        project: '^Triggered: \[([^\]]+)\]'
+        environment: '^Triggered: \[[^\]]+\]\[([^\]]+)\]'
+        title: '^Triggered: (?:\[[^\]]+\]){2} ?(.+)$'
+        time: '^Time: (.+)$'
+tools:
+  timezone: UTC
+sso:
+  enabled: false

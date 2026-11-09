@@ -24,9 +24,15 @@ alert tools work, and every AWS tool answers `not-configured`.
 | `read_alarm` | A CloudWatch alarm's state, reason, threshold and state changes, and its metric over the window. |
 | `read_metric` | A metric's data points, by namespace, name, dimensions, statistic and period. |
 | `query_logs` | The rows and statistics of a Logs Insights query over one to ten log groups. The rows are capped by `log_rows` or the query's own `limit`, whichever is smaller; `@timestamp` and `@ingestionTime` are given in the configured timezone; other time columns, such as `bin()`'s, come as Logs Insights writes them, in UTC. A query still running at the wait limit is stopped and marked partial. |
-| `recent_changes` | Who changed what, when, newest first: API activity that changed something, stack events, and deployments, scaling activities or database events for a given resource. |
+| `recent_changes` | Who changed what, when, newest first: API activity that changed something, stack events, and deployments, scaling activities or database events for a given resource. Agent heartbeats (such as `UpdateInstanceInformation` and `PutInventory`) and `triage.background_actions` are dropped and counted in `background_dropped`, unless `include_background` is true (spec 012). |
 | `find_resources` | Resources found by name, tag or type. Only tagged resources appear, because the tagging API lists only those. |
 | `describe_resource` | One resource's reviewed configuration. |
+| `begin_triage` | Opens an alert triage run: the parsed alert, its environment or why none, the windows, the settings and the ticket format. Writes the run's local record (spec 012). |
+| `check_verdict` | Checks a triage verdict against the tool results of the same run: one retry, then the run ends as inconclusive. |
+| `record_agreement` | Records whether the user agrees with a run's verdict. |
+| `show_evidence` | Earlier results by evidence id, as the model saw them. |
+| `search_iac` | Lines of the configured infrastructure-code clones that contain a literal, with file and line. |
+| `read_iac` | Up to 200 numbered lines of one file in a configured clone. |
 
 What the tools never read:
 
@@ -67,6 +73,7 @@ Every tool returns the same envelope:
 | `partial` | True when the deadline stopped the tool before it finished. |
 | `data` | The tool's data, or null on error. |
 | `error` | `{reason, message, fix}` when the call failed, or null. |
+| `evidence` | The result's evidence id, which a triage verdict cites; null for the tools that check or show evidence, and when the evidence store cannot be written (spec 012). |
 
 ## Redaction
 

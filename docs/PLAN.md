@@ -1,12 +1,13 @@
 # opscout — plan
 
-> Status (2026-11-05): **Phase 0a done**: the repository is public at
+> Status (2026-11-06): **Phase 0a done**: the repository is public at
 > `github.com/aeyrtonvs/opscout`, with CI green. **Phase 0b done** (§7): specs 001 to 006
 > are merged. **Phase 1 in progress**: specs 007, daemon-core, 008, chat-output, and 009,
 > daily-standup, are merged; its last exit criterion, a week of dailies and their agreement
 > rate, is being measured (§9). **Phase 2 in progress**: spec 010, readonly-identity, is
 > merged; ADR-0023 makes its identity recommended rather than required. Spec 011,
-> ops-mcp-server, is implemented on `feat/011-ops-mcp-server`. The
+> ops-mcp-server, is merged. Spec 012, alert-triage, is implemented on
+> `feat/012-alert-triage`. The
 > constitution is at 2.0.0, ADRs 0001–0023 are accepted, Spec Kit 1.2.6 is
 > initialized, the rule-5 gate is in place (`.claude/settings.json`), and commits are signed
 > with SSH from the GitHub no-reply address. The project is named **opscout** (ADR-0019).
@@ -528,6 +529,30 @@ Mock mode (`--mock`) answers from `evals/mcp/aws/`, which the alert-triage spec'
 reuse. Each integration is optional; with no AWS, the AWS tools say so. Spec 010's
 capabilities gained three reads that the tools need.
 
+**alert-triage** (spec 012, implemented 2026-11-06): the `alert-triage` skill. The user pastes
+an alert; `begin_triage` parses and resolves it in code and sets the windows around the
+alert's time.
+
+- **Gathering**: four plugin subagents (metrics, logs, changes, configuration) gather
+  evidence in parallel. Each has a fixed allow-list of opscout tools and no shell.
+- **The verdict**: real, false positive or inconclusive; the cause; keep or tune the
+  threshold, from 7 days of history; assumptions and timezones.
+- **The check**: `check_verdict` checks every citation in code against the tool results
+  of the same run, kept 24 hours in a local evidence store. It allows one retry, then
+  ends the run as inconclusive.
+- **After the check**: a draft ticket in the user's `ticket` format, never filed, and one
+  agreement question, stored in a local record (`opscout triage runs | show`).
+
+Infrastructure code is read through two tools confined to configured clones. An
+observability platform is read through its own read-only server, registered as
+`observability`, and marked "not checked". `recent_changes` now drops agent heartbeats.
+The skeptic pass ships disabled: on the public suite its ablation changed no
+classification, lowered two cases and cost 23 % more. Evaluated on 20 synthetic cases in
+mock mode: all 20 at 1.00 (the baseline), each under 2 minutes, about 0.5 USD each. The
+independent review found two HIGH issues: an echoed or envelope value could support a
+verdict, and case-variant or `.tfvars` files could be read. Both are fixed with tests. The
+live check waits for a login (§9).
+
 Candidate, not committed: let alert triage see earlier verdicts for the same alert, since
 recurrence informs "real or tune the threshold?". Only verdicts the user agreed with, with
 their dates, to limit memory poisoning (OWASP ASI06).
@@ -738,6 +763,25 @@ genai.owasp.org (Top 10 for Agentic Applications).
       observed. If a scheduled run fails then, store the `claude_token` fallback
       (`docs/reference/daemon.md`).
 - [ ] The run records and the outbox have no retention yet (spec 007): they grow by a few
-      small files a day. Decide a retention with chat-output or run-insights.
+      small files a day. Spec 012's triage records join them; its evidence store expires
+      after 24 hours. Decide a retention with chat-output or run-insights.
 - [ ] Leak check, annotated tags: their messages and taggers are not checked (a non-goal of
       spec 001, decided 2026-11-04). Decide before the first release tag.
+- [ ] Alert triage, live check (spec 012, T053): not run on 2026-11-06, because the
+      sandbox environment's SSO session had expired. Run one real alert from the private
+      samples in a session with the plugin from the clone, and record it in spec 012's
+      Actuals.
+- [ ] Alert triage (spec 012, SC-006): after merge, triage the first 10 real alerts and
+      record the agreement rate from `opscout triage runs` (target ≥ 80 %). Real samples
+      become private eval cases (FR-028).
+- [ ] Alert triage, observability allow-list (spec 012, research R3): a plugin's subagent
+      cannot list the tools of a server named at install time, so the platform's server is
+      reached under the fixed name `observability` and all its tools are allowed. Revisit if
+      Claude Code adds a way to name a user's server, or to deny its write tools.
+- [ ] Alert triage, cost (spec 012, Principle IX): an interactive session does not expose
+      its cost to the skill, so triage records hold `cost_usd: null`. Headless runs
+      (Phase 3) report it.
+- [ ] Alert triage, alarm discovery (spec 012): the metrics subagent finds the alarm by the
+      alert's title or resource name. Notifier texts that name neither need a lookup by
+      metric (`cloudwatch:DescribeAlarmsForMetric`), which spec 010's capabilities and spec
+      011's surface would gain first.

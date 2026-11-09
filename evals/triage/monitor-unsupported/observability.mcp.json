@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "observability": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--frozen",
+        "--directory",
+        "@REPO_ROOT@",
+        "python",
+        "evals/triage/observability_server.py",
+        "@CASE_ROOT@/observability.json"
+      ]
+    }
+  }
+}

@@ -832,6 +832,63 @@ class Tools(BaseModel):
     )
 
 
+_CloneName = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
+_EnvironmentName = Annotated[
+    str, StringConstraints(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
+]
+_CloudTrailAction = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9]{0,127}$")]
+
+
+class InfrastructureClone(BaseModel):
+    """A local clone of infrastructure code that triage reads (spec 012, FR-012)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    name: _CloneName = Field(description="How citations and read_iac name this clone.")
+    path: _AbsolutePath = Field(description="The clone's absolute path; it is only read.")
+    environments: Annotated[list[_EnvironmentName], Field(min_length=1, max_length=50)] | None = (
+        Field(
+            default=None,
+            description="The environments this clone declares; absent means every environment.",
+        )
+    )
+
+
+class Triage(BaseModel):
+    """Alert triage's settings (spec 012)."""
+
+    model_config = ConfigDict(strict=True, extra="forbid", frozen=True)
+
+    infrastructure: Annotated[list[InfrastructureClone], Field(max_length=20)] = Field(
+        default_factory=list,
+        description="Local clones of infrastructure code, read only by the triage tools.",
+    )
+    observability: bool = Field(
+        default=False,
+        description=(
+            "True when a read-only observability server is registered in Claude Code under "
+            "the name `observability`; its evidence is marked not checked."
+        ),
+    )
+    skeptic: bool = Field(
+        default=False, description="Run the skeptic pass after a verdict passes its check."
+    )
+    metric_history_days: Annotated[int, Field(ge=1, le=14)] = Field(
+        default=7, description="Days of metric history for the threshold assessment."
+    )
+    background_actions: Annotated[list[_CloudTrailAction], Field(max_length=50)] = Field(
+        default_factory=list,
+        description="More CloudTrail actions to drop from recent changes as background.",
+    )
+
+    @model_validator(mode="after")
+    def _unique_clones(self) -> "Triage":
+        names = [clone.name for clone in self.infrastructure]
+        if len(set(names)) != len(names):
+            raise PydanticCustomError("opscout_triage", "two clones share a name")
+        return self
+
+
 class Configuration(BaseModel):
     """The private opscout configuration (config.yaml in the configuration directory)."""
 
@@ -884,6 +941,25 @@ class Configuration(BaseModel):
         default_factory=Tools,
         description="Timezone, redaction and caps for the tool server's results (spec 011).",
     )
+    triage: Triage | None = Field(
+        default=None,
+        description="Alert triage: infrastructure clones, observability, the skeptic pass "
+        "(spec 012).",
+    )
+
+    @model_validator(mode="after")
+    def _triage_environments(self) -> "Configuration":
+        if self.triage is None:
+            return self
+        known = {e.name for e in self.aws.environments} if self.aws else set()
+        for clone in self.triage.infrastructure:
+            if any(name not in known for name in clone.environments or ()):
+                raise PydanticCustomError(
+                    "opscout_triage",
+                    "a clone in triage.infrastructure lists an environment that "
+                    "is not a configured environment",
+                )
+        return self
 
     @model_validator(mode="after")
     def _standup_needs(self) -> "Configuration":

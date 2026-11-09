@@ -133,6 +133,10 @@ class ToolSpec:
     description: str
     actions: frozenset[str] = frozenset()
     needs_aws: bool = False
+    evidence: bool = True
+    """Whether its results are kept as evidence for the triage check (spec 012, R2)."""
+    citable: bool = True
+    """Whether a verdict may cite them: not for tools that echo their input (review H1)."""
 
 
 @dataclass(frozen=True)
